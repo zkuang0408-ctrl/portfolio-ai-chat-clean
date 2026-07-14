@@ -15,6 +15,19 @@ describe("particle randomness", () => {
     ]);
   });
 
+  it("produces distinct bounded sequences for different seeds", () => {
+    const first = createRandom(20260714);
+    const second = createRandom(20260715);
+    const firstSequence = Array.from({ length: 12 }, () => first());
+    const secondSequence = Array.from({ length: 12 }, () => second());
+
+    expect(firstSequence).not.toEqual(secondSequence);
+    for (const value of [...firstSequence, ...secondSequence]) {
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+  });
+
   it("weights size bands toward fine particles", () => {
     const random = createRandom(42);
     const counts: Record<ParticleSizeBand, number> = {
@@ -28,10 +41,14 @@ describe("particle randomness", () => {
       counts[pickSizeBand(random)] += 1;
     }
 
-    expect(counts.micro / 20_000).toBeCloseTo(0.65, 1);
-    expect(counts.medium / 20_000).toBeCloseTo(0.25, 1);
-    expect(counts.large / 20_000).toBeCloseTo(0.08, 1);
-    expect(counts.splash / 20_000).toBeCloseTo(0.02, 1);
+    expect(Math.abs(counts.micro / 20_000 - 0.65)).toBeLessThanOrEqual(0.01);
+    expect(Math.abs(counts.medium / 20_000 - 0.25)).toBeLessThanOrEqual(
+      0.01,
+    );
+    expect(Math.abs(counts.large / 20_000 - 0.08)).toBeLessThanOrEqual(0.01);
+    expect(Math.abs(counts.splash / 20_000 - 0.02)).toBeLessThanOrEqual(
+      0.01,
+    );
   });
 
   it("produces reproducible spatial noise that changes between cells", () => {
@@ -39,5 +56,18 @@ describe("particle randomness", () => {
 
     expect(spatialNoise(12, 18, 9)).toBe(value);
     expect(spatialNoise(13, 18, 9)).not.toBe(value);
+  });
+
+  it("keeps spatial noise in the normalized range", () => {
+    const values = [
+      spatialNoise(12, 18, 9),
+      spatialNoise(-12, 18, 9),
+      spatialNoise(1_000_000, -1_000_000, 9),
+    ];
+
+    for (const value of values) {
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
   });
 });
