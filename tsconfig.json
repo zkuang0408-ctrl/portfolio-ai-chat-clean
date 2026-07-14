@@ -10,7 +10,7 @@
     "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["vite/client", "vitest/globals", "node"]
+    "types": ["vite/client"]
   },
   "include": [
     "src",
