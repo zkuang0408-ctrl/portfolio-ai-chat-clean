@@ -4,6 +4,7 @@ const port = 4173;
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./tests/global-setup.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
@@ -15,9 +16,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${port}`,
+    command: `node ./node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port ${port} --strictPort`,
     port,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
