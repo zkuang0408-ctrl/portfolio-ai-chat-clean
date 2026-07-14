@@ -1,0 +1,19 @@
+import { expect, test } from "vitest";
+
+import { renderHero } from "./render-hero";
+
+test("renders the editorial hero without publishing unfinished navigation links", () => {
+  const root = document.createElement("div");
+
+  renderHero(root, "/portrait.png");
+
+  expect(root.textContent).toContain("赵实旷");
+  expect(root.textContent).toContain("Crafting");
+  expect(root.textContent).toContain("Through Objects");
+  expect(root.querySelectorAll("nav a")).toHaveLength(0);
+  expect(root.querySelectorAll('nav [aria-disabled="true"]')).toHaveLength(3);
+  expect(root.querySelector("canvas")?.getAttribute("aria-hidden")).toBe("true");
+  expect(root.querySelector<HTMLImageElement>(".portrait-base")?.src).toContain(
+    "/portrait.png",
+  );
+});
