@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { samplePortrait } from "./sampler";
+import { edgeStrength, samplePortrait } from "./sampler";
 import type { PixelBuffer } from "./types";
 
 function buffer(width: number, height: number, pixel: number): PixelBuffer {
@@ -15,6 +15,28 @@ function buffer(width: number, height: number, pixel: number): PixelBuffer {
 
   return { data, width, height };
 }
+
+function setPixel(
+  pixels: PixelBuffer,
+  x: number,
+  y: number,
+  value: number,
+): void {
+  const index = (y * pixels.width + x) * 4;
+  pixels.data[index] = value;
+  pixels.data[index + 1] = value;
+  pixels.data[index + 2] = value;
+}
+
+it("amplifies horizontal and vertical luminance edges equally", () => {
+  const horizontalEdge = buffer(3, 3, 0);
+  const verticalEdge = buffer(3, 3, 0);
+  setPixel(horizontalEdge, 2, 1, 51);
+  setPixel(verticalEdge, 1, 2, 51);
+
+  expect(edgeStrength(horizontalEdge, 1, 1)).toBeCloseTo(0.36);
+  expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
+});
 
 describe("samplePortrait", () => {
   it("does not sample particles from a black portrait", () => {

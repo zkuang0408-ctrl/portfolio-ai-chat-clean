@@ -44,7 +44,11 @@ function luminance(buffer: PixelBuffer, x: number, y: number): number {
   return (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
 }
 
-function edgeStrength(buffer: PixelBuffer, x: number, y: number): number {
+export function edgeStrength(
+  buffer: PixelBuffer,
+  x: number,
+  y: number,
+): number {
   const dx = Math.abs(
     luminance(buffer, x + 1, y) - luminance(buffer, x - 1, y),
   );
@@ -52,7 +56,7 @@ function edgeStrength(buffer: PixelBuffer, x: number, y: number): number {
     luminance(buffer, x, y + 1) - luminance(buffer, x, y - 1),
   );
 
-  return Math.min(1, dx + dy * 1.8);
+  return Math.min(1, (dx + dy) * 1.8);
 }
 
 function isInsideEllipse(
