@@ -24,8 +24,18 @@ export function particleProgress(global: number, delay: number): number {
 }
 
 export function runEntrance(options: TimelineOptions): () => void {
+  if (!Number.isFinite(options.duration) || options.duration <= 0) {
+    throw new RangeError("Timeline duration must be a positive finite number.");
+  }
+
   const startedAt = options.now();
+
+  if (!Number.isFinite(startedAt)) {
+    throw new RangeError("Timeline start time must be finite.");
+  }
+
   let frameId: number;
+  let lastProgress = 0;
   let stopped = false;
 
   const tick = (): void => {
@@ -33,10 +43,24 @@ export function runEntrance(options: TimelineOptions): () => void {
       return;
     }
 
-    const elapsed = (options.now() - startedAt) / options.duration;
-    const progress = Math.min(1, Math.max(0, elapsed));
+    const currentTime = options.now();
+
+    if (!Number.isFinite(currentTime)) {
+      stopped = true;
+      throw new RangeError("Timeline frame time must be finite.");
+    }
+
+    const elapsed = (currentTime - startedAt) / options.duration;
+    const candidate = Math.min(1, Math.max(0, elapsed));
+    const progress = Math.max(lastProgress, candidate);
+
+    lastProgress = progress;
 
     options.onFrame(progress);
+
+    if (stopped) {
+      return;
+    }
 
     if (progress >= 1) {
       stopped = true;
