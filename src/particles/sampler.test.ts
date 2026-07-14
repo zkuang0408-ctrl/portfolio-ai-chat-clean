@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { edgeStrength, samplePortrait } from "./sampler";
+import { edgeStrength, MAX_PARTICLES, samplePortrait } from "./sampler";
 import type { PixelBuffer } from "./types";
 
 function buffer(width: number, height: number, pixel: number): PixelBuffer {
@@ -45,6 +45,40 @@ describe("samplePortrait", () => {
     ).toHaveLength(0);
   });
 
+  it("floors fractional particle limits and rejects negative limits", () => {
+    const pixels = buffer(80, 120, 255);
+
+    expect(samplePortrait(pixels, { maxParticles: 0.5, seed: 8 })).toHaveLength(
+      0,
+    );
+    expect(
+      samplePortrait(pixels, { maxParticles: 2.8, seed: 8 }).length,
+    ).toBeLessThanOrEqual(2);
+    expect(
+      samplePortrait(pixels, { maxParticles: -4, seed: 8 }),
+    ).toHaveLength(0);
+  });
+
+  it("rejects non-finite particle limits", () => {
+    const pixels = buffer(80, 120, 255);
+
+    expect(
+      samplePortrait(pixels, { maxParticles: Number.POSITIVE_INFINITY, seed: 8 }),
+    ).toHaveLength(0);
+    expect(
+      samplePortrait(pixels, { maxParticles: Number.NaN, seed: 8 }),
+    ).toHaveLength(0);
+  });
+
+  it("caps excessive particle limits", () => {
+    const particles = samplePortrait(buffer(80, 120, 255), {
+      maxParticles: MAX_PARTICLES + 1_000,
+      seed: 8,
+    });
+
+    expect(particles).toHaveLength(MAX_PARTICLES);
+  });
+
   it("is deterministic and fills a useful portion of the particle budget", () => {
     const pixels = buffer(80, 120, 255);
     const options = { maxParticles: 300, seed: 8 };
@@ -69,20 +103,32 @@ describe("samplePortrait", () => {
     expect(oversizedCoreParticles).toHaveLength(0);
   });
 
-  it("samples sparse target coordinates instead of covering the pixel grid", () => {
+  it("leaves spatial cells empty between populated particle clusters", () => {
     const width = 80;
     const height = 120;
     const particles = samplePortrait(buffer(width, height, 255), {
-      maxParticles: 600,
+      maxParticles: 1_000,
       seed: 2,
     });
-    const occupiedCoordinates = new Set(
-      particles.map(
-        ({ targetX, targetY }) => `${Math.round(targetX)},${Math.round(targetY)}`,
-      ),
+    const occupiedCells = new Set(
+      particles
+        .filter(
+          ({ targetX, targetY }) =>
+            targetX >= 0 &&
+            targetX < width &&
+            targetY >= 0 &&
+            targetY < height,
+        )
+        .map(
+          ({ targetX, targetY }) =>
+            `${Math.floor(targetX / 9)},${Math.floor(targetY / 9)}`,
+        ),
     );
+    const totalCells = Math.ceil(width / 9) * Math.ceil(height / 9);
+    const emptyCells = totalCells - occupiedCells.size;
 
-    expect(occupiedCoordinates.size).toBeLessThan(width * height * 0.25);
+    expect(occupiedCells.size).toBeGreaterThan(100);
+    expect(emptyCells).toBeGreaterThanOrEqual(8);
   });
 
   it("changes samples with the seed while keeping visual values bounded", () => {
@@ -92,15 +138,29 @@ describe("samplePortrait", () => {
 
     expect(first).not.toEqual(second);
     for (const particle of [...first, ...second]) {
-      expect(Number.isFinite(particle.tone)).toBe(true);
-      expect(Number.isFinite(particle.alpha)).toBe(true);
-      expect(Number.isFinite(particle.radius)).toBe(true);
+      for (const value of [
+        particle.targetX,
+        particle.targetY,
+        particle.startX,
+        particle.startY,
+        particle.tone,
+        particle.alpha,
+        particle.radius,
+        particle.stretch,
+        particle.delay,
+      ]) {
+        expect(Number.isFinite(value)).toBe(true);
+      }
       expect(particle.tone).toBeGreaterThanOrEqual(150);
       expect(particle.tone).toBeLessThanOrEqual(255);
       expect(particle.alpha).toBeGreaterThanOrEqual(0);
       expect(particle.alpha).toBeLessThanOrEqual(0.96);
       expect(particle.radius).toBeGreaterThanOrEqual(0.45);
       expect(particle.radius).toBeLessThanOrEqual(7.5);
+      expect(particle.stretch).toBeGreaterThanOrEqual(0.82);
+      expect(particle.stretch).toBeLessThanOrEqual(1.55);
+      expect(particle.delay).toBeGreaterThanOrEqual(0.1);
+      expect(particle.delay).toBeLessThanOrEqual(0.72);
     }
   });
 });

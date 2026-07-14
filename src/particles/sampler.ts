@@ -15,6 +15,8 @@ const RADIUS_RANGES: Record<ParticleSizeBand, readonly [number, number]> = {
   splash: [4.5, 7.5],
 };
 
+export const MAX_PARTICLES = 50_000;
+
 function between(
   random: RandomSource,
   minimum: number,
@@ -133,15 +135,21 @@ export function samplePortrait(
   options: SampleOptions,
 ): Particle[] {
   const { maxParticles, seed } = options;
-  const random = createRandom(seed);
+  const particleLimit = Number.isFinite(maxParticles)
+    ? Math.min(MAX_PARTICLES, Math.max(0, Math.floor(maxParticles)))
+    : 0;
   const particles: Particle[] = [];
-  const attempts = Math.max(0, maxParticles) * 28;
 
-  if (buffer.width <= 0 || buffer.height <= 0) return particles;
+  if (particleLimit === 0 || buffer.width <= 0 || buffer.height <= 0) {
+    return particles;
+  }
+
+  const random = createRandom(seed);
+  const attempts = particleLimit * 28;
 
   for (
     let attempt = 0;
-    attempt < attempts && particles.length < maxParticles;
+    attempt < attempts && particles.length < particleLimit;
     attempt += 1
   ) {
     const x = random() * buffer.width;
