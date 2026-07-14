@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretest:e2e": "node ./scripts/clean-e2e-output.mjs",
     "test:e2e": "npm run build && playwright test",
     "preview": "vite preview"
   },
