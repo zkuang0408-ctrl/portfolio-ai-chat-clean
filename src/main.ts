@@ -1,4 +1,4 @@
-import portraitUrl from "./assets/portrait.png";
+import portraitUrl from "./assets/portrait.webp";
 import { renderHero } from "./hero/render-hero";
 import "./styles.css";
 
