@@ -152,10 +152,24 @@ test("renders a responsive, complete portrait and becomes still", async ({
   await expectCriticalLayoutInsideViewport(page);
 
   const artifactNames: Record<string, string> = {
-    "desktop-1440": "desktop-final.png",
-    "mobile-390": "mobile-final.png",
+    "desktop-1440": "desktop-1440-final.png",
+    "desktop-1920": "desktop-1920-final.png",
+    "mobile-390": "mobile-390-final.png",
+    "mobile-430": "mobile-430-final.png",
   };
   const artifactName = artifactNames[testInfo.project.name];
+  const requiredArtifactProjects = new Set([
+    "desktop-1440",
+    "desktop-1920",
+    "mobile-390",
+    "mobile-430",
+  ]);
+  if (requiredArtifactProjects.has(testInfo.project.name)) {
+    expect(
+      artifactName,
+      `${testInfo.project.name} should have a visual-QA screenshot name`,
+    ).toBeDefined();
+  }
   if (artifactName) {
     await page.screenshot({
       animations: "disabled",
