@@ -130,15 +130,20 @@ body {
   transform: translateX(-50%);
 }
 
+.portrait-stage--fallback .portrait-canvas,
+.portrait-stage--error .portrait-canvas,
 .portrait-stage.is-error .portrait-canvas {
   display: none;
 }
 
+.portrait-stage--fallback .portrait-base,
+.portrait-stage--error .portrait-base,
 .portrait-stage.is-error .portrait-base {
   opacity: 0.46;
   filter: grayscale(1) contrast(1.12) brightness(0.72);
 }
 
+.portrait-stage--error .portrait-error,
 .portrait-stage.is-error .portrait-error {
   opacity: 1;
 }

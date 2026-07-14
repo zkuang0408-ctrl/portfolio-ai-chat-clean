@@ -139,6 +139,23 @@ describe("ParticleRenderer", () => {
     expect(context.globalAlpha).toBe(1);
   });
 
+  it("aligns a contained portrait to the CSS 18% vertical position", () => {
+    const { context, renderer } = createRenderer();
+    renderer.resize(200, 500, 1);
+
+    renderer.draw([particle], 1, { width: 100, height: 100 });
+
+    expect(context.ellipse).toHaveBeenCalledWith(
+      100,
+      174,
+      2.4,
+      2,
+      0,
+      0,
+      Math.PI * 2,
+    );
+  });
+
   it("clears but does not draw a particle before its delayed entrance", () => {
     const { context, renderer } = createRenderer();
     renderer.resize(400, 300, 1);

@@ -2,6 +2,7 @@ import { particleProgress } from "./timeline";
 import type { Particle } from "./types";
 
 export const DEFAULT_MAX_DRAW_PARTICLES = 16_000;
+export const DEFAULT_PORTRAIT_POSITION_Y = 0.18;
 
 export interface SourceSize {
   width: number;
@@ -80,7 +81,8 @@ export class ParticleRenderer {
         this.height / source.height,
       );
       const offsetX = (this.width - source.width * scale) / 2;
-      const offsetY = (this.height - source.height * scale) / 2;
+      const offsetY =
+        (this.height - source.height * scale) * DEFAULT_PORTRAIT_POSITION_Y;
 
       const drawCount = Math.min(particles.length, this.maxDrawParticles);
 

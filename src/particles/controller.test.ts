@@ -51,6 +51,31 @@ function dependencies(width = 600) {
   return { ...dom, renderer, loadPixels, sample, stop, run };
 }
 
+function installMatchMedia(viewportWidth: number, reducedMotion = false) {
+  const matchMedia = vi.fn((query: string): MediaQueryList => {
+    const matches =
+      query === "(max-width: 760px)"
+        ? viewportWidth <= 760
+        : query === "(prefers-reduced-motion: reduce)"
+          ? reducedMotion
+          : false;
+
+    return {
+      matches,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+  });
+
+  vi.stubGlobal("matchMedia", matchMedia);
+  return matchMedia;
+}
+
 describe("imageToPixels", () => {
   it("decodes the portrait and extracts its pixels through an offscreen canvas", async () => {
     const image = document.createElement("img");
@@ -75,6 +100,64 @@ describe("imageToPixels", () => {
     expect(offscreen.height).toBe(2);
     expect(drawImage).toHaveBeenCalledWith(image, 0, 0);
     expect(getImageData).toHaveBeenCalledWith(0, 0, 2, 2);
+  });
+
+  it("uses an already complete image when decode is unavailable", async () => {
+    const image = document.createElement("img");
+    const offscreen = document.createElement("canvas");
+    const context = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue(pixels),
+    };
+    Object.defineProperties(image, {
+      decode: { configurable: true, value: undefined },
+      complete: { configurable: true, value: true },
+      naturalWidth: { configurable: true, value: 2 },
+      naturalHeight: { configurable: true, value: 2 },
+    });
+    vi.spyOn(offscreen, "getContext").mockReturnValue(
+      context as unknown as CanvasRenderingContext2D,
+    );
+
+    await expect(imageToPixels(image, () => offscreen)).resolves.toBe(pixels);
+  });
+
+  it("waits for the image load event when decode is unavailable", async () => {
+    const image = document.createElement("img");
+    const offscreen = document.createElement("canvas");
+    const context = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue(pixels),
+    };
+    Object.defineProperties(image, {
+      decode: { configurable: true, value: undefined },
+      complete: { configurable: true, value: false },
+      naturalWidth: { configurable: true, value: 2 },
+      naturalHeight: { configurable: true, value: 2 },
+    });
+    vi.spyOn(offscreen, "getContext").mockReturnValue(
+      context as unknown as CanvasRenderingContext2D,
+    );
+
+    const result = imageToPixels(image, () => offscreen);
+    image.dispatchEvent(new Event("load"));
+
+    await expect(result).resolves.toBe(pixels);
+  });
+
+  it("rejects the image error event when decode is unavailable", async () => {
+    const image = document.createElement("img");
+    Object.defineProperties(image, {
+      decode: { configurable: true, value: undefined },
+      complete: { configurable: true, value: false },
+      naturalWidth: { configurable: true, value: 0 },
+      naturalHeight: { configurable: true, value: 0 },
+    });
+
+    const result = imageToPixels(image, vi.fn());
+    image.dispatchEvent(new Event("error"));
+
+    await expect(result).rejects.toThrow("failed to load");
   });
 
   it("rejects invalid decoded image dimensions before creating a canvas", async () => {
@@ -111,30 +194,32 @@ describe("startPortrait", () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  it("uses the fixed seed and mobile particle limit", async () => {
-    const deps = dependencies(759);
+  it.each([
+    { viewportWidth: 600, stageWidth: 768, maxParticles: 7_000 },
+    { viewportWidth: 760, stageWidth: 900, maxParticles: 7_000 },
+    { viewportWidth: 761, stageWidth: 600, maxParticles: 14_000 },
+  ])(
+    "samples $maxParticles particles for a $viewportWidth px viewport independently of the $stageWidth px stage",
+    async ({ viewportWidth, stageWidth, maxParticles }) => {
+      const deps = dependencies(stageWidth);
+      const matchMedia = installMatchMedia(viewportWidth);
 
-    await start({ ...deps, reducedMotion: true });
+      await start(deps);
 
-    expect(deps.sample).toHaveBeenCalledWith(pixels, {
-      maxParticles: 7_000,
-      seed: 20260714,
-    });
-  });
-
-  it("uses the desktop particle limit at the 760px breakpoint", async () => {
-    const deps = dependencies(760);
-
-    await start({ ...deps, reducedMotion: true });
-
-    expect(deps.sample).toHaveBeenCalledWith(pixels, {
-      maxParticles: 14_000,
-      seed: 20260714,
-    });
-  });
+      expect(deps.sample).toHaveBeenCalledWith(pixels, {
+        maxParticles,
+        seed: 20260714,
+      });
+      expect(matchMedia).toHaveBeenCalledWith("(max-width: 760px)");
+      expect(matchMedia).toHaveBeenCalledWith(
+        "(prefers-reduced-motion: reduce)",
+      );
+    },
+  );
 
   it("draws the settled state immediately for reduced motion", async () => {
     const deps = dependencies();
@@ -146,7 +231,7 @@ describe("startPortrait", () => {
     expect(deps.renderer.draw).toHaveBeenLastCalledWith([particle], 1, pixels);
   });
 
-  it("plays one 2200ms entrance and finishes in the settled state", async () => {
+  it("plays one 2200ms entrance without redrawing its terminal frame", async () => {
     const deps = dependencies();
 
     await start({ ...deps, reducedMotion: false });
@@ -154,14 +239,11 @@ describe("startPortrait", () => {
     expect(deps.run).toHaveBeenCalledOnce();
     const options = deps.run.mock.calls[0]?.[0];
     expect(options?.duration).toBe(2200);
-    options?.onFrame(0.4);
-    expect(deps.renderer.draw).toHaveBeenLastCalledWith(
-      [particle],
-      0.4,
-      pixels,
-    );
-    options?.onComplete();
+    options?.onFrame(1);
     expect(deps.renderer.draw).toHaveBeenLastCalledWith([particle], 1, pixels);
+    const terminalDrawCount = deps.renderer.draw.mock.calls.length;
+    options?.onComplete();
+    expect(deps.renderer.draw).toHaveBeenCalledTimes(terminalDrawCount);
   });
 
   it("safely defaults to animation when matchMedia is unavailable", async () => {
@@ -216,6 +298,83 @@ describe("startPortrait", () => {
 
     expect(deps.stop).toHaveBeenCalledOnce();
     expect(deps.renderer.draw).not.toHaveBeenCalled();
+  });
+
+  it("contains delayed animation draw failures and releases lifecycle resources", async () => {
+    const deps = dependencies();
+    const drawError = new Error("animation draw failed");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await start({ ...deps, reducedMotion: false });
+    deps.renderer.draw.mockImplementationOnce(() => {
+      throw drawError;
+    });
+    const timeline = deps.run.mock.calls[0]?.[0];
+    window.dispatchEvent(new Event("resize"));
+    expect(vi.getTimerCount()).toBe(1);
+
+    expect(() => timeline?.onFrame(0.4)).not.toThrow();
+    expect(deps.stop).toHaveBeenCalledOnce();
+    expect(
+      deps.portraitStage.classList.contains("portrait-stage--error"),
+    ).toBe(true);
+    expect(deps.portraitStage.classList.contains("is-error")).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+    expect(deps.renderer.draw).toHaveBeenCalledOnce();
+    cleanup();
+    cleanup();
+    expect(deps.stop).toHaveBeenCalledOnce();
+  });
+
+  it("contains resize draw failures and keeps cleanup idempotent", async () => {
+    const deps = dependencies();
+    const resizeError = new Error("resize failed");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await start({ ...deps, reducedMotion: false });
+    deps.renderer.resize.mockImplementationOnce(() => {
+      throw resizeError;
+    });
+
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+
+    expect(deps.stop).toHaveBeenCalledOnce();
+    expect(
+      deps.portraitStage.classList.contains("portrait-stage--error"),
+    ).toBe(true);
+    expect(deps.portraitStage.classList.contains("is-error")).toBe(true);
+    expect(deps.renderer.resize).toHaveBeenCalledTimes(2);
+
+    cleanup();
+    cleanup();
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+    expect(deps.stop).toHaveBeenCalledOnce();
+    expect(deps.renderer.resize).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops a timeline returned after its synchronous frame already failed", async () => {
+    const deps = dependencies();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    deps.renderer.draw.mockImplementationOnce(() => {
+      throw new Error("synchronous frame failed");
+    });
+    deps.run.mockImplementation((timeline) => {
+      timeline.onFrame(0.2);
+      return deps.stop;
+    });
+
+    await start({ ...deps, reducedMotion: false });
+
+    expect(deps.stop).toHaveBeenCalledOnce();
+    expect(
+      deps.portraitStage.classList.contains("portrait-stage--error"),
+    ).toBe(true);
+    cleanup();
+    cleanup();
+    expect(deps.stop).toHaveBeenCalledOnce();
   });
 
   it("shows the static portrait fallback when Canvas 2D is unavailable", async () => {

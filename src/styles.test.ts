@@ -32,3 +32,15 @@ test("compresses the hero composition for short mobile viewports", () => {
     /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.headline-wrap small\s*\{\s*margin-top:\s*8px;/,
   );
 });
+
+test("styles controller fallback and error classes with legacy compatibility", () => {
+  expect(styles).toMatch(
+    /\.portrait-stage--fallback \.portrait-canvas,\s*\.portrait-stage--error \.portrait-canvas,\s*\.portrait-stage\.is-error \.portrait-canvas\s*\{\s*display:\s*none;/,
+  );
+  expect(styles).toMatch(
+    /\.portrait-stage--fallback \.portrait-base,\s*\.portrait-stage--error \.portrait-base,\s*\.portrait-stage\.is-error \.portrait-base\s*\{[\s\S]*?opacity:\s*0\.46;/,
+  );
+  expect(styles).toMatch(
+    /\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
+  );
+});

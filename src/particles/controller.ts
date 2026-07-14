@@ -43,11 +43,51 @@ function hasValidImageDimensions(image: HTMLImageElement): boolean {
   );
 }
 
+function waitForImageLoad(image: HTMLImageElement): Promise<void> {
+  if (image.complete) {
+    return hasValidImageDimensions(image)
+      ? Promise.resolve()
+      : Promise.reject(new Error("Portrait image failed to load."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => {
+      image.removeEventListener("load", onLoad);
+      image.removeEventListener("error", onError);
+    };
+    const onLoad = (): void => {
+      cleanup();
+      resolve();
+    };
+    const onError = (): void => {
+      cleanup();
+      reject(new Error("Portrait image failed to load."));
+    };
+
+    image.addEventListener("load", onLoad, { once: true });
+    image.addEventListener("error", onError, { once: true });
+
+    if (image.complete) {
+      if (hasValidImageDimensions(image)) onLoad();
+      else onError();
+    }
+  });
+}
+
+async function decodeImage(image: HTMLImageElement): Promise<void> {
+  if (typeof image.decode === "function") {
+    await image.decode();
+    return;
+  }
+
+  await waitForImageLoad(image);
+}
+
 export async function imageToPixels(
   image: HTMLImageElement,
   createCanvas: CanvasFactory = () => document.createElement("canvas"),
 ): Promise<PixelBuffer> {
-  await image.decode();
+  await decodeImage(image);
 
   if (!hasValidImageDimensions(image)) {
     throw new Error("Decoded portrait has invalid dimensions.");
@@ -66,12 +106,27 @@ export async function imageToPixels(
   return context.getImageData(0, 0, buffer.width, buffer.height);
 }
 
-function prefersReducedMotion(): boolean {
+function matchesMedia(query: string, fallback: () => boolean): boolean {
   if (typeof window.matchMedia !== "function") {
-    return false;
+    return fallback();
   }
 
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  try {
+    return window.matchMedia(query).matches;
+  } catch {
+    return fallback();
+  }
+}
+
+function isMobileViewport(): boolean {
+  return matchesMedia(
+    `(max-width: ${MOBILE_BREAKPOINT}px)`,
+    () => window.innerWidth <= MOBILE_BREAKPOINT,
+  );
+}
+
+function prefersReducedMotion(): boolean {
+  return matchesMedia("(prefers-reduced-motion: reduce)", () => false);
 }
 
 function createRenderer(
@@ -95,14 +150,87 @@ export async function startPortrait(
     return noop;
   }
 
+  let stopTimeline = noop;
+  let resizeTimer: number | undefined;
+  let listening = false;
+  let closed = false;
+  let drawSettled = noop;
+  let onResize = noop;
+
+  const stopAnimation = (): void => {
+    const stop = stopTimeline;
+    stopTimeline = noop;
+    stop();
+  };
+  const release = (): void => {
+    try {
+      stopAnimation();
+    } catch {
+      // Cleanup must not turn a rendering failure into another uncaught error.
+    }
+
+    if (resizeTimer !== undefined) {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = undefined;
+    }
+
+    if (listening) {
+      window.removeEventListener("resize", onResize);
+      listening = false;
+    }
+  };
+  const fail = (error: unknown): void => {
+    if (closed) return;
+    closed = true;
+    release();
+    options.portraitStage.classList.add("portrait-stage--error", "is-error");
+
+    if (import.meta.env.DEV) {
+      console.error("Portrait initialization failed", error);
+    }
+  };
+  const safely = <Arguments extends unknown[]>(
+    callback: (...args: Arguments) => void,
+  ) => {
+    return (...args: Arguments): void => {
+      if (closed) return;
+
+      try {
+        callback(...args);
+      } catch (error) {
+        fail(error);
+      }
+    };
+  };
+  const cleanup = (): void => {
+    if (closed) return;
+    closed = true;
+    release();
+  };
+  onResize = (): void => {
+    if (closed) return;
+
+    if (resizeTimer !== undefined) {
+      window.clearTimeout(resizeTimer);
+    }
+
+    resizeTimer = window.setTimeout(
+      safely(() => {
+        resizeTimer = undefined;
+        stopAnimation();
+        drawSettled();
+      }),
+      RESIZE_DEBOUNCE,
+    );
+  };
+
   try {
     const pixels = await (options.loadPixels ?? imageToPixels)(
       options.portraitBase,
     );
-    const maxParticles =
-      options.portraitStage.clientWidth < MOBILE_BREAKPOINT
-        ? MOBILE_PARTICLE_LIMIT
-        : DESKTOP_PARTICLE_LIMIT;
+    const maxParticles = isMobileViewport()
+      ? MOBILE_PARTICLE_LIMIT
+      : DESKTOP_PARTICLE_LIMIT;
     const particles = (options.sample ?? samplePortrait)(pixels, {
       maxParticles,
       seed: PORTRAIT_SEED,
@@ -114,7 +242,7 @@ export async function startPortrait(
         window.devicePixelRatio,
       );
     };
-    const drawSettled = (): void => {
+    drawSettled = (): void => {
       resize();
       renderer.draw(particles, 1, pixels);
     };
@@ -122,55 +250,34 @@ export async function startPortrait(
     resize();
 
     const reduced = options.reducedMotion ?? prefersReducedMotion();
-    let stopTimeline = noop;
-
     if (reduced) {
       renderer.draw(particles, 1, pixels);
     } else {
-      stopTimeline = (options.run ?? runEntrance)({
+      const returnedStop = (options.run ?? runEntrance)({
         duration: ENTRANCE_DURATION,
         now: () => performance.now(),
         schedule: (callback) => requestAnimationFrame(callback),
         cancel: (id) => cancelAnimationFrame(id),
-        onFrame: (progress) => renderer.draw(particles, progress, pixels),
-        onComplete: drawSettled,
+        onFrame: safely((progress) =>
+          renderer.draw(particles, progress, pixels),
+        ),
+        onComplete: safely(noop),
       });
+      stopTimeline = returnedStop;
+
+      if (closed) {
+        release();
+      }
     }
 
-    let resizeTimer: number | undefined;
-    let cleanedUp = false;
-    const onResize = (): void => {
-      if (resizeTimer !== undefined) {
-        window.clearTimeout(resizeTimer);
-      }
+    if (!closed) {
+      window.addEventListener("resize", onResize, { passive: true });
+      listening = true;
+    }
 
-      resizeTimer = window.setTimeout(() => {
-        resizeTimer = undefined;
-        stopTimeline();
-        drawSettled();
-      }, RESIZE_DEBOUNCE);
-    };
-
-    window.addEventListener("resize", onResize, { passive: true });
-
-    return () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      stopTimeline();
-
-      if (resizeTimer !== undefined) {
-        window.clearTimeout(resizeTimer);
-      }
-
-      window.removeEventListener("resize", onResize);
-    };
+    return cleanup;
   } catch (error) {
-    options.portraitStage.classList.add("portrait-stage--error", "is-error");
-
-    if (import.meta.env.DEV) {
-      console.error("Portrait initialization failed", error);
-    }
-
-    return noop;
+    fail(error);
+    return cleanup;
   }
 }
