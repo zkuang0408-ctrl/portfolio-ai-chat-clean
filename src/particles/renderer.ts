@@ -1,19 +1,46 @@
 import { particleProgress } from "./timeline";
 import type { Particle } from "./types";
 
+export const DEFAULT_MAX_DRAW_PARTICLES = 16_000;
+
 export interface SourceSize {
   width: number;
   height: number;
 }
 
+function isDrawableParticle(particle: Particle): boolean {
+  return (
+    Number.isFinite(particle.targetX) &&
+    Number.isFinite(particle.targetY) &&
+    Number.isFinite(particle.startX) &&
+    Number.isFinite(particle.startY) &&
+    Number.isFinite(particle.radius) &&
+    particle.radius > 0 &&
+    Number.isFinite(particle.alpha) &&
+    Number.isFinite(particle.tone) &&
+    Number.isFinite(particle.stretch) &&
+    particle.stretch > 0 &&
+    Number.isFinite(particle.delay)
+  );
+}
+
 export class ParticleRenderer {
   private width = 1;
   private height = 1;
+  private readonly maxDrawParticles: number;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly context: CanvasRenderingContext2D,
-  ) {}
+    maxDrawParticles = DEFAULT_MAX_DRAW_PARTICLES,
+  ) {
+    this.maxDrawParticles = Number.isFinite(maxDrawParticles)
+      ? Math.min(
+          DEFAULT_MAX_DRAW_PARTICLES,
+          Math.max(0, Math.floor(maxDrawParticles)),
+        )
+      : 0;
+  }
 
   resize(width: number, height: number, devicePixelRatio: number): void {
     this.width = Number.isFinite(width) ? Math.max(1, width) : 1;
@@ -31,39 +58,68 @@ export class ParticleRenderer {
     globalProgress: number,
     source: SourceSize,
   ): void {
-    this.context.clearRect(0, 0, this.width, this.height);
+    const previousGlobalAlpha = this.context.globalAlpha;
+    const previousFillStyle = this.context.fillStyle;
+    this.context.save();
 
-    const scale = Math.min(
-      this.width / source.width,
-      this.height / source.height,
-    );
-    const offsetX = (this.width - source.width * scale) / 2;
-    const offsetY = (this.height - source.height * scale) / 2;
+    try {
+      this.context.clearRect(0, 0, this.width, this.height);
 
-    for (const particle of particles) {
-      const progress = particleProgress(globalProgress, particle.delay);
+      if (
+        !Number.isFinite(source.width) ||
+        source.width <= 0 ||
+        !Number.isFinite(source.height) ||
+        source.height <= 0 ||
+        !Number.isFinite(globalProgress)
+      ) {
+        return;
+      }
 
-      if (progress <= 0) continue;
-
-      const x = particle.startX + (particle.targetX - particle.startX) * progress;
-      const y = particle.startY + (particle.targetY - particle.startY) * progress;
-      const radius = particle.radius * scale * (0.55 + progress * 0.45);
-
-      this.context.beginPath();
-      this.context.globalAlpha = particle.alpha * progress;
-      this.context.fillStyle = `rgb(${particle.tone} ${particle.tone} ${particle.tone})`;
-      this.context.ellipse(
-        offsetX + x * scale,
-        offsetY + y * scale,
-        radius * particle.stretch,
-        radius,
-        0,
-        0,
-        Math.PI * 2,
+      const scale = Math.min(
+        this.width / source.width,
+        this.height / source.height,
       );
-      this.context.fill();
-    }
+      const offsetX = (this.width - source.width * scale) / 2;
+      const offsetY = (this.height - source.height * scale) / 2;
 
-    this.context.globalAlpha = 1;
+      const drawCount = Math.min(particles.length, this.maxDrawParticles);
+
+      for (let index = 0; index < drawCount; index += 1) {
+        const particle = particles[index];
+
+        if (particle === undefined) continue;
+        if (!isDrawableParticle(particle)) continue;
+
+        const progress = particleProgress(globalProgress, particle.delay);
+
+        if (!Number.isFinite(progress) || progress <= 0) continue;
+
+        const x =
+          particle.startX + (particle.targetX - particle.startX) * progress;
+        const y =
+          particle.startY + (particle.targetY - particle.startY) * progress;
+        const radius = particle.radius * scale * (0.55 + progress * 0.45);
+        const alpha = Math.min(1, Math.max(0, particle.alpha * progress));
+        const tone = Math.min(255, Math.max(0, Math.round(particle.tone)));
+
+        this.context.beginPath();
+        this.context.globalAlpha = alpha;
+        this.context.fillStyle = `rgb(${tone} ${tone} ${tone})`;
+        this.context.ellipse(
+          offsetX + x * scale,
+          offsetY + y * scale,
+          radius * particle.stretch,
+          radius,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        this.context.fill();
+      }
+    } finally {
+      this.context.restore();
+      this.context.globalAlpha = previousGlobalAlpha;
+      this.context.fillStyle = previousFillStyle;
+    }
   }
 }
