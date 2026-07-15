@@ -119,6 +119,33 @@ function regionAt(
   return "edge";
 }
 
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+export function visualForRegion(
+  light: number,
+  region: ParticleRegion,
+  opacityRoll: number,
+): { alpha: number; tone: number } {
+  const safeLight = clamp01(Number.isFinite(light) ? light : 0);
+  const safeRoll = clamp01(Number.isFinite(opacityRoll) ? opacityRoll : 0);
+  const mapped =
+    region === "core"
+      ? clamp01((safeLight - 0.16) * 1.28 + 0.16)
+      : safeLight;
+  const minimumTone = region === "core" ? 132 : 150;
+  const maximumTone = region === "core" ? 245 : 255;
+
+  return {
+    alpha: Math.min(
+      0.96,
+      (0.48 + safeRoll * 0.48) * Math.max(0.24, mapped),
+    ),
+    tone: Math.round(minimumTone + mapped * (maximumTone - minimumTone)),
+  };
+}
+
 export function settledTargetForRegion(
   x: number,
   y: number,
@@ -428,14 +455,15 @@ export function samplePortrait(
         : region === "face"
           ? [0.22, 0.48]
           : [0.42, 0.72];
+    const visual = visualForRegion(light, region, random());
 
     candidates.push({
       targetX,
       targetY,
       startX: targetX + Math.cos(angle) * travel,
       startY: targetY + Math.sin(angle) * travel,
-      alpha: between(random, 0.48, 0.96) * Math.max(0.35, light),
-      tone: Math.round(150 + light * 105),
+      alpha: visual.alpha,
+      tone: visual.tone,
       delay: between(random, delayRange[0], delayRange[1]),
       region,
       assignmentOrder,

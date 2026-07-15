@@ -7,6 +7,7 @@ import {
   MAX_PARTICLES,
   samplePortrait,
   settledTargetForRegion,
+  visualForRegion,
 } from "./sampler";
 import type {
   Particle,
@@ -113,6 +114,29 @@ it("caps face displacement while retaining broad edge splashes", () => {
   const edge = settledTargetForRegion(40, 30, 100, "edge", 1, 1);
   expect(edge[0] - 40).toBeCloseTo(-15);
   expect(edge[1] - 30).toBeCloseTo(6);
+});
+
+it("uses a steeper bounded visual curve in the facial core", () => {
+  expect(visualForRegion(0.12, "core", 1).alpha).toBeCloseTo(0.2304);
+  expect(visualForRegion(0.12, "core", 1).tone).toBe(144);
+  expect(visualForRegion(0.5, "core", 1).alpha).toBeCloseTo(0.571392);
+  expect(visualForRegion(0.5, "core", 1).tone).toBe(199);
+  expect(visualForRegion(1, "core", 1)).toEqual({ alpha: 0.96, tone: 245 });
+  expect(visualForRegion(1, "edge", 1)).toEqual({ alpha: 0.96, tone: 255 });
+});
+
+it("clamps invalid visual inputs to finite bounded values", () => {
+  expect(visualForRegion(Number.NaN, "core", Number.POSITIVE_INFINITY)).toEqual(
+    { alpha: 0.1152, tone: 132 },
+  );
+  expect(visualForRegion(-10, "edge", -2)).toEqual({
+    alpha: 0.1152,
+    tone: 150,
+  });
+  expect(visualForRegion(10, "face", 3)).toEqual({
+    alpha: 0.96,
+    tone: 255,
+  });
 });
 
 describe("samplePortrait", () => {
@@ -382,7 +406,7 @@ describe("samplePortrait", () => {
       ]) {
         expect(Number.isFinite(value)).toBe(true);
       }
-      expect(particle.tone).toBeGreaterThanOrEqual(150);
+      expect(particle.tone).toBeGreaterThanOrEqual(132);
       expect(particle.tone).toBeLessThanOrEqual(255);
       expect(particle.alpha).toBeGreaterThanOrEqual(0);
       expect(particle.alpha).toBeLessThanOrEqual(0.96);
