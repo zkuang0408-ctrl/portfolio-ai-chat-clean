@@ -238,6 +238,10 @@ test("renders a responsive, complete portrait and becomes still", async ({
 }, testInfo) => {
   await page.goto("/");
 
+  const faviconResponse = await page.request.get("/favicon.svg");
+  expect(faviconResponse.status()).toBe(200);
+  expect(faviconResponse.headers()["content-type"]).toContain("image/svg+xml");
+
   await page.evaluate(() => {
     const probe = document.createElement("canvas");
     probe.id = "single-pixel-probe";
