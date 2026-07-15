@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   edgeStrength,
+  hasFeasibleParticleSizeQuotas,
+  isLargeParticleEligible,
   MAX_PARTICLES,
   samplePortrait,
   settledTargetForRegion,
@@ -82,6 +84,21 @@ it("amplifies horizontal and vertical luminance edges equally", () => {
 
   expect(edgeStrength(horizontalEdge, 1, 1)).toBeCloseTo(0.36);
   expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
+});
+
+it("restricts large particles to edges and weak face candidates", () => {
+  expect(isLargeParticleEligible("edge", 0)).toBe(true);
+  expect(isLargeParticleEligible("edge", 1)).toBe(true);
+  expect(isLargeParticleEligible("face", 0.139999)).toBe(true);
+  expect(isLargeParticleEligible("face", 0.14)).toBe(false);
+  expect(isLargeParticleEligible("core", 0)).toBe(false);
+});
+
+it("checks every hard capacity when evaluating particle quota feasibility", () => {
+  expect(hasFeasibleParticleSizeQuotas(2_606, 211, 260, 0)).toBe(true);
+  expect(hasFeasibleParticleSizeQuotas(2_607, 211, 260, 0)).toBe(false);
+  expect(hasFeasibleParticleSizeQuotas(2_606, 51, 260, 0)).toBe(false);
+  expect(hasFeasibleParticleSizeQuotas(2_606, 211, 260, 1_695)).toBe(false);
 });
 
 it("keeps core particles exactly on their sampled landmark coordinates", () => {

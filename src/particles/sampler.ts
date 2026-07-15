@@ -177,6 +177,21 @@ function sizeBandQuotas(
   ) as Record<ParticleSizeBand, number>;
 }
 
+export function hasFeasibleParticleSizeQuotas(
+  particleCount: number,
+  edgeCount: number,
+  largeEligibleCount: number,
+  strongCoreCount: number,
+): boolean {
+  const quotas = sizeBandQuotas(particleCount);
+
+  return (
+    quotas.splash <= edgeCount &&
+    quotas.splash + quotas.large <= largeEligibleCount &&
+    strongCoreCount <= quotas.micro
+  );
+}
+
 function rankedCandidateIndices(candidates: ParticleCandidate[]): number[] {
   return candidates
     .map(({ assignmentOrder }, index) => ({ assignmentOrder, index }))
@@ -193,10 +208,12 @@ function isStrongCoreEdge(candidate: ParticleCandidate): boolean {
   );
 }
 
-function isLargeEligible(candidate: ParticleCandidate): boolean {
+export function isLargeParticleEligible(
+  region: ParticleRegion,
+  edgeScore: number,
+): boolean {
   return (
-    candidate.region === "edge" ||
-    (candidate.region === "face" && candidate.edgeScore < STRONG_FACE_EDGE)
+    region === "edge" || (region === "face" && edgeScore < STRONG_FACE_EDGE)
   );
 }
 
@@ -223,7 +240,9 @@ function selectFeasibleCandidates(
   });
   let activeCount = candidates.length;
   let edgeCount = candidates.filter(({ region }) => region === "edge").length;
-  let largeEligibleCount = candidates.filter(isLargeEligible).length;
+  let largeEligibleCount = candidates.filter(({ edgeScore, region }) =>
+    isLargeParticleEligible(region, edgeScore),
+  ).length;
   let strongCoreCount = candidates.filter(isStrongCoreEdge).length;
 
   const removeLeastPreferred = (pools: number[][]): void => {
@@ -237,7 +256,9 @@ function selectFeasibleCandidates(
         active[index] = false;
         activeCount -= 1;
         if (candidate.region === "edge") edgeCount -= 1;
-        if (isLargeEligible(candidate)) largeEligibleCount -= 1;
+        if (isLargeParticleEligible(candidate.region, candidate.edgeScore)) {
+          largeEligibleCount -= 1;
+        }
         if (isStrongCoreEdge(candidate)) strongCoreCount -= 1;
         return;
       }
@@ -247,6 +268,16 @@ function selectFeasibleCandidates(
   };
 
   while (activeCount > 0) {
+    if (
+      hasFeasibleParticleSizeQuotas(
+        activeCount,
+        edgeCount,
+        largeEligibleCount,
+        strongCoreCount,
+      )
+    ) {
+      break;
+    }
     const quotas = sizeBandQuotas(activeCount);
 
     if (quotas.splash > edgeCount) {
@@ -266,7 +297,6 @@ function selectFeasibleCandidates(
       removeLeastPreferred([strongCorePool]);
       continue;
     }
-    break;
   }
 
   return candidates.filter((_, index) => active[index] === true);
@@ -308,7 +338,9 @@ function finalizeCandidates(allCandidates: ParticleCandidate[]): Particle[] {
   };
 
   assign("splash", quotas.splash, ({ region }) => region === "edge");
-  assign("large", quotas.large, isLargeEligible);
+  assign("large", quotas.large, ({ edgeScore, region }) =>
+    isLargeParticleEligible(region, edgeScore),
+  );
   assign(
     "medium",
     quotas.medium,
