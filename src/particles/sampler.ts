@@ -123,6 +123,24 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+export function particleAcceptance(
+  light: number,
+  edge: number,
+  cluster: number,
+  region: ParticleRegion,
+): number {
+  const safeLight = clamp01(Number.isFinite(light) ? light : 0);
+  const safeEdge = clamp01(Number.isFinite(edge) ? edge : 0);
+  const safeCluster = clamp01(Number.isFinite(cluster) ? cluster : 0);
+  const clusterFactor = 0.34 + safeCluster * 0.66;
+  const base =
+    region === "core"
+      ? Math.min(0.94, 0.035 + safeLight * 0.18 + safeEdge * 1.8)
+      : Math.min(0.94, 0.08 + safeLight * 0.48 + safeEdge * 0.52);
+
+  return base * clusterFactor;
+}
+
 export function visualForRegion(
   light: number,
   region: ParticleRegion,
@@ -459,13 +477,11 @@ export function samplePortrait(
 
     if (cluster < 0.26) continue;
 
-    const acceptance =
-      Math.min(0.94, 0.08 + light * 0.48 + edge * 0.52) *
-      (0.34 + cluster * 0.66);
+    const region = regionAt(x, y, buffer.width, buffer.height);
+    const acceptance = particleAcceptance(light, edge, cluster, region);
 
     if (random() > acceptance) continue;
 
-    const region = regionAt(x, y, buffer.width, buffer.height);
     const assignmentOrder = random();
     const radiusRoll = random();
     const stretchRoll = random();

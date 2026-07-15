@@ -5,6 +5,7 @@ import {
   hasFeasibleParticleSizeQuotas,
   isLargeParticleEligible,
   MAX_PARTICLES,
+  particleAcceptance,
   samplePortrait,
   settledTargetForRegion,
   visualForRegion,
@@ -86,6 +87,38 @@ it("amplifies horizontal and vertical luminance edges equally", () => {
 
   expect(edgeStrength(horizontalEdge, 1, 1)).toBeCloseTo(0.36);
   expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
+});
+
+it("prioritizes facial feature edges over smooth core candidates", () => {
+  const smoothCore = particleAcceptance(0.7, 0, 1, "core");
+  const darkFeature = particleAcceptance(0.1, 0.2, 1, "core");
+
+  expect(smoothCore).toBeCloseTo(0.161);
+  expect(darkFeature).toBeCloseTo(0.413);
+  expect(darkFeature).toBeGreaterThan(smoothCore);
+  expect(particleAcceptance(0.5, 1, 1, "core")).toBe(0.94);
+});
+
+it("preserves non-core acceptance and applies the spatial cluster factor", () => {
+  expect(particleAcceptance(0.7, 0, 1, "face")).toBeCloseTo(0.416);
+  expect(particleAcceptance(0.7, 0, 1, "edge")).toBeCloseTo(0.416);
+  expect(particleAcceptance(0.7, 0, 0, "face")).toBeCloseTo(0.416 * 0.34);
+});
+
+it("clamps invalid particle acceptance inputs to finite bounds", () => {
+  const invalidCore = particleAcceptance(
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    "core",
+  );
+  const extremeEdge = particleAcceptance(10, -10, 10, "edge");
+
+  expect(invalidCore).toBeCloseTo(0.035 * 0.34);
+  expect(Number.isFinite(invalidCore)).toBe(true);
+  expect(extremeEdge).toBeCloseTo(0.56);
+  expect(invalidCore).toBeGreaterThanOrEqual(0);
+  expect(extremeEdge).toBeLessThanOrEqual(0.94);
 });
 
 it("restricts large particles to edges and weak face candidates", () => {
@@ -391,13 +424,13 @@ describe("samplePortrait", () => {
         edgeStrength(pixels, particle.targetX, particle.targetY) >= 0.18,
     );
 
-    expect(first).toHaveLength(2_683);
+    expect(first).toHaveLength(2_653);
     expect(second).toEqual(first);
     expect(bandCounts(first)).toEqual({
-      micro: 1_744,
-      medium: 671,
-      large: 214,
-      splash: 54,
+      micro: 1_725,
+      medium: 663,
+      large: 212,
+      splash: 53,
     });
     expect(new Set(strongCoreEdges.map(({ band }) => band))).toEqual(
       new Set(["micro"]),
