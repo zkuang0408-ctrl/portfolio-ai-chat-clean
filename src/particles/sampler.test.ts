@@ -193,13 +193,34 @@ it("emphasizes strong facial-core contours without exceeding visual bounds", () 
     visualForRegion(0.12, "core", 1),
   );
   expect(visualForSample(0.12, "core", 1, 0.18)).toEqual({
-    alpha: expect.closeTo(0.36032),
-    tone: 163,
+    alpha: expect.closeTo(0.245248),
+    tone: 146,
   });
   expect(visualForSample(0.12, "core", 1, 0.5)).toEqual({
-    alpha: expect.closeTo(0.88),
-    tone: 240,
+    alpha: expect.closeTo(0.30464),
+    tone: 155,
   });
+});
+
+it("gates contour emphasis away from dark edges while preserving bright detail", () => {
+  const darkEdge = visualForSample(0.1, "core", 0.5, 1);
+  const smoothFace = visualForSample(0.7, "core", 0.5, 0);
+  const brightEdge = visualForSample(0.7, "core", 0.5, 0.2);
+
+  expect(
+    particleAcceptance(0.1, 1, 1, "core") * darkEdge.alpha,
+  ).toBeLessThan(
+    particleAcceptance(0.7, 0, 1, "core") * smoothFace.alpha,
+  );
+  expect(brightEdge.alpha).toBeGreaterThan(smoothFace.alpha);
+  expect(brightEdge.tone).toBeGreaterThan(smoothFace.tone);
+});
+
+it("never reduces an already saturated facial-core visual", () => {
+  const base = visualForRegion(1, "core", 1);
+
+  expect(visualForSample(1, "core", 1, 0.5)).toEqual(base);
+  expect(base).toEqual({ alpha: 0.96, tone: 245 });
 });
 
 it.each([0.1, 0.18])(

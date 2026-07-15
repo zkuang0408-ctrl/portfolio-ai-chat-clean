@@ -123,6 +123,11 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function brightSideForLight(light: number): number {
+  const safeLight = clamp01(Number.isFinite(light) ? light : 0);
+  return clamp01((safeLight - 0.08) / 0.35);
+}
+
 export function particleAcceptance(
   light: number,
   edge: number,
@@ -133,7 +138,7 @@ export function particleAcceptance(
   const safeEdge = clamp01(Number.isFinite(edge) ? edge : 0);
   const safeCluster = clamp01(Number.isFinite(cluster) ? cluster : 0);
   const clusterFactor = 0.34 + safeCluster * 0.66;
-  const edgeLuminanceSide = clamp01((safeLight - 0.08) / 0.35);
+  const edgeLuminanceSide = brightSideForLight(safeLight);
   const base =
     region === "core"
       ? Math.min(
@@ -175,6 +180,7 @@ export function visualForSample(
   edgeScore: number,
 ): { alpha: number; tone: number } {
   const base = visualForRegion(light, region, opacityRoll);
+  const safeLight = clamp01(Number.isFinite(light) ? light : 0);
   const safeRoll = clamp01(
     Number.isFinite(opacityRoll) ? opacityRoll : 0,
   );
@@ -182,20 +188,24 @@ export function visualForSample(
 
   if (region !== "core") return base;
 
-  const emphasis = clamp01((safeEdge - 0.1) / 0.4);
-  if (emphasis <= 0) return base;
+  const edgeEmphasis = clamp01((safeEdge - 0.1) / 0.4);
+  const brightSide = brightSideForLight(safeLight);
+  const effectiveEmphasis = edgeEmphasis * brightSide;
+  if (effectiveEmphasis <= 0) return base;
 
-  const targetAlpha = 0.58 + safeRoll * 0.3;
-  const targetTone = 240;
+  const targetAlpha = Math.max(base.alpha, 0.58 + safeRoll * 0.3);
+  const targetTone = Math.max(base.tone, 240);
 
   return {
     alpha: Math.min(
       0.96,
-      base.alpha + emphasis * (targetAlpha - base.alpha),
+      base.alpha + effectiveEmphasis * (targetAlpha - base.alpha),
     ),
     tone: Math.min(
       245,
-      Math.round(base.tone + emphasis * (targetTone - base.tone)),
+      Math.round(
+        base.tone + effectiveEmphasis * (targetTone - base.tone),
+      ),
     ),
   };
 }
