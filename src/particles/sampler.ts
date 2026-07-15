@@ -177,27 +177,100 @@ function sizeBandQuotas(
   ) as Record<ParticleSizeBand, number>;
 }
 
-function finalizeCandidates(candidates: ParticleCandidate[]): Particle[] {
-  const quotas = sizeBandQuotas(candidates.length);
-  const bands: Array<ParticleSizeBand | undefined> = new Array(
-    candidates.length,
-  );
-  const rankedIndices = candidates
+function rankedCandidateIndices(candidates: ParticleCandidate[]): number[] {
+  return candidates
     .map(({ assignmentOrder }, index) => ({ assignmentOrder, index }))
     .sort(
       (left, right) =>
         left.assignmentOrder - right.assignmentOrder || left.index - right.index,
     )
     .map(({ index }) => index);
+}
+
+function isStrongCoreEdge(candidate: ParticleCandidate): boolean {
+  return (
+    candidate.region === "core" && candidate.edgeScore >= STRONG_CORE_EDGE
+  );
+}
+
+function selectFeasibleCandidates(
+  candidates: ParticleCandidate[],
+): ParticleCandidate[] {
+  const rankedIndices = rankedCandidateIndices(candidates);
+  const active = candidates.map(() => true);
+  const strongCorePool = rankedIndices.filter((index) => {
+    const candidate = candidates[index];
+    return candidate !== undefined && isStrongCoreEdge(candidate);
+  });
+  const corePool = rankedIndices.filter(
+    (index) => candidates[index]?.region === "core",
+  );
+  const facePool = rankedIndices.filter(
+    (index) => candidates[index]?.region === "face",
+  );
+  let activeCount = candidates.length;
+  let edgeCount = candidates.filter(({ region }) => region === "edge").length;
+  let nonCoreCount = candidates.filter(({ region }) => region !== "core").length;
+  let strongCoreCount = candidates.filter(isStrongCoreEdge).length;
+
+  const removeLeastPreferred = (pools: number[][]): void => {
+    for (const pool of pools) {
+      while (pool.length > 0) {
+        const index = pool.pop();
+        if (index === undefined || active[index] !== true) continue;
+        const candidate = candidates[index];
+        if (candidate === undefined) continue;
+
+        active[index] = false;
+        activeCount -= 1;
+        if (candidate.region === "edge") edgeCount -= 1;
+        if (candidate.region !== "core") nonCoreCount -= 1;
+        if (isStrongCoreEdge(candidate)) strongCoreCount -= 1;
+        return;
+      }
+    }
+
+    throw new Error("Unable to satisfy particle size quotas");
+  };
+
+  while (activeCount > 0) {
+    const quotas = sizeBandQuotas(activeCount);
+
+    if (quotas.splash > edgeCount) {
+      removeLeastPreferred([strongCorePool, corePool, facePool]);
+      continue;
+    }
+    if (quotas.splash + quotas.large > nonCoreCount) {
+      removeLeastPreferred([strongCorePool, corePool]);
+      continue;
+    }
+    if (strongCoreCount > quotas.micro) {
+      removeLeastPreferred([strongCorePool]);
+      continue;
+    }
+    break;
+  }
+
+  return candidates.filter((_, index) => active[index] === true);
+}
+
+function finalizeCandidates(allCandidates: ParticleCandidate[]): Particle[] {
+  const candidates = selectFeasibleCandidates(allCandidates);
+  const quotas = sizeBandQuotas(candidates.length);
+  const bands: Array<ParticleSizeBand | undefined> = new Array(
+    candidates.length,
+  );
+  const rankedIndices = rankedCandidateIndices(candidates);
 
   const assign = (
     band: ParticleSizeBand,
     count: number,
     eligible: (candidate: ParticleCandidate) => boolean,
+    indices: number[] = rankedIndices,
   ): void => {
     let assigned = 0;
 
-    for (const index of rankedIndices) {
+    for (const index of indices) {
       if (assigned === count) return;
       const candidate = candidates[index];
       if (
@@ -210,20 +283,48 @@ function finalizeCandidates(candidates: ParticleCandidate[]): Particle[] {
       bands[index] = band;
       assigned += 1;
     }
+
+    if (assigned !== count) {
+      throw new Error(`Unable to assign ${count} ${band} particles`);
+    }
   };
 
   assign("splash", quotas.splash, ({ region }) => region === "edge");
+  const largeIndices = [
+    ...rankedIndices.filter((index) => {
+      const candidate = candidates[index];
+      return (
+        candidate !== undefined &&
+        (candidate.region === "edge" ||
+          (candidate.region === "face" &&
+            candidate.edgeScore < STRONG_FACE_EDGE))
+      );
+    }),
+    ...candidates
+      .map((candidate, index) => ({ candidate, index }))
+      .filter(
+        ({ candidate }) =>
+          candidate.region === "face" &&
+          candidate.edgeScore >= STRONG_FACE_EDGE,
+      )
+      .sort(
+        (left, right) =>
+          left.candidate.edgeScore - right.candidate.edgeScore ||
+          left.candidate.assignmentOrder - right.candidate.assignmentOrder ||
+          left.index - right.index,
+      )
+      .map(({ index }) => index),
+  ];
   assign(
     "large",
     quotas.large,
-    ({ edgeScore, region }) =>
-      region === "edge" || (region === "face" && edgeScore < STRONG_FACE_EDGE),
+    ({ region }) => region !== "core",
+    largeIndices,
   );
   assign(
     "medium",
     quotas.medium,
-    ({ edgeScore, region }) =>
-      !(region === "core" && edgeScore >= STRONG_CORE_EDGE),
+    (candidate) => !isStrongCoreEdge(candidate),
   );
 
   return candidates.map((candidate, index) => {
