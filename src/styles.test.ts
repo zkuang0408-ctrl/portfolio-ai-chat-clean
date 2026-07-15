@@ -57,3 +57,35 @@ test("reveals an accessible status message in error states", () => {
     /\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
   );
 });
+
+test("defines the editorial portfolio section system", () => {
+  for (const selector of [
+    ".portfolio-content",
+    ".portfolio-section",
+    ".section-heading",
+    ".about-grid",
+    ".project-list",
+    ".project-card",
+    ".project-media",
+    ".documents",
+    ".contact",
+  ]) {
+    expect(styles, selector).toContain(`${selector} {`);
+  }
+  expect(styles).toMatch(/a:focus-visible\s*\{[\s\S]*?outline:/);
+});
+
+test("stacks portfolio content at the mobile breakpoint", () => {
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-card\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.about-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
+  );
+});
+
+test("enables smooth anchors only when motion is acceptable", () => {
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*no-preference\)[\s\S]*?html\s*\{\s*scroll-behavior:\s*smooth;/,
+  );
+});
