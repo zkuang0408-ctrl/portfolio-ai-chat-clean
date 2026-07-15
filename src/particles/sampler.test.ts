@@ -8,6 +8,7 @@ import {
   samplePortrait,
   settledTargetForRegion,
   visualForRegion,
+  visualForSample,
 } from "./sampler";
 import type {
   Particle,
@@ -137,6 +138,46 @@ it("clamps invalid visual inputs to finite bounded values", () => {
     alpha: 0.96,
     tone: 255,
   });
+});
+
+it("emphasizes strong facial-core contours without exceeding visual bounds", () => {
+  expect(visualForSample(0.12, "core", 1, 0.18)).toEqual({
+    alpha: expect.closeTo(0.792),
+    tone: 218,
+  });
+  expect(visualForSample(0.12, "core", 1, 0.5)).toEqual({
+    alpha: expect.closeTo(0.88),
+    tone: 240,
+  });
+});
+
+it("leaves weak-core and non-core samples on the regional visual curve", () => {
+  expect(visualForSample(0.12, "core", 1, 0.179999)).toEqual(
+    visualForRegion(0.12, "core", 1),
+  );
+  expect(visualForSample(0.12, "face", 1, 1)).toEqual(
+    visualForRegion(0.12, "face", 1),
+  );
+  expect(visualForSample(0.12, "edge", 1, 1)).toEqual(
+    visualForRegion(0.12, "edge", 1),
+  );
+});
+
+it("keeps contour visuals bounded when inputs are non-finite", () => {
+  const visual = visualForSample(
+    Number.NaN,
+    "core",
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+  );
+
+  expect(visual).toEqual(visualForRegion(Number.NaN, "core", 0));
+  expect(Number.isFinite(visual.alpha)).toBe(true);
+  expect(Number.isFinite(visual.tone)).toBe(true);
+  expect(visual.alpha).toBeGreaterThanOrEqual(0);
+  expect(visual.alpha).toBeLessThanOrEqual(0.96);
+  expect(visual.tone).toBeGreaterThanOrEqual(132);
+  expect(visual.tone).toBeLessThanOrEqual(245);
 });
 
 describe("samplePortrait", () => {

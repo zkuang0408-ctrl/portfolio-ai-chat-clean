@@ -146,6 +146,31 @@ export function visualForRegion(
   };
 }
 
+export function visualForSample(
+  light: number,
+  region: ParticleRegion,
+  opacityRoll: number,
+  edgeScore: number,
+): { alpha: number; tone: number } {
+  const base = visualForRegion(light, region, opacityRoll);
+  const safeRoll = clamp01(
+    Number.isFinite(opacityRoll) ? opacityRoll : 0,
+  );
+  const safeEdge = clamp01(Number.isFinite(edgeScore) ? edgeScore : 0);
+
+  if (region !== "core" || safeEdge < STRONG_CORE_EDGE) return base;
+
+  const emphasis = clamp01((safeEdge - STRONG_CORE_EDGE) / 0.32);
+  const contourAlpha =
+    (0.58 + safeRoll * 0.3) * (0.9 + emphasis * 0.1);
+  const contourTone = Math.round(218 + emphasis * 22);
+
+  return {
+    alpha: Math.min(0.96, Math.max(base.alpha, contourAlpha)),
+    tone: Math.min(245, Math.max(base.tone, contourTone)),
+  };
+}
+
 export function settledTargetForRegion(
   x: number,
   y: number,
@@ -455,7 +480,7 @@ export function samplePortrait(
         : region === "face"
           ? [0.22, 0.48]
           : [0.42, 0.72];
-    const visual = visualForRegion(light, region, random());
+    const visual = visualForSample(light, region, random(), edge);
 
     candidates.push({
       targetX,
