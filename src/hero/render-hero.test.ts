@@ -17,3 +17,13 @@ test("renders the editorial hero without publishing unfinished navigation links"
     "/portrait.png",
   );
 });
+
+test("marks the sampling image as decorative and hidden from assistive technology", () => {
+  const root = document.createElement("div");
+
+  renderHero(root, "/portrait.png");
+
+  const image = root.querySelector<HTMLImageElement>(".portrait-base");
+  expect(image?.alt).toBe("");
+  expect(image?.getAttribute("aria-hidden")).toBe("true");
+});

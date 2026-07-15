@@ -33,13 +33,26 @@ test("compresses the hero composition for short mobile viewports", () => {
   );
 });
 
-test("styles controller fallback and error classes with legacy compatibility", () => {
+test("hides the canvas in controller fallback and error states", () => {
   expect(styles).toMatch(
     /\.portrait-stage--fallback \.portrait-canvas,\s*\.portrait-stage--error \.portrait-canvas,\s*\.portrait-stage\.is-error \.portrait-canvas\s*\{\s*display:\s*none;/,
   );
+});
+
+test("never presents the portrait sampling image", () => {
   expect(styles).toMatch(
-    /\.portrait-stage--fallback \.portrait-base,\s*\.portrait-stage--error \.portrait-base,\s*\.portrait-stage\.is-error \.portrait-base\s*\{[\s\S]*?opacity:\s*0\.46;/,
+    /\.portrait-base\s*\{[\s\S]*?opacity:\s*0;/,
   );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.portrait-base\s*\{\s*opacity:\s*0;/,
+  );
+  expect(styles).toMatch(
+    /\.portrait-stage--fallback \.portrait-base,\s*\.portrait-stage--error \.portrait-base,\s*\.portrait-stage\.is-error \.portrait-base\s*\{[\s\S]*?opacity:\s*0;/,
+  );
+  expect(styles).not.toMatch(/opacity:\s*0\.(?:28|32|46)/);
+});
+
+test("reveals an accessible status message in error states", () => {
   expect(styles).toMatch(
     /\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
   );

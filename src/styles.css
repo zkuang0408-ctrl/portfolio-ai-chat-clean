@@ -107,10 +107,7 @@ body {
 .portrait-base {
   object-fit: contain;
   object-position: 50% 18%;
-  opacity: 0.32;
-  filter: grayscale(1) contrast(1.28) brightness(0.62);
-  -webkit-mask-image: radial-gradient(ellipse 43% 60% at 50% 46%, #000 55%, transparent 100%);
-  mask-image: radial-gradient(ellipse 43% 60% at 50% 46%, #000 55%, transparent 100%);
+  opacity: 0;
 }
 
 .portrait-canvas {
@@ -139,8 +136,7 @@ body {
 .portrait-stage--fallback .portrait-base,
 .portrait-stage--error .portrait-base,
 .portrait-stage.is-error .portrait-base {
-  opacity: 0.46;
-  filter: grayscale(1) contrast(1.12) brightness(0.72);
+  opacity: 0;
 }
 
 .portrait-stage--error .portrait-error,
@@ -256,7 +252,7 @@ body {
   }
 
   .portrait-base {
-    opacity: 0.28;
+    opacity: 0;
   }
 
   .headline-wrap {

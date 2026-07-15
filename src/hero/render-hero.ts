@@ -18,7 +18,7 @@ export function renderHero(root: HTMLElement, portraitUrl: string): HeroElements
       </header>
 
       <div class="portrait-stage" aria-label="赵实旷肖像视觉">
-        <img class="portrait-base" alt="" />
+        <img class="portrait-base" alt="" aria-hidden="true" />
         <canvas class="portrait-canvas" aria-hidden="true"></canvas>
         <p class="portrait-error" role="status"></p>
       </div>
