@@ -244,13 +244,18 @@ describe("samplePortrait", () => {
     const first = samplePortrait(pixels, options);
     const second = samplePortrait(pixels, options);
 
-    expect(first).toHaveLength(3_000);
     expect(second).toEqual(first);
+    // The fixture yields exactly 49 weak-face candidates; any additional
+    // face large would require an edgeScore at or above STRONG_FACE_EDGE.
+    expect(
+      first.filter(({ band, region }) => region === "face" && band === "large"),
+    ).toHaveLength(49);
+    expect(first).toHaveLength(2_606);
     expect(bandCounts(first)).toEqual({
-      micro: 1_950,
-      medium: 750,
-      large: 240,
-      splash: 60,
+      micro: 1_694,
+      medium: 652,
+      large: 208,
+      splash: 52,
     });
     expect(
       first.filter(

@@ -193,6 +193,13 @@ function isStrongCoreEdge(candidate: ParticleCandidate): boolean {
   );
 }
 
+function isLargeEligible(candidate: ParticleCandidate): boolean {
+  return (
+    candidate.region === "edge" ||
+    (candidate.region === "face" && candidate.edgeScore < STRONG_FACE_EDGE)
+  );
+}
+
 function selectFeasibleCandidates(
   candidates: ParticleCandidate[],
 ): ParticleCandidate[] {
@@ -208,9 +215,15 @@ function selectFeasibleCandidates(
   const facePool = rankedIndices.filter(
     (index) => candidates[index]?.region === "face",
   );
+  const strongFacePool = rankedIndices.filter((index) => {
+    const candidate = candidates[index];
+    return (
+      candidate?.region === "face" && candidate.edgeScore >= STRONG_FACE_EDGE
+    );
+  });
   let activeCount = candidates.length;
   let edgeCount = candidates.filter(({ region }) => region === "edge").length;
-  let nonCoreCount = candidates.filter(({ region }) => region !== "core").length;
+  let largeEligibleCount = candidates.filter(isLargeEligible).length;
   let strongCoreCount = candidates.filter(isStrongCoreEdge).length;
 
   const removeLeastPreferred = (pools: number[][]): void => {
@@ -224,7 +237,7 @@ function selectFeasibleCandidates(
         active[index] = false;
         activeCount -= 1;
         if (candidate.region === "edge") edgeCount -= 1;
-        if (candidate.region !== "core") nonCoreCount -= 1;
+        if (isLargeEligible(candidate)) largeEligibleCount -= 1;
         if (isStrongCoreEdge(candidate)) strongCoreCount -= 1;
         return;
       }
@@ -237,11 +250,16 @@ function selectFeasibleCandidates(
     const quotas = sizeBandQuotas(activeCount);
 
     if (quotas.splash > edgeCount) {
-      removeLeastPreferred([strongCorePool, corePool, facePool]);
+      removeLeastPreferred([
+        strongCorePool,
+        corePool,
+        strongFacePool,
+        facePool,
+      ]);
       continue;
     }
-    if (quotas.splash + quotas.large > nonCoreCount) {
-      removeLeastPreferred([strongCorePool, corePool]);
+    if (quotas.splash + quotas.large > largeEligibleCount) {
+      removeLeastPreferred([strongCorePool, corePool, strongFacePool]);
       continue;
     }
     if (strongCoreCount > quotas.micro) {
@@ -290,37 +308,7 @@ function finalizeCandidates(allCandidates: ParticleCandidate[]): Particle[] {
   };
 
   assign("splash", quotas.splash, ({ region }) => region === "edge");
-  const largeIndices = [
-    ...rankedIndices.filter((index) => {
-      const candidate = candidates[index];
-      return (
-        candidate !== undefined &&
-        (candidate.region === "edge" ||
-          (candidate.region === "face" &&
-            candidate.edgeScore < STRONG_FACE_EDGE))
-      );
-    }),
-    ...candidates
-      .map((candidate, index) => ({ candidate, index }))
-      .filter(
-        ({ candidate }) =>
-          candidate.region === "face" &&
-          candidate.edgeScore >= STRONG_FACE_EDGE,
-      )
-      .sort(
-        (left, right) =>
-          left.candidate.edgeScore - right.candidate.edgeScore ||
-          left.candidate.assignmentOrder - right.candidate.assignmentOrder ||
-          left.index - right.index,
-      )
-      .map(({ index }) => index),
-  ];
-  assign(
-    "large",
-    quotas.large,
-    ({ region }) => region !== "core",
-    largeIndices,
-  );
+  assign("large", quotas.large, isLargeEligible);
   assign(
     "medium",
     quotas.medium,
