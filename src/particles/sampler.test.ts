@@ -89,14 +89,29 @@ it("amplifies horizontal and vertical luminance edges equally", () => {
   expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
 });
 
-it("prioritizes facial feature edges over smooth core candidates", () => {
+it("samples bright facial edge sides while preserving dark feature gaps", () => {
   const smoothCore = particleAcceptance(0.7, 0, 1, "core");
-  const darkFeature = particleAcceptance(0.1, 0.2, 1, "core");
+  const darkEdge = particleAcceptance(0.1, 0.2, 1, "core");
+  const brightEdge = particleAcceptance(0.7, 0.2, 1, "core");
 
   expect(smoothCore).toBeCloseTo(0.161);
-  expect(darkFeature).toBeCloseTo(0.413);
-  expect(darkFeature).toBeGreaterThan(smoothCore);
+  expect(darkEdge).toBeCloseTo(0.0735714286);
+  expect(darkEdge).toBeLessThan(smoothCore);
+  expect(brightEdge).toBeCloseTo(0.521);
+  expect(brightEdge).toBeGreaterThan(smoothCore);
   expect(particleAcceptance(0.5, 1, 1, "core")).toBe(0.94);
+});
+
+it("keeps dark core gaps below smooth and bright-edge visible contribution", () => {
+  const visibleContribution = (light: number, edge: number): number =>
+    particleAcceptance(light, edge, 1, "core") *
+    visualForSample(light, "core", 0.5, edge).alpha;
+  const darkEdge = visibleContribution(0.1, 0.2);
+  const smoothCore = visibleContribution(0.7, 0);
+  const brightEdge = visibleContribution(0.7, 0.2);
+
+  expect(darkEdge).toBeLessThan(smoothCore);
+  expect(brightEdge).toBeGreaterThan(smoothCore);
 });
 
 it("preserves non-core acceptance and applies the spatial cluster factor", () => {

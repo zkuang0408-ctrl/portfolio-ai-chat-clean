@@ -133,9 +133,13 @@ export function particleAcceptance(
   const safeEdge = clamp01(Number.isFinite(edge) ? edge : 0);
   const safeCluster = clamp01(Number.isFinite(cluster) ? cluster : 0);
   const clusterFactor = 0.34 + safeCluster * 0.66;
+  const edgeLuminanceSide = clamp01((safeLight - 0.08) / 0.35);
   const base =
     region === "core"
-      ? Math.min(0.94, 0.035 + safeLight * 0.18 + safeEdge * 1.8)
+      ? Math.min(
+          0.94,
+          0.035 + safeLight * 0.18 + safeEdge * 1.8 * edgeLuminanceSide,
+        )
       : Math.min(0.94, 0.08 + safeLight * 0.48 + safeEdge * 0.52);
 
   return base * clusterFactor;
