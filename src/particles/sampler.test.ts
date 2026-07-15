@@ -160,6 +160,29 @@ describe("samplePortrait", () => {
     expect(oversizedCoreParticles).toHaveLength(0);
   });
 
+  it("reserves micro particles for strong edges in the facial core", () => {
+    const pixels = buffer(120, 180, 190);
+    for (let x = 42; x <= 52; x += 1) setPixel(pixels, x, 54, 8);
+    for (let x = 68; x <= 78; x += 1) setPixel(pixels, x, 54, 8);
+    for (let y = 58; y <= 78; y += 1) setPixel(pixels, 60, y, 12);
+    for (let x = 50; x <= 70; x += 1) setPixel(pixels, x, 86, 10);
+
+    const particles = samplePortrait(pixels, {
+      maxParticles: 3_000,
+      seed: 20260714,
+    });
+    const strongCoreEdges = particles.filter(
+      (particle) =>
+        particle.region === "core" &&
+        edgeStrength(pixels, particle.targetX, particle.targetY) >= 0.18,
+    );
+
+    expect(strongCoreEdges.length).toBeGreaterThan(20);
+    expect(new Set(strongCoreEdges.map(({ band }) => band))).toEqual(
+      new Set(["micro"]),
+    );
+  });
+
   it("leaves spatial cells empty between populated particle clusters", () => {
     const width = 80;
     const height = 120;

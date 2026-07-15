@@ -32,11 +32,15 @@ const SIZE_BANDS: readonly ParticleSizeBand[] = [
 interface ParticleCandidate
   extends Omit<Particle, "band" | "radius" | "stretch"> {
   assignmentOrder: number;
+  edgeScore: number;
   radiusRoll: number;
   stretchRoll: number;
 }
 
 export const MAX_PARTICLES = 50_000;
+
+const STRONG_CORE_EDGE = 0.18;
+const STRONG_FACE_EDGE = 0.14;
 
 function between(
   random: RandomSource,
@@ -209,12 +213,23 @@ function finalizeCandidates(candidates: ParticleCandidate[]): Particle[] {
   };
 
   assign("splash", quotas.splash, ({ region }) => region === "edge");
-  assign("large", quotas.large, ({ region }) => region !== "core");
-  assign("medium", quotas.medium, () => true);
+  assign(
+    "large",
+    quotas.large,
+    ({ edgeScore, region }) =>
+      region === "edge" || (region === "face" && edgeScore < STRONG_FACE_EDGE),
+  );
+  assign(
+    "medium",
+    quotas.medium,
+    ({ edgeScore, region }) =>
+      !(region === "core" && edgeScore >= STRONG_CORE_EDGE),
+  );
 
   return candidates.map((candidate, index) => {
     const {
       assignmentOrder: _assignmentOrder,
+      edgeScore: _edgeScore,
       radiusRoll,
       stretchRoll,
       ...particle
@@ -303,6 +318,7 @@ export function samplePortrait(
       delay: between(random, delayRange[0], delayRange[1]),
       region,
       assignmentOrder,
+      edgeScore: edge,
       radiusRoll,
       stretchRoll,
     });
