@@ -261,9 +261,9 @@ test("renders a responsive, complete portrait and becomes still", async ({
   await expect(page.getByText("赵实旷.", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Crafting Future Through Objects & Systems\./i })).toBeVisible();
   await expect(page.getByRole("navigation")).toBeVisible();
-  await expect(page.locator("nav a")).toHaveCount(0);
-  await expect(page.locator("nav [aria-disabled='true']")).toHaveCount(3);
-  await expect(page.locator(".portrait-base")).toBeVisible();
+  await expect(page.locator("nav a")).toHaveCount(3);
+  await expect(page.locator("nav [aria-disabled='true']")).toHaveCount(0);
+  await expect(page.locator(".portrait-base")).toHaveCSS("opacity", "0");
   await expect(page.locator(".portrait-canvas")).toBeVisible();
 
   await waitForCompleteCanvas(page);
@@ -320,6 +320,74 @@ test("renders a responsive, complete portrait and becomes still", async ({
       join("output", "playwright", artifactName),
     );
   }
+});
+
+test("publishes selected work, stable documents, and privacy-safe contact details", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const navigation = page.getByRole("navigation", { name: "主要栏目" });
+  const links = navigation.getByRole("link");
+  await expect(links).toHaveCount(3);
+  await expect(links.nth(0)).toHaveAttribute("href", "#about");
+  await expect(links.nth(1)).toHaveAttribute("href", "#projects");
+  await expect(links.nth(2)).toHaveAttribute("href", "#contact");
+
+  for (const target of ["about", "projects", "contact"]) {
+    await navigation.getByRole("link", { name: new RegExp(target, "i") }).click();
+    await expect(page.locator(`#${target}`)).toBeInViewport();
+  }
+
+  const projectCards = page.locator("#projects .project-card");
+  await expect(projectCards).toHaveCount(6);
+  const projectImages = page.locator("#projects img");
+  await expect(projectImages).toHaveCount(6);
+  for (let index = 0; index < 6; index += 1) {
+    const image = projectImages.nth(index);
+    await image.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        image.evaluate(
+          (element: HTMLImageElement) =>
+            element.complete && element.naturalWidth > 0 && element.naturalHeight > 0,
+        ),
+      )
+      .toBe(true);
+  }
+
+  for (const documentUrl of [
+    "/documents/zhao-shikuang-portfolio.pdf",
+    "/documents/zhao-shikuang-portfolio.pptx",
+  ]) {
+    const response = await page.request.get(documentUrl);
+    expect(response.status(), documentUrl).toBe(200);
+  }
+
+  await expect(
+    page.locator('a[href="mailto:zkuang0408@gmail.com"]'),
+  ).toBeVisible();
+  const publicText = await page.locator("body").innerText();
+  expect(publicText).not.toContain("18099592958");
+  expect(publicText).not.toContain("2643414752@qq.com");
+  expect(publicText).not.toContain("彰武路102号");
+
+  const stage = page.locator(".portrait-stage");
+  const base = page.locator(".portrait-base");
+  await expect(base).toHaveCSS("opacity", "0");
+  for (const state of ["portrait-stage--fallback", "portrait-stage--error"]) {
+    await stage.evaluate((element, className) => element.classList.add(className), state);
+    await expect(base).toHaveCSS("opacity", "0");
+    await stage.evaluate((element, className) => element.classList.remove(className), state);
+  }
+
+  const widths = await page.evaluate(() => ({
+    body: document.body.scrollWidth,
+    document: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1);
+  expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });
 
 test("reduced motion draws the settled state directly", async ({ page }) => {

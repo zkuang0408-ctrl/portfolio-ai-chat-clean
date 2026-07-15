@@ -31,3 +31,13 @@ test("marks the sampling image as decorative and hidden from assistive technolog
   expect(image?.alt).toBe("");
   expect(image?.getAttribute("aria-hidden")).toBe("true");
 });
+
+test("provides a concise portrait failure status", () => {
+  const root = document.createElement("div");
+
+  renderHero(root, "/portrait.png");
+
+  expect(root.querySelector(".portrait-error")?.textContent).toBe(
+    "Portrait visualization unavailable.",
+  );
+});

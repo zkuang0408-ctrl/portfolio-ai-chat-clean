@@ -20,7 +20,7 @@ export function renderHero(root: HTMLElement, portraitUrl: string): HeroElements
       <div class="portrait-stage" aria-label="赵实旷肖像视觉">
         <img class="portrait-base" alt="" aria-hidden="true" />
         <canvas class="portrait-canvas" aria-hidden="true"></canvas>
-        <p class="portrait-error" role="status"></p>
+        <p class="portrait-error" role="status">Portrait visualization unavailable.</p>
       </div>
 
       <div class="headline-wrap">

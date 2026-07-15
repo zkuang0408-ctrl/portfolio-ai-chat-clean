@@ -54,7 +54,7 @@ test("never presents the portrait sampling image", () => {
 
 test("reveals an accessible status message in error states", () => {
   expect(styles).toMatch(
-    /\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
+    /\.portrait-stage--fallback \.portrait-error,\s*\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
   );
 });
 

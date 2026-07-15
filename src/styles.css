@@ -154,6 +154,7 @@ a:focus-visible {
   opacity: 0;
 }
 
+.portrait-stage--fallback .portrait-error,
 .portrait-stage--error .portrait-error,
 .portrait-stage.is-error .portrait-error {
   opacity: 1;

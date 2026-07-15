@@ -465,7 +465,7 @@ describe("startPortrait", () => {
     expect(deps.stop).toHaveBeenCalledOnce();
   });
 
-  it("shows the static portrait fallback when Canvas 2D is unavailable", async () => {
+  it("keeps a black particle-stage fallback when Canvas 2D is unavailable", async () => {
     const { canvas, portraitBase, portraitStage } = elements();
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
 
