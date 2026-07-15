@@ -125,6 +125,12 @@ function isMobileViewport(): boolean {
   );
 }
 
+function particleLimitForViewport(): number {
+  return isMobileViewport()
+    ? MOBILE_PARTICLE_LIMIT
+    : DESKTOP_PARTICLE_LIMIT;
+}
+
 function prefersReducedMotion(): boolean {
   return matchesMedia("(prefers-reduced-motion: reduce)", () => false);
 }
@@ -228,11 +234,10 @@ export async function startPortrait(
     const pixels = await (options.loadPixels ?? imageToPixels)(
       options.portraitBase,
     );
-    const maxParticles = isMobileViewport()
-      ? MOBILE_PARTICLE_LIMIT
-      : DESKTOP_PARTICLE_LIMIT;
-    const particles = (options.sample ?? samplePortrait)(pixels, {
-      maxParticles,
+    const sample = options.sample ?? samplePortrait;
+    let particleLimit = particleLimitForViewport();
+    let particles = sample(pixels, {
+      maxParticles: particleLimit,
       seed: PORTRAIT_SEED,
     });
     const resize = (): void => {
@@ -243,6 +248,14 @@ export async function startPortrait(
       );
     };
     drawSettled = (): void => {
+      const nextParticleLimit = particleLimitForViewport();
+      if (nextParticleLimit !== particleLimit) {
+        particles = sample(pixels, {
+          maxParticles: nextParticleLimit,
+          seed: PORTRAIT_SEED,
+        });
+        particleLimit = nextParticleLimit;
+      }
       resize();
       renderer.draw(particles, 1, pixels);
     };

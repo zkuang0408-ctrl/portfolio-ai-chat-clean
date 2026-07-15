@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { edgeStrength, MAX_PARTICLES, samplePortrait } from "./sampler";
-import type { PixelBuffer } from "./types";
+import type { ParticleSizeBand, PixelBuffer } from "./types";
 
 function buffer(width: number, height: number, pixel: number): PixelBuffer {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -89,6 +89,44 @@ describe("samplePortrait", () => {
     expect(first.length).toBeLessThanOrEqual(300);
     expect(first.length).toBeGreaterThan(120);
   });
+
+  it.each([7_000, 14_000])(
+    "assigns the final %i-particle production budget to exact 65/25/8/2 quotas",
+    (maxParticles) => {
+      const pixels = buffer(320, 480, 255);
+      const options = { maxParticles, seed: 20260714 };
+      const first = samplePortrait(pixels, options);
+      const second = samplePortrait(pixels, options);
+      const counts: Record<ParticleSizeBand, number> = {
+        micro: 0,
+        medium: 0,
+        large: 0,
+        splash: 0,
+      };
+
+      for (const particle of first) counts[particle.band] += 1;
+
+      expect(first).toHaveLength(maxParticles);
+      expect(second).toEqual(first);
+      expect(counts).toEqual({
+        micro: maxParticles * 0.65,
+        medium: maxParticles * 0.25,
+        large: maxParticles * 0.08,
+        splash: maxParticles * 0.02,
+      });
+      expect(
+        first.filter(
+          ({ band, region }) =>
+            region === "core" && (band === "large" || band === "splash"),
+        ),
+      ).toHaveLength(0);
+      expect(
+        first.filter(
+          ({ band, region }) => region === "face" && band === "splash",
+        ),
+      ).toHaveLength(0);
+    },
+  );
 
   it("keeps large and splash particles out of the facial core", () => {
     const particles = samplePortrait(buffer(100, 150, 255), {

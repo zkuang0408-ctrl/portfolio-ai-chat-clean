@@ -76,6 +76,31 @@ function installMatchMedia(viewportWidth: number, reducedMotion = false) {
   return matchMedia;
 }
 
+function installResizableMatchMedia(initialViewportWidth: number) {
+  let viewportWidth = initialViewportWidth;
+  const matchMedia = vi.fn((query: string): MediaQueryList => ({
+    matches:
+      query === "(max-width: 760px)"
+        ? viewportWidth <= 760
+        : query === "(prefers-reduced-motion: reduce)",
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
+  vi.stubGlobal("matchMedia", matchMedia);
+  return {
+    matchMedia,
+    setViewportWidth(value: number): void {
+      viewportWidth = value;
+    },
+  };
+}
+
 describe("imageToPixels", () => {
   it("decodes the portrait and extracts its pixels through an offscreen canvas", async () => {
     const image = document.createElement("img");
@@ -284,6 +309,69 @@ describe("startPortrait", () => {
     expect(deps.run).toHaveBeenCalledOnce();
 
     cleanup();
+  });
+
+  it.each([
+    {
+      initialWidth: 1_440,
+      resizedWidth: 390,
+      initialBudget: 14_000,
+      resizedBudget: 7_000,
+    },
+    {
+      initialWidth: 390,
+      resizedWidth: 1_440,
+      initialBudget: 7_000,
+      resizedBudget: 14_000,
+    },
+  ])(
+    "resamples $initialBudget->$resizedBudget once across the 760px breakpoint and draws settled",
+    async ({ initialWidth, resizedWidth, initialBudget, resizedBudget }) => {
+      const deps = dependencies();
+      const desktopParticle = { ...particle, targetX: 14 };
+      const mobileParticle = { ...particle, targetX: 7 };
+      const media = installResizableMatchMedia(initialWidth);
+      deps.sample.mockImplementation((_source, options) =>
+        options.maxParticles === 14_000
+          ? [desktopParticle]
+          : [mobileParticle],
+      );
+
+      await start({ ...deps, reducedMotion: false });
+      media.setViewportWidth(resizedWidth);
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(120);
+
+      expect(deps.sample).toHaveBeenNthCalledWith(1, pixels, {
+        maxParticles: initialBudget,
+        seed: 20260714,
+      });
+      expect(deps.sample).toHaveBeenNthCalledWith(2, pixels, {
+        maxParticles: resizedBudget,
+        seed: 20260714,
+      });
+      expect(deps.sample).toHaveBeenCalledTimes(2);
+      expect(deps.renderer.draw).toHaveBeenLastCalledWith(
+        resizedBudget === 14_000 ? [desktopParticle] : [mobileParticle],
+        1,
+        pixels,
+      );
+      expect(deps.run).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("reuses particles when resizing within the same particle-budget tier", async () => {
+    const deps = dependencies();
+    const media = installResizableMatchMedia(1_440);
+
+    await start({ ...deps, reducedMotion: false });
+    media.setViewportWidth(900);
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+
+    expect(deps.sample).toHaveBeenCalledOnce();
+    expect(deps.renderer.draw).toHaveBeenLastCalledWith([particle], 1, pixels);
+    expect(deps.run).toHaveBeenCalledOnce();
   });
 
   it("cleanup stops the timeline and removes pending resize work", async () => {

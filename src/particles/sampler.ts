@@ -1,4 +1,4 @@
-import { createRandom, pickSizeBand, spatialNoise } from "./random";
+import { createRandom, spatialNoise } from "./random";
 import type {
   Particle,
   ParticleRegion,
@@ -15,6 +15,27 @@ const RADIUS_RANGES: Record<ParticleSizeBand, readonly [number, number]> = {
   splash: [4.5, 7.5],
 };
 
+const SIZE_BAND_SHARES: Record<ParticleSizeBand, number> = {
+  micro: 0.65,
+  medium: 0.25,
+  large: 0.08,
+  splash: 0.02,
+};
+
+const SIZE_BANDS: readonly ParticleSizeBand[] = [
+  "micro",
+  "medium",
+  "large",
+  "splash",
+];
+
+interface ParticleCandidate
+  extends Omit<Particle, "band" | "radius" | "stretch"> {
+  assignmentOrder: number;
+  radiusRoll: number;
+  stretchRoll: number;
+}
+
 export const MAX_PARTICLES = 50_000;
 
 function between(
@@ -27,10 +48,10 @@ function between(
 
 function radiusByBand(
   band: ParticleSizeBand,
-  random: RandomSource,
+  roll: number,
 ): number {
   const [minimum, maximum] = RADIUS_RANGES[band];
-  return between(random, minimum, maximum);
+  return minimum + roll * (maximum - minimum);
 }
 
 function luminance(buffer: PixelBuffer, x: number, y: number): number {
@@ -94,20 +115,6 @@ function regionAt(
   return "edge";
 }
 
-function bandForRegion(
-  region: ParticleRegion,
-  random: RandomSource,
-): ParticleSizeBand {
-  const band = pickSizeBand(random);
-
-  if (region === "core" && (band === "large" || band === "splash")) {
-    return random() < 0.72 ? "micro" : "medium";
-  }
-
-  if (region === "face" && band === "splash") return "medium";
-  return band;
-}
-
 function targetForRegion(
   x: number,
   y: number,
@@ -130,6 +137,88 @@ function targetForRegion(
   ];
 }
 
+function sizeBandQuotas(
+  particleCount: number,
+): Record<ParticleSizeBand, number> {
+  const allocations = SIZE_BANDS.map((band, index) => {
+    const exact = particleCount * SIZE_BAND_SHARES[band];
+    return { band, count: Math.floor(exact), index, remainder: exact % 1 };
+  });
+  let unassigned =
+    particleCount - allocations.reduce((sum, item) => sum + item.count, 0);
+
+  for (const allocation of [...allocations].sort(
+    (left, right) =>
+      right.remainder - left.remainder || left.index - right.index,
+  )) {
+    if (unassigned === 0) break;
+    allocation.count += 1;
+    unassigned -= 1;
+  }
+
+  return Object.fromEntries(
+    allocations.map(({ band, count }) => [band, count]),
+  ) as Record<ParticleSizeBand, number>;
+}
+
+function finalizeCandidates(candidates: ParticleCandidate[]): Particle[] {
+  const quotas = sizeBandQuotas(candidates.length);
+  const bands: Array<ParticleSizeBand | undefined> = new Array(
+    candidates.length,
+  );
+  const rankedIndices = candidates
+    .map(({ assignmentOrder }, index) => ({ assignmentOrder, index }))
+    .sort(
+      (left, right) =>
+        left.assignmentOrder - right.assignmentOrder || left.index - right.index,
+    )
+    .map(({ index }) => index);
+
+  const assign = (
+    band: ParticleSizeBand,
+    count: number,
+    eligible: (candidate: ParticleCandidate) => boolean,
+  ): void => {
+    let assigned = 0;
+
+    for (const index of rankedIndices) {
+      if (assigned === count) return;
+      const candidate = candidates[index];
+      if (
+        candidate === undefined ||
+        bands[index] !== undefined ||
+        !eligible(candidate)
+      ) {
+        continue;
+      }
+      bands[index] = band;
+      assigned += 1;
+    }
+  };
+
+  assign("splash", quotas.splash, ({ region }) => region === "edge");
+  assign("large", quotas.large, ({ region }) => region !== "core");
+  assign("medium", quotas.medium, () => true);
+
+  return candidates.map((candidate, index) => {
+    const {
+      assignmentOrder: _assignmentOrder,
+      radiusRoll,
+      stretchRoll,
+      ...particle
+    } = candidate;
+    const band = bands[index] ?? "micro";
+    const stretchMaximum = band === "micro" ? 1.18 : 1.55;
+
+    return {
+      ...particle,
+      radius: radiusByBand(band, radiusRoll),
+      stretch: 0.82 + stretchRoll * (stretchMaximum - 0.82),
+      band,
+    };
+  });
+}
+
 export function samplePortrait(
   buffer: PixelBuffer,
   options: SampleOptions,
@@ -138,10 +227,10 @@ export function samplePortrait(
   const particleLimit = Number.isFinite(maxParticles)
     ? Math.min(MAX_PARTICLES, Math.max(0, Math.floor(maxParticles)))
     : 0;
-  const particles: Particle[] = [];
+  const candidates: ParticleCandidate[] = [];
 
   if (particleLimit === 0 || buffer.width <= 0 || buffer.height <= 0) {
-    return particles;
+    return [];
   }
 
   const random = createRandom(seed);
@@ -149,7 +238,7 @@ export function samplePortrait(
 
   for (
     let attempt = 0;
-    attempt < attempts && particles.length < particleLimit;
+    attempt < attempts && candidates.length < particleLimit;
     attempt += 1
   ) {
     const x = random() * buffer.width;
@@ -170,8 +259,9 @@ export function samplePortrait(
     if (random() > acceptance) continue;
 
     const region = regionAt(x, y, buffer.width, buffer.height);
-    const band = bandForRegion(region, random);
-    const radius = radiusByBand(band, random);
+    const assignmentOrder = random();
+    const radiusRoll = random();
+    const stretchRoll = random();
     const [targetX, targetY] = targetForRegion(
       x,
       y,
@@ -184,7 +274,6 @@ export function samplePortrait(
       region === "core"
         ? between(random, 24, 90)
         : between(random, 60, 220);
-    const stretchMaximum = band === "micro" ? 1.18 : 1.55;
     const delayRange: readonly [number, number] =
       region === "core"
         ? [0.1, 0.24]
@@ -192,20 +281,20 @@ export function samplePortrait(
           ? [0.22, 0.48]
           : [0.42, 0.72];
 
-    particles.push({
+    candidates.push({
       targetX,
       targetY,
       startX: targetX + Math.cos(angle) * travel,
       startY: targetY + Math.sin(angle) * travel,
-      radius,
       alpha: between(random, 0.48, 0.96) * Math.max(0.35, light),
       tone: Math.round(150 + light * 105),
-      stretch: between(random, 0.82, stretchMaximum),
       delay: between(random, delayRange[0], delayRange[1]),
-      band,
       region,
+      assignmentOrder,
+      radiusRoll,
+      stretchRoll,
     });
   }
 
-  return particles;
+  return finalizeCandidates(candidates);
 }

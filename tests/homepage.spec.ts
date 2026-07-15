@@ -362,3 +362,120 @@ test("resize redraws a settled portrait without replaying the scatter", async ({
   expect(later).toEqual(redrawn);
   await expectCriticalLayoutInsideViewport(page);
 });
+
+test("cross-breakpoint resize resamples the reduced-motion budget without RAF replay", async ({
+  page,
+}, testInfo) => {
+  const transition =
+    testInfo.project.name === "desktop-1440"
+      ? { initialBudget: 14_000, resizedBudget: 7_000, width: 390, height: 844 }
+      : testInfo.project.name === "mobile-390"
+        ? { initialBudget: 7_000, resizedBudget: 14_000, width: 1_440, height: 900 }
+        : undefined;
+  test.skip(!transition, "Only the canonical desktop/mobile projects cross the breakpoint.");
+  if (!transition) return;
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    const probe = { ellipseRadii: [] as number[], rafCalls: 0 };
+    const originalEllipse = CanvasRenderingContext2D.prototype.ellipse;
+    CanvasRenderingContext2D.prototype.ellipse = function (
+      x,
+      y,
+      radiusX,
+      radiusY,
+      rotation,
+      startAngle,
+      endAngle,
+      counterclockwise,
+    ) {
+      probe.ellipseRadii.push(radiusY);
+      return originalEllipse.call(
+        this,
+        x,
+        y,
+        radiusX,
+        radiusY,
+        rotation,
+        startAngle,
+        endAngle,
+        counterclockwise,
+      );
+    };
+    const originalRaf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      probe.rafCalls += 1;
+      return originalRaf(callback);
+    };
+    Object.defineProperty(window, "__portraitResizeProbe", {
+      configurable: true,
+      value: probe,
+    });
+  });
+
+  await page.goto("/");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as {
+          __portraitResizeProbe: { ellipseRadii: number[] };
+        }).__portraitResizeProbe.ellipseRadii.length,
+      ),
+    )
+    .toBe(transition.initialBudget);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as {
+        __portraitResizeProbe: { rafCalls: number };
+      }).__portraitResizeProbe.rafCalls,
+    ),
+  ).toBe(0);
+
+  await page.setViewportSize({
+    width: transition.width,
+    height: transition.height,
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as {
+          __portraitResizeProbe: { ellipseRadii: number[] };
+        }).__portraitResizeProbe.ellipseRadii.length,
+      ),
+    )
+    .toBe(transition.initialBudget + transition.resizedBudget);
+
+  const afterResize = await page.evaluate(() => ({
+    ellipseCount: (
+      window as unknown as {
+        __portraitResizeProbe: { ellipseRadii: number[] };
+      }
+    ).__portraitResizeProbe.ellipseRadii.length,
+    rafCalls: (
+      window as unknown as {
+        __portraitResizeProbe: { rafCalls: number };
+      }
+    ).__portraitResizeProbe.rafCalls,
+  }));
+  await page.waitForTimeout(350);
+  expect(afterResize).toEqual({
+    ellipseCount: transition.initialBudget + transition.resizedBudget,
+    rafCalls: 0,
+  });
+  expect(
+    await page.evaluate(() => ({
+      ellipseCount: (
+        window as unknown as {
+          __portraitResizeProbe: { ellipseRadii: number[] };
+        }
+      ).__portraitResizeProbe.ellipseRadii.length,
+      rafCalls: (
+        window as unknown as {
+          __portraitResizeProbe: { rafCalls: number };
+        }
+      ).__portraitResizeProbe.rafCalls,
+    })),
+  ).toEqual(afterResize);
+  await waitForCompleteCanvas(page);
+  await expectCriticalLayoutInsideViewport(page);
+});
