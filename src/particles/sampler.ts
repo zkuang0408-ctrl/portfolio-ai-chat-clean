@@ -158,16 +158,23 @@ export function visualForSample(
   );
   const safeEdge = clamp01(Number.isFinite(edgeScore) ? edgeScore : 0);
 
-  if (region !== "core" || safeEdge < STRONG_CORE_EDGE) return base;
+  if (region !== "core") return base;
 
-  const emphasis = clamp01((safeEdge - STRONG_CORE_EDGE) / 0.32);
-  const contourAlpha =
-    (0.58 + safeRoll * 0.3) * (0.9 + emphasis * 0.1);
-  const contourTone = Math.round(218 + emphasis * 22);
+  const emphasis = clamp01((safeEdge - 0.1) / 0.4);
+  if (emphasis <= 0) return base;
+
+  const targetAlpha = 0.58 + safeRoll * 0.3;
+  const targetTone = 240;
 
   return {
-    alpha: Math.min(0.96, Math.max(base.alpha, contourAlpha)),
-    tone: Math.min(245, Math.max(base.tone, contourTone)),
+    alpha: Math.min(
+      0.96,
+      base.alpha + emphasis * (targetAlpha - base.alpha),
+    ),
+    tone: Math.min(
+      245,
+      Math.round(base.tone + emphasis * (targetTone - base.tone)),
+    ),
   };
 }
 

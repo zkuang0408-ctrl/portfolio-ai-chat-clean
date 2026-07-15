@@ -141,9 +141,12 @@ it("clamps invalid visual inputs to finite bounded values", () => {
 });
 
 it("emphasizes strong facial-core contours without exceeding visual bounds", () => {
+  expect(visualForSample(0.12, "core", 1, 0.1)).toEqual(
+    visualForRegion(0.12, "core", 1),
+  );
   expect(visualForSample(0.12, "core", 1, 0.18)).toEqual({
-    alpha: expect.closeTo(0.792),
-    tone: 218,
+    alpha: expect.closeTo(0.36032),
+    tone: 163,
   });
   expect(visualForSample(0.12, "core", 1, 0.5)).toEqual({
     alpha: expect.closeTo(0.88),
@@ -151,8 +154,19 @@ it("emphasizes strong facial-core contours without exceeding visual bounds", () 
   });
 });
 
+it.each([0.1, 0.18])(
+  "keeps facial contour emphasis continuous around edge score %f",
+  (boundary) => {
+    const below = visualForSample(0.12, "core", 1, boundary - 0.000001);
+    const above = visualForSample(0.12, "core", 1, boundary + 0.000001);
+
+    expect(Math.abs(above.alpha - below.alpha)).toBeLessThan(0.0001);
+    expect(Math.abs(above.tone - below.tone)).toBeLessThanOrEqual(1);
+  },
+);
+
 it("leaves weak-core and non-core samples on the regional visual curve", () => {
-  expect(visualForSample(0.12, "core", 1, 0.179999)).toEqual(
+  expect(visualForSample(0.12, "core", 1, 0.099999)).toEqual(
     visualForRegion(0.12, "core", 1),
   );
   expect(visualForSample(0.12, "face", 1, 1)).toEqual(
