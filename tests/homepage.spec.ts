@@ -305,6 +305,19 @@ test("renders a responsive, complete portrait and becomes still", async ({
     ).toBeDefined();
   }
   if (artifactName) {
+    const projectImages = page.locator("#projects img");
+    for (let index = 0; index < (await projectImages.count()); index += 1) {
+      const image = projectImages.nth(index);
+      await image.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          image.evaluate(
+            (element: HTMLImageElement) =>
+              element.complete && element.naturalWidth > 0 && element.naturalHeight > 0,
+          ),
+        )
+        .toBe(true);
+    }
     const isolatedScreenshot = testInfo.outputPath(artifactName);
     await page.screenshot({
       animations: "disabled",
