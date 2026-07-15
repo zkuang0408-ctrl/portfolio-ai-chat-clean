@@ -115,6 +115,30 @@ function regionAt(
   return "edge";
 }
 
+export function settledTargetForRegion(
+  x: number,
+  y: number,
+  width: number,
+  region: ParticleRegion,
+  horizontalRoll: number,
+  verticalRoll: number,
+): readonly [number, number] {
+  const outwardDirection = x < width / 2 ? -1 : 1;
+
+  if (region === "core") return [x, y];
+  if (region === "face") {
+    return [
+      x + outwardDirection * width * horizontalRoll * 0.006,
+      y + (verticalRoll * 0.7 - 0.35),
+    ];
+  }
+
+  return [
+    x + outwardDirection * width * (0.02 + horizontalRoll * 0.13),
+    y + (verticalRoll * 10 - 4),
+  ];
+}
+
 function targetForRegion(
   x: number,
   y: number,
@@ -122,19 +146,7 @@ function targetForRegion(
   region: ParticleRegion,
   random: RandomSource,
 ): readonly [number, number] {
-  const outwardDirection = x < width / 2 ? -1 : 1;
-
-  if (region === "edge") {
-    return [
-      x + outwardDirection * width * between(random, 0.02, 0.15),
-      y + between(random, -4, 6),
-    ];
-  }
-
-  return [
-    x + outwardDirection * width * between(random, 0, 0.025),
-    y + between(random, -1, 1),
-  ];
+  return settledTargetForRegion(x, y, width, region, random(), random());
 }
 
 function sizeBandQuotas(

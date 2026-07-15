@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { edgeStrength, MAX_PARTICLES, samplePortrait } from "./sampler";
+import {
+  edgeStrength,
+  MAX_PARTICLES,
+  samplePortrait,
+  settledTargetForRegion,
+} from "./sampler";
 import type { ParticleSizeBand, PixelBuffer } from "./types";
 
 function buffer(width: number, height: number, pixel: number): PixelBuffer {
@@ -36,6 +41,20 @@ it("amplifies horizontal and vertical luminance edges equally", () => {
 
   expect(edgeStrength(horizontalEdge, 1, 1)).toBeCloseTo(0.36);
   expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
+});
+
+it("keeps core particles exactly on their sampled landmark coordinates", () => {
+  expect(settledTargetForRegion(40, 30, 100, "core", 1, 1)).toEqual([40, 30]);
+});
+
+it("caps face displacement while retaining broad edge splashes", () => {
+  const face = settledTargetForRegion(40, 30, 100, "face", 1, 1);
+  expect(face[0] - 40).toBeCloseTo(-0.6);
+  expect(face[1] - 30).toBeCloseTo(0.35);
+
+  const edge = settledTargetForRegion(40, 30, 100, "edge", 1, 1);
+  expect(edge[0] - 40).toBeCloseTo(-15);
+  expect(edge[1] - 30).toBeCloseTo(6);
 });
 
 describe("samplePortrait", () => {
