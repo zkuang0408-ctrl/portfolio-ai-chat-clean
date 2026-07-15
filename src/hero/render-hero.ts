@@ -10,10 +10,10 @@ export function renderHero(root: HTMLElement, portraitUrl: string): HeroElements
       <header class="identity">
         <p class="name">赵实旷.</p>
         <p class="role">PRODUCT · INTERACTION · FUTURE EXPERIENCE</p>
-        <nav aria-label="作品集栏目（内容准备中）">
-          <span aria-disabled="true">About</span>
-          <span aria-disabled="true">Projects</span>
-          <span aria-disabled="true">Contact</span>
+        <nav aria-label="主要栏目">
+          <a href="#about">About</a>
+          <a href="#projects">Projects</a>
+          <a href="#contact">Contact</a>
         </nav>
       </header>
 
