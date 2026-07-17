@@ -4,17 +4,23 @@ import { documents, profile, projects } from "./portfolio";
 
 test("publishes the approved six-project selection in evidence-led order", () => {
   expect(projects.map(({ id }) => id)).toEqual([
-    "atempo",
     "inkseat",
     "emovue",
-    "urosense",
     "evolution-fruit",
+    "atempo",
+    "urosense",
     "first-fly",
   ]);
   expect(projects).toHaveLength(6);
-  expect(
-    projects.every((project) => project.imageAlt && project.tags.length >= 3),
-  ).toBe(true);
+  expect(projects.map(({ pdf }) => [pdf.href, pdf.pageCount])).toEqual([
+    ["/projects/pdfs/inkseat.pdf", 18],
+    ["/projects/pdfs/emovue.pdf", 19],
+    ["/projects/pdfs/fruit-evolution.pdf", 25],
+    ["/projects/pdfs/atempo.pdf", 20],
+    ["/projects/pdfs/urosense.pdf", 25],
+    ["/projects/pdfs/first-fly.pdf", 28],
+  ]);
+  expect(projects.every((project) => project.tags.length >= 3)).toBe(true);
 });
 
 test("uses stable document paths for later asset replacement", () => {

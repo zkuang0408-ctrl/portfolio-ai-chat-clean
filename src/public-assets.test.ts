@@ -5,24 +5,33 @@ import { resolve } from "node:path";
 
 import { expect, test } from "vitest";
 
-const publicAssets = [
-  "public/projects/atempo.png",
-  "public/projects/inkseat.png",
-  "public/projects/emovue.png",
-  "public/projects/urosense.png",
-  "public/projects/evolution-fruit.png",
-  "public/projects/first-fly.png",
+const projectPdfs = [
+  "public/projects/pdfs/inkseat.pdf",
+  "public/projects/pdfs/emovue.pdf",
+  "public/projects/pdfs/fruit-evolution.pdf",
+  "public/projects/pdfs/atempo.pdf",
+  "public/projects/pdfs/urosense.pdf",
+  "public/projects/pdfs/first-fly.pdf",
+] as const;
+
+const documentAssets = [
   "public/documents/zhao-shikuang-portfolio.pdf",
   "public/documents/zhao-shikuang-portfolio.pptx",
 ] as const;
 
 test("ships every stable project and portfolio asset", () => {
-  for (const asset of publicAssets) {
+  for (const asset of [...projectPdfs, ...documentAssets]) {
     expect(statSync(resolve(process.cwd(), asset)).size, asset).toBeGreaterThan(0);
   }
 });
 
 test("ships valid PDF and PPTX file signatures", () => {
+  for (const asset of projectPdfs) {
+    const pdf = readFileSync(resolve(process.cwd(), asset));
+
+    expect(pdf.subarray(0, 4).toString("ascii"), asset).toBe("%PDF");
+  }
+
   const pdf = readFileSync(
     resolve(process.cwd(), "public/documents/zhao-shikuang-portfolio.pdf"),
   );
