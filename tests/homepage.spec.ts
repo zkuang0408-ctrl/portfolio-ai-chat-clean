@@ -701,7 +701,7 @@ test.describe("canonical mobile PDF reader behavior", () => {
     "Canonical 390px mobile project owns pointer-gesture coverage.",
   );
 
-  test("uses horizontal touch navigation without consuming vertical movement", async ({
+  test("uses horizontal touch and pen navigation without consuming vertical movement", async ({
     page,
   }) => {
     await page.goto("/");
@@ -715,7 +715,7 @@ test.describe("canonical mobile PDF reader behavior", () => {
 
     const box = await reader.boundingBox();
     if (!box) throw new Error("INKSeat reader has no gesture bounds.");
-    const horizontal = await dispatchReaderPointerGesture(reader, {
+    const horizontalTouch = await dispatchReaderPointerGesture(reader, {
       endX: box.x + box.width * 0.25,
       endY: box.y + box.height * 0.5 + 8,
       pointerId: 1,
@@ -723,21 +723,33 @@ test.describe("canonical mobile PDF reader behavior", () => {
       startX: box.x + box.width * 0.75,
       startY: box.y + box.height * 0.5,
     });
-    expect(horizontal.downPrevented).toBe(false);
-    expect(horizontal.upPrevented).toBe(true);
+    expect(horizontalTouch.downPrevented).toBe(false);
+    expect(horizontalTouch.upPrevented).toBe(true);
     await expect(currentPage).toHaveText("02", { timeout: 30_000 });
+
+    const horizontalPen = await dispatchReaderPointerGesture(reader, {
+      endX: box.x + box.width * 0.25,
+      endY: box.y + box.height * 0.45 + 8,
+      pointerId: 2,
+      pointerType: "pen",
+      startX: box.x + box.width * 0.75,
+      startY: box.y + box.height * 0.45,
+    });
+    expect(horizontalPen.downPrevented).toBe(false);
+    expect(horizontalPen.upPrevented).toBe(true);
+    await expect(currentPage).toHaveText("03", { timeout: 30_000 });
 
     const vertical = await dispatchReaderPointerGesture(reader, {
       endX: box.x + box.width * 0.5 - 12,
       endY: box.y + box.height * 0.72,
-      pointerId: 2,
+      pointerId: 3,
       pointerType: "pen",
       startX: box.x + box.width * 0.5,
       startY: box.y + box.height * 0.3,
     });
     expect(vertical.downPrevented).toBe(false);
     expect(vertical.upPrevented).toBe(false);
-    await expect(currentPage).toHaveText("02");
+    await expect(currentPage).toHaveText("03");
 
     const scrollBefore = await page.evaluate(() => window.scrollY);
     await page.evaluate(() =>
@@ -746,7 +758,7 @@ test.describe("canonical mobile PDF reader behavior", () => {
     await expect
       .poll(() => page.evaluate(() => window.scrollY))
       .toBeGreaterThan(scrollBefore);
-    await expect(currentPage).toHaveText("02");
+    await expect(currentPage).toHaveText("03");
   });
 });
 
