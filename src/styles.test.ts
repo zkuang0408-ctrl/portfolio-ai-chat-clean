@@ -10,6 +10,13 @@ function rule(selector: string): string {
   return styles.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
 }
 
+function rulesContaining(selector: string): string {
+  return Array.from(styles.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+    .filter((match) => match[1]?.includes(selector))
+    .map((match) => match[2])
+    .join("\n");
+}
+
 test("uses the visible viewport height at the mobile breakpoint", () => {
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{\s*min-height:\s*100svh;/,
@@ -94,11 +101,13 @@ test("uses a clipped 16:9 reader stage and a centered editorial counter", () => 
   expect(rule(".project-reader canvas")).toMatch(/object-fit:\s*contain/);
   expect(rule(".project-reader-counter")).toMatch(/text-align:\s*center/);
   expect(rule(".project-reader-counter")).toMatch(/letter-spacing:/);
+  expect(rule(".project-reader-counter")).toMatch(/color:\s*#7d7d7d/);
   expect(styles).not.toMatch(/\.project-media\s+img\s*\{/);
 });
 
 test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
   const chevron = rule(".project-reader-chevron");
+  const chevronRules = rulesContaining(".project-reader-chevron");
   const polyline = rule(".project-reader-chevron polyline");
   const svg = rule(".project-reader-chevron svg");
 
@@ -107,8 +116,10 @@ test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
   expect(chevron).toMatch(/min-width:\s*44px/);
   expect(chevron).toMatch(/min-height:\s*44px/);
   expect(chevron).toMatch(/opacity:\s*0?\.58/);
-  expect(chevron).not.toMatch(/backdrop-filter|box-shadow|border-radius/);
-  expect(chevron.match(/background\s*:[^;]+;/g)).toEqual([
+  expect(chevronRules).not.toMatch(
+    /backdrop-filter|box-shadow|border-radius/,
+  );
+  expect(chevronRules.match(/background\s*:[^;]+;/g)).toEqual([
     "background: transparent;",
   ]);
   expect(svg).toMatch(/width:\s*40px/);
@@ -119,9 +130,6 @@ test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
 
   expect(rule(".project-reader-chevron--previous")).toMatch(/left:\s*-4px/);
   expect(rule(".project-reader-chevron--next")).toMatch(/right:\s*-4px/);
-  expect(styles).not.toMatch(
-    /\.project-reader-chevron[\s\S]*?(?:backdrop-filter|box-shadow)/,
-  );
 });
 
 test("styles reader loading, rendering, ready, error, disabled, hover, and focus states", () => {
