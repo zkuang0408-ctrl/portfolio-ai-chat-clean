@@ -1,4 +1,9 @@
-import { boundPage, pageBoundary, pageCounter } from "./pdf-reader-state";
+import {
+  boundPage,
+  pageBoundary,
+  pageCounter,
+  swipeDirection,
+} from "./pdf-reader-state";
 
 export interface PdfRenderTaskLike {
   cancel(): void;
@@ -25,6 +30,31 @@ export interface PdfReaderDependencies {
   outputScale(): number;
   requestFrame(callback: FrameRequestCallback): number;
   reducedMotion(): boolean;
+  cancelFrame?(frameId: number): void;
+  IntersectionObserver?: IntersectionObserverConstructor;
+  ResizeObserver?: ResizeObserverConstructor;
+}
+
+interface IntersectionObserverLike {
+  observe(target: Element): void;
+  unobserve(target: Element): void;
+  disconnect(): void;
+}
+
+interface IntersectionObserverConstructor {
+  new (
+    callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit,
+  ): IntersectionObserverLike;
+}
+
+interface ResizeObserverLike {
+  observe(target: Element): void;
+  disconnect(): void;
+}
+
+interface ResizeObserverConstructor {
+  new (callback: ResizeObserverCallback): ResizeObserverLike;
 }
 
 export interface PdfReader {
@@ -125,11 +155,25 @@ export function createPdfReader(
   );
   const canvasContext = requireCanvasContext(canvas);
 
-  const previousControl = root.querySelector<HTMLButtonElement>(
+  const previousControl = requireElement<HTMLButtonElement>(
+    root,
     '[data-page-action="previous"]',
+    "previous-page control",
   );
-  const nextControl = root.querySelector<HTMLButtonElement>(
+  const nextControl = requireElement<HTMLButtonElement>(
+    root,
     '[data-page-action="next"]',
+    "next-page control",
+  );
+  const errorRegion = requireElement<HTMLElement>(
+    root,
+    "[data-reader-error]",
+    "reader error region",
+  );
+  const retryControl = requireElement<HTMLButtonElement>(
+    root,
+    "[data-reader-retry]",
+    "reader retry control",
   );
 
   let document: PdfDocumentLike | null = null;
@@ -138,11 +182,28 @@ export function createPdfReader(
   let generation = 0;
   let activeRenderTask: PdfRenderTaskLike | null = null;
   let initializationPromise: Promise<void> | null = null;
+  let renderedWidth: number | null = null;
   let destroyed = false;
+  let pointerStart: {
+    id: number;
+    x: number;
+    y: number;
+  } | null = null;
+  const transitionFrames = new Set<number>();
+
+  function updateControls(pageNumber: number): void {
+    const boundary = pageBoundary(pageNumber, totalPages);
+    previousControl.disabled = !boundary.canGoPrevious;
+    previousControl.setAttribute(
+      "aria-disabled",
+      String(!boundary.canGoPrevious),
+    );
+    nextControl.disabled = !boundary.canGoNext;
+    nextControl.setAttribute("aria-disabled", String(!boundary.canGoNext));
+  }
 
   function updateNavigation(pageNumber: number): void {
     const counter = pageCounter(pageNumber, totalPages);
-    const boundary = pageBoundary(pageNumber, totalPages);
     currentPageElement.textContent = counter.current;
     totalPagesElement.textContent = counter.total;
     if (totalPages !== expectedPages) {
@@ -150,11 +211,29 @@ export function createPdfReader(
     } else {
       delete root.dataset.pageCountMismatch;
     }
-    if (previousControl) {
-      previousControl.disabled = !boundary.canGoPrevious;
+    updateControls(pageNumber);
+  }
+
+  function scheduleTransition(
+    renderGeneration: number,
+    callback: () => void,
+  ): void {
+    if (dependencies.reducedMotion()) {
+      return;
     }
-    if (nextControl) {
-      nextControl.disabled = !boundary.canGoNext;
+    let frameId = 0;
+    let completedSynchronously = false;
+    frameId = dependencies.requestFrame(() => {
+      completedSynchronously = true;
+      if (frameId !== 0) {
+        transitionFrames.delete(frameId);
+      }
+      if (!destroyed && renderGeneration === generation) {
+        callback();
+      }
+    });
+    if (!completedSynchronously) {
+      transitionFrames.add(frameId);
     }
   }
 
@@ -181,7 +260,13 @@ export function createPdfReader(
     activeRenderTask?.cancel();
     activeRenderTask = null;
     root.dataset.readerState = "rendering";
+    errorRegion.hidden = true;
+    updateControls(targetPage);
     status.textContent = `Rendering page ${pageCounter(targetPage, totalPages).current}`;
+    scheduleTransition(renderGeneration, () => {
+      root.classList.remove("is-ready");
+      root.classList.add("is-rendering");
+    });
 
     try {
       const page = await document.getPage(targetPage);
@@ -237,9 +322,15 @@ export function createPdfReader(
 
       activeRenderTask = null;
       currentPage = targetPage;
+      renderedWidth = cssWidth;
       updateNavigation(currentPage);
       status.textContent = `Page ${pageCounter(currentPage, totalPages).current} of ${pageCounter(currentPage, totalPages).total}`;
       root.dataset.readerState = "ready";
+      errorRegion.hidden = true;
+      scheduleTransition(renderGeneration, () => {
+        root.classList.remove("is-rendering");
+        root.classList.add("is-ready");
+      });
       prefetchAdjacent(currentPage);
     } catch (error) {
       if (
@@ -252,7 +343,8 @@ export function createPdfReader(
 
       activeRenderTask = null;
       root.dataset.readerState = "error";
-      status.textContent = "Unable to render project";
+      errorRegion.hidden = false;
+      status.textContent = "Project unavailable";
       throw error;
     }
   }
@@ -267,6 +359,7 @@ export function createPdfReader(
 
     const initializationGeneration = ++generation;
     root.dataset.readerState = "loading";
+    errorRegion.hidden = true;
     status.textContent = "Loading project";
     initializationPromise = (async () => {
       try {
@@ -290,7 +383,8 @@ export function createPdfReader(
           !isRenderingCancellation(error)
         ) {
           root.dataset.readerState = "error";
-          status.textContent = "Unable to load project";
+          errorRegion.hidden = false;
+          status.textContent = "Project unavailable";
         }
         throw error;
       }
@@ -311,6 +405,10 @@ export function createPdfReader(
 
   async function resize(): Promise<void> {
     if (!destroyed && document) {
+      const measuredWidth = dependencies.measureWidth(stage);
+      if (renderedWidth !== null && measuredWidth === renderedWidth) {
+        return;
+      }
       await renderPage(currentPage);
     }
   }
@@ -325,6 +423,7 @@ export function createPdfReader(
     document = null;
     initializationPromise = null;
     currentPage = 1;
+    renderedWidth = null;
     await initialize();
   }
 
@@ -336,7 +435,216 @@ export function createPdfReader(
     generation += 1;
     activeRenderTask?.cancel();
     activeRenderTask = null;
+    pointerStart = null;
+    previousControl.removeEventListener("click", handlePreviousClick);
+    nextControl.removeEventListener("click", handleNextClick);
+    retryControl.removeEventListener("click", handleRetryClick);
+    root.removeEventListener("keydown", handleKeydown);
+    root.removeEventListener("pointerdown", handlePointerDown);
+    root.removeEventListener("pointerup", handlePointerUp);
+    root.removeEventListener("pointercancel", clearPointer);
+    root.removeEventListener("lostpointercapture", clearPointer);
+    transitionFrames.forEach((frameId) => dependencies.cancelFrame?.(frameId));
+    transitionFrames.clear();
   }
 
+  function navigate(direction: "previous" | "next"): boolean {
+    if (destroyed || !document) {
+      return false;
+    }
+    const boundary = pageBoundary(currentPage, totalPages);
+    if (
+      (direction === "previous" && !boundary.canGoPrevious) ||
+      (direction === "next" && !boundary.canGoNext)
+    ) {
+      return false;
+    }
+    const offset = direction === "previous" ? -1 : 1;
+    void goTo(currentPage + offset).catch(() => undefined);
+    return true;
+  }
+
+  function handlePreviousClick(): void {
+    navigate("previous");
+  }
+
+  function handleNextClick(): void {
+    navigate("next");
+  }
+
+  function handleRetryClick(): void {
+    void retry().catch(() => undefined);
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (
+      event.target !== root ||
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+    ) {
+      return;
+    }
+    if (navigate(event.key === "ArrowLeft" ? "previous" : "next")) {
+      event.preventDefault();
+    }
+  }
+
+  function handlePointerDown(event: PointerEvent): void {
+    if (event.pointerType !== "touch" && event.pointerType !== "pen") {
+      pointerStart = null;
+      return;
+    }
+    pointerStart = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+  }
+
+  function handlePointerUp(event: PointerEvent): void {
+    if (!pointerStart || pointerStart.id !== event.pointerId) {
+      return;
+    }
+    const start = pointerStart;
+    pointerStart = null;
+    const direction = swipeDirection({
+      deltaX: event.clientX - start.x,
+      deltaY: event.clientY - start.y,
+    });
+    if (direction && navigate(direction)) {
+      event.preventDefault();
+    }
+  }
+
+  function clearPointer(): void {
+    pointerStart = null;
+  }
+
+  updateNavigation(currentPage);
+  previousControl.addEventListener("click", handlePreviousClick);
+  nextControl.addEventListener("click", handleNextClick);
+  retryControl.addEventListener("click", handleRetryClick);
+  root.addEventListener("keydown", handleKeydown);
+  root.addEventListener("pointerdown", handlePointerDown);
+  root.addEventListener("pointerup", handlePointerUp);
+  root.addEventListener("pointercancel", clearPointer);
+  root.addEventListener("lostpointercapture", clearPointer);
+
   return { destroy, goTo, initialize, resize, retry };
+}
+
+export function startProjectReaders(
+  root: ParentNode,
+  dependencies: PdfReaderDependencies,
+): () => void {
+  const readerRoots = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-project-reader]"),
+  );
+  const controllers = new Map<HTMLElement, PdfReader>();
+  const stages = new Map<Element, PdfReader>();
+  const initializedRoots = new Set<HTMLElement>();
+  let destroyed = false;
+  let resizeFrame: number | null = null;
+  const pendingResize = new Set<PdfReader>();
+
+  readerRoots.forEach((readerRoot) => {
+    controllers.set(readerRoot, createPdfReader(readerRoot, dependencies));
+  });
+
+  const ResizeObserverValue =
+    dependencies.ResizeObserver ?? globalThis.ResizeObserver;
+  const resizeObserver = ResizeObserverValue
+    ? new ResizeObserverValue((entries) => {
+        if (destroyed) {
+          return;
+        }
+        entries.forEach((entry) => {
+          const controller = stages.get(entry.target);
+          if (controller) {
+            pendingResize.add(controller);
+          }
+        });
+        if (pendingResize.size === 0 || resizeFrame !== null) {
+          return;
+        }
+        resizeFrame = dependencies.requestFrame(() => {
+          resizeFrame = null;
+          if (destroyed) {
+            pendingResize.clear();
+            return;
+          }
+          const readers = Array.from(pendingResize);
+          pendingResize.clear();
+          readers.forEach((reader) => {
+            void reader.resize().catch(() => undefined);
+          });
+        });
+      })
+    : null;
+
+  function initialize(readerRoot: HTMLElement): void {
+    const controller = controllers.get(readerRoot);
+    if (!controller || destroyed || initializedRoots.has(readerRoot)) {
+      return;
+    }
+    initializedRoots.add(readerRoot);
+    void controller
+      .initialize()
+      .then(() => {
+        if (destroyed || !resizeObserver) {
+          return;
+        }
+        const stage = readerRoot.querySelector<HTMLElement>(
+          "[data-reader-stage]",
+        );
+        if (stage) {
+          stages.set(stage, controller);
+          resizeObserver.observe(stage);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  const IntersectionObserverValue =
+    dependencies.IntersectionObserver ?? globalThis.IntersectionObserver;
+  const intersectionObserver = IntersectionObserverValue
+    ? new IntersectionObserverValue(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting || !(entry.target instanceof HTMLElement)) {
+              return;
+            }
+            if (initializedRoots.has(entry.target)) {
+              return;
+            }
+            intersectionObserver?.unobserve(entry.target);
+            initialize(entry.target);
+          });
+        },
+        { rootMargin: "600px 0px" },
+      )
+    : null;
+
+  if (intersectionObserver) {
+    readerRoots.forEach((readerRoot) => intersectionObserver.observe(readerRoot));
+  } else {
+    readerRoots.forEach(initialize);
+  }
+
+  return () => {
+    if (destroyed) {
+      return;
+    }
+    destroyed = true;
+    intersectionObserver?.disconnect();
+    resizeObserver?.disconnect();
+    if (resizeFrame !== null) {
+      dependencies.cancelFrame?.(resizeFrame);
+      resizeFrame = null;
+    }
+    pendingResize.clear();
+    controllers.forEach((controller) => controller.destroy());
+    controllers.clear();
+    stages.clear();
+    initializedRoots.clear();
+  };
 }

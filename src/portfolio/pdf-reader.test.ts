@@ -2,6 +2,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 
 import {
   createPdfReader,
+  startProjectReaders,
   type PdfDocumentLike,
   type PdfPageLike,
   type PdfReaderDependencies,
@@ -10,12 +11,18 @@ import {
 
 function createRoot(expectedPages = 18): HTMLElement {
   const root = document.createElement("figure");
+  root.dataset.projectReader = "";
   root.dataset.pdfUrl = "/projects/pdfs/inkseat.pdf";
   root.dataset.expectedPages = String(expectedPages);
+  root.tabIndex = 0;
   root.innerHTML = `
     <div data-reader-stage>
       <canvas data-pdf-canvas></canvas>
       <p data-reader-status>Loading project</p>
+      <div data-reader-error hidden>
+        <button data-reader-retry>Retry</button>
+        <a href="${root.dataset.pdfUrl}" target="_blank">Open original PDF</a>
+      </div>
       <button data-page-action="previous"></button>
       <button data-page-action="next"></button>
     </div>
@@ -70,6 +77,22 @@ function deferred<T>() {
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
+}
+
+function dispatchPointer(
+  target: Element,
+  type: string,
+  values: { pointerId?: number; pointerType: string; clientX: number; clientY: number },
+): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    pointerId: { value: values.pointerId ?? 1 },
+    pointerType: { value: values.pointerType },
+    clientX: { value: values.clientX },
+    clientY: { value: values.clientY },
+  });
+  target.dispatchEvent(event);
+  return event;
 }
 
 beforeEach(() => {
@@ -407,6 +430,10 @@ test.each([
   ["PDF URL", (root: HTMLElement) => delete root.dataset.pdfUrl],
   ["reader stage", (root: HTMLElement) => root.querySelector("[data-reader-stage]")?.remove()],
   ["PDF canvas", (root: HTMLElement) => root.querySelector("[data-pdf-canvas]")?.remove()],
+  ["previous-page control", (root: HTMLElement) => root.querySelector('[data-page-action="previous"]')?.remove()],
+  ["next-page control", (root: HTMLElement) => root.querySelector('[data-page-action="next"]')?.remove()],
+  ["reader error region", (root: HTMLElement) => root.querySelector("[data-reader-error]")?.remove()],
+  ["reader retry control", (root: HTMLElement) => root.querySelector("[data-reader-retry]")?.remove()],
 ])("throws a clear setup error when %s is missing", (expected, removeRequired) => {
   const root = createRoot();
   removeRequired(root);
@@ -417,4 +444,323 @@ test.each([
       createDependencies(vi.fn(async () => ({ numPages: 1, getPage: vi.fn() }))),
     ),
   ).toThrow(`PDF reader setup error: missing ${expected}`);
+});
+
+test("button navigation updates counters and disables boundaries without wrapping", async () => {
+  const root = createRoot(2);
+  const getPage = vi.fn(async (_pageNumber: number) => createPage());
+  createPdfReader(
+    root,
+    createDependencies(vi.fn(async () => ({ numPages: 2, getPage }))),
+  );
+  const previous = root.querySelector<HTMLButtonElement>('[data-page-action="previous"]')!;
+  const next = root.querySelector<HTMLButtonElement>('[data-page-action="next"]')!;
+
+  expect(previous.disabled).toBe(true);
+  expect(previous.getAttribute("aria-disabled")).toBe("true");
+  previous.click();
+  expect(getPage).not.toHaveBeenCalled();
+
+  root.querySelector<HTMLButtonElement>("[data-reader-retry]")!.click();
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+  next.click();
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"));
+  expect(next.disabled).toBe(true);
+  expect(next.getAttribute("aria-disabled")).toBe("true");
+  next.click();
+  await flushPromises();
+  expect(getPage.mock.calls.filter(([page]) => page === 2)).toHaveLength(2);
+
+  previous.click();
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("01"));
+});
+
+test("arrow keys navigate only the focused ready reader and prevent only effective navigation", async () => {
+  const first = createRoot(2);
+  const second = createRoot(2);
+  const firstReader = createPdfReader(
+    first,
+    createDependencies(vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage()) }))),
+  );
+  createPdfReader(
+    second,
+    createDependencies(vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage()) }))),
+  );
+  await firstReader.initialize();
+
+  const unrelated = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+  first.dispatchEvent(unrelated);
+  expect(unrelated.defaultPrevented).toBe(false);
+  const boundary = new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true });
+  first.dispatchEvent(boundary);
+  expect(boundary.defaultPrevented).toBe(false);
+  const unready = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true });
+  second.dispatchEvent(unready);
+  expect(unready.defaultPrevented).toBe(false);
+
+  const effective = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true });
+  first.dispatchEvent(effective);
+  expect(effective.defaultPrevented).toBe(true);
+  await vi.waitFor(() => expect(first.querySelector("[data-current-page]")?.textContent).toBe("02"));
+  expect(second.querySelector("[data-current-page]")?.textContent).toBe("01");
+
+  const childArrow = new KeyboardEvent("keydown", {
+    key: "ArrowLeft",
+    bubbles: true,
+    cancelable: true,
+  });
+  first.querySelector('[data-page-action="next"]')!.dispatchEvent(childArrow);
+  expect(childArrow.defaultPrevented).toBe(false);
+  await flushPromises();
+  expect(first.querySelector("[data-current-page]")?.textContent).toBe("02");
+});
+
+test("load failure is isolated, exposes retry and preserves the original PDF link", async () => {
+  const failedRoot = createRoot(2);
+  const readyRoot = createRoot(2);
+  const originalHref = failedRoot.querySelector<HTMLAnchorElement>("[data-reader-error] a")!.href;
+  const failure = new Error("offline");
+  const failedReader = createPdfReader(failedRoot, createDependencies(vi.fn(async () => { throw failure; })));
+  const readyReader = createPdfReader(
+    readyRoot,
+    createDependencies(vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage()) }))),
+  );
+
+  await expect(failedReader.initialize()).rejects.toBe(failure);
+  await readyReader.initialize();
+
+  expect(failedRoot.dataset.readerState).toBe("error");
+  expect(failedRoot.querySelector<HTMLElement>("[data-reader-error]")!.hidden).toBe(false);
+  expect(failedRoot.querySelector("[data-reader-status]")?.textContent).toBe("Project unavailable");
+  expect(failedRoot.querySelector("[data-reader-error] a")?.getAttribute("href")).toBe("/projects/pdfs/inkseat.pdf");
+  expect(failedRoot.querySelector<HTMLAnchorElement>("[data-reader-error] a")!.href).toBe(originalHref);
+  expect(readyRoot.dataset.readerState).toBe("ready");
+  expect(readyRoot.querySelector<HTMLElement>("[data-reader-error]")!.hidden).toBe(true);
+});
+
+test("retry clears only its own error and repeated retry keeps the newest load authoritative", async () => {
+  const root = createRoot(2);
+  const other = createRoot(2);
+  other.querySelector<HTMLElement>("[data-reader-error]")!.hidden = false;
+  const stale = deferred<PdfDocumentLike>();
+  const current: PdfDocumentLike = { numPages: 3, getPage: vi.fn(async () => createPage()) };
+  const loadDocument = vi
+    .fn<PdfReaderDependencies["loadDocument"]>()
+    .mockRejectedValueOnce(new Error("first"))
+    .mockImplementationOnce(() => stale.promise)
+    .mockResolvedValueOnce(current);
+  const reader = createPdfReader(root, createDependencies(loadDocument));
+  await expect(reader.initialize()).rejects.toThrow("first");
+
+  const retry = root.querySelector<HTMLButtonElement>("[data-reader-retry]")!;
+  retry.click();
+  retry.click();
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+  stale.resolve({ numPages: 9, getPage: vi.fn(async () => createPage()) });
+  await flushPromises();
+
+  expect(loadDocument).toHaveBeenCalledTimes(3);
+  expect(root.querySelector("[data-total-pages]")?.textContent).toBe("03");
+  expect(root.querySelector<HTMLElement>("[data-reader-error]")!.hidden).toBe(true);
+  expect(other.querySelector<HTMLElement>("[data-reader-error]")!.hidden).toBe(false);
+});
+
+test("touch and pen horizontal swipes navigate while mouse and vertical gestures are ignored", async () => {
+  const root = createRoot(3);
+  const reader = createPdfReader(
+    root,
+    createDependencies(vi.fn(async () => ({ numPages: 3, getPage: vi.fn(async () => createPage()) }))),
+  );
+  await reader.initialize();
+
+  dispatchPointer(root, "pointerdown", { pointerType: "mouse", clientX: 100, clientY: 0 });
+  const mouseUp = dispatchPointer(root, "pointerup", { pointerType: "mouse", clientX: 0, clientY: 0 });
+  expect(mouseUp.defaultPrevented).toBe(false);
+  dispatchPointer(root, "pointerdown", { pointerType: "touch", clientX: 100, clientY: 0 });
+  const vertical = dispatchPointer(root, "pointerup", { pointerType: "touch", clientX: 80, clientY: 90 });
+  expect(vertical.defaultPrevented).toBe(false);
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+
+  dispatchPointer(root, "pointerdown", { pointerType: "touch", clientX: 100, clientY: 10 });
+  const next = dispatchPointer(root, "pointerup", { pointerType: "touch", clientX: 20, clientY: 15 });
+  expect(next.defaultPrevented).toBe(true);
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"));
+  dispatchPointer(root, "pointerdown", { pointerType: "pen", clientX: 10, clientY: 10 });
+  dispatchPointer(root, "pointerup", { pointerType: "pen", clientX: 90, clientY: 15 });
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("01"));
+});
+
+test("resize rerenders the current page at the newly measured width", async () => {
+  const root = createRoot(3);
+  let width = 960;
+  const pages = [createPage(), createPage(), createPage()];
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({ numPages: 3, getPage: vi.fn(async (number) => pages[number - 1]!) })),
+      { measureWidth: () => width },
+    ),
+  );
+  await reader.initialize();
+  await reader.goTo(2);
+  width = 480;
+  await reader.resize();
+
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("02");
+  expect(root.querySelector<HTMLCanvasElement>("[data-pdf-canvas]")?.style.width).toBe("480px");
+  expect(pages[1]?.render).toHaveBeenCalledTimes(2);
+
+  await reader.resize();
+  expect(pages[1]?.render).toHaveBeenCalledTimes(2);
+});
+
+test("transition frames are skipped for reduced motion and otherwise toggle minimal state classes", async () => {
+  const reducedRoot = createRoot(1);
+  const reducedFrame = vi.fn(() => 1);
+  const reduced = createPdfReader(
+    reducedRoot,
+    createDependencies(vi.fn(async () => ({ numPages: 1, getPage: vi.fn(async () => createPage()) })), {
+      reducedMotion: () => true,
+      requestFrame: reducedFrame,
+    }),
+  );
+  await reduced.initialize();
+  expect(reducedFrame).not.toHaveBeenCalled();
+  expect(reducedRoot.classList.contains("is-ready")).toBe(false);
+
+  const root = createRoot(1);
+  const callbacks: FrameRequestCallback[] = [];
+  const reader = createPdfReader(
+    root,
+    createDependencies(vi.fn(async () => ({ numPages: 1, getPage: vi.fn(async () => createPage()) })), {
+      requestFrame: (callback) => (callbacks.push(callback), callbacks.length),
+    }),
+  );
+  await reader.initialize();
+  callbacks.splice(0).forEach((callback) => callback(0));
+  expect(root.classList.contains("is-rendering")).toBe(false);
+  expect(root.classList.contains("is-ready")).toBe(true);
+});
+
+test("destroy removes interaction listeners, cancels work and blocks queued transition callbacks", async () => {
+  const root = createRoot(2);
+  const completion = deferred<unknown>();
+  const task = { cancel: vi.fn(), promise: completion.promise };
+  const callbacks: FrameRequestCallback[] = [];
+  const reader = createPdfReader(
+    root,
+    createDependencies(vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage(task)) })), {
+      requestFrame: (callback) => (callbacks.push(callback), callbacks.length),
+    }),
+  );
+  const initializing = reader.initialize();
+  await flushPromises();
+  reader.destroy();
+  root.querySelector<HTMLButtonElement>('[data-page-action="next"]')!.click();
+  root.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  dispatchPointer(root, "pointerdown", { pointerType: "touch", clientX: 100, clientY: 0 });
+  dispatchPointer(root, "pointerup", { pointerType: "touch", clientX: 0, clientY: 0 });
+  callbacks.forEach((callback) => callback(0));
+  completion.resolve(undefined);
+  await initializing;
+
+  expect(task.cancel).toHaveBeenCalledTimes(1);
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+  expect(root.classList.contains("is-ready")).toBe(false);
+});
+
+test("lazy manager independently initializes six readers and coalesces resize notifications", async () => {
+  const portfolio = document.createElement("main");
+  const roots = Array.from({ length: 6 }, () => createRoot(2));
+  roots.forEach((root) => portfolio.append(root));
+  let intersectionCallback!: IntersectionObserverCallback;
+  const unobserve = vi.fn();
+  const intersectionDisconnect = vi.fn();
+  class FakeIntersectionObserver {
+    constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      intersectionCallback = callback;
+      expect(options?.rootMargin).toBe("600px 0px");
+    }
+    observe = vi.fn();
+    unobserve = unobserve;
+    disconnect = intersectionDisconnect;
+  }
+  let resizeCallback!: ResizeObserverCallback;
+  const resizeObserve = vi.fn();
+  const resizeDisconnect = vi.fn();
+  class FakeResizeObserver {
+    constructor(callback: ResizeObserverCallback) { resizeCallback = callback; }
+    observe = resizeObserve;
+    unobserve = vi.fn();
+    disconnect = resizeDisconnect;
+  }
+  const frames: FrameRequestCallback[] = [];
+  const loadDocument = vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage()) }));
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument, { requestFrame: (callback) => (frames.push(callback), frames.length) }),
+    IntersectionObserver: FakeIntersectionObserver,
+    ResizeObserver: FakeResizeObserver,
+    cancelFrame: vi.fn(),
+  });
+
+  expect(loadDocument).not.toHaveBeenCalled();
+  intersectionCallback(
+    roots.map(
+      (target) =>
+        ({ isIntersecting: true, target }) as unknown as IntersectionObserverEntry,
+    ),
+    {} as IntersectionObserver,
+  );
+  intersectionCallback(
+    [
+      {
+        isIntersecting: true,
+        target: roots[0]!,
+      } as unknown as IntersectionObserverEntry,
+    ],
+    {} as IntersectionObserver,
+  );
+  await vi.waitFor(() => expect(loadDocument).toHaveBeenCalledTimes(6));
+  expect(unobserve).toHaveBeenCalledTimes(6);
+  await vi.waitFor(() => expect(resizeObserve).toHaveBeenCalledTimes(6));
+  const frameCount = frames.length;
+  resizeCallback(
+    [roots[0]!, roots[0]!, roots[1]!].map(
+      (root) =>
+        ({
+          target: root.querySelector("[data-reader-stage]")!,
+        }) as ResizeObserverEntry,
+    ),
+    {} as ResizeObserver,
+  );
+  resizeCallback(
+    [{ target: roots[1]!.querySelector("[data-reader-stage]")! } as ResizeObserverEntry],
+    {} as ResizeObserver,
+  );
+  expect(frames).toHaveLength(frameCount + 1);
+  frames[frameCount]?.(0);
+  await flushPromises();
+
+  cleanup();
+  expect(intersectionDisconnect).toHaveBeenCalledTimes(1);
+  expect(resizeDisconnect).toHaveBeenCalledTimes(1);
+});
+
+test("lazy manager fallback starts every reader and isolates a rejected load", async () => {
+  const portfolio = document.createElement("main");
+  const roots = Array.from({ length: 2 }, () => createRoot(1));
+  roots.forEach((root) => portfolio.append(root));
+  const loadDocument = vi
+    .fn<PdfReaderDependencies["loadDocument"]>()
+    .mockRejectedValueOnce(new Error("broken"))
+    .mockResolvedValueOnce({ numPages: 1, getPage: vi.fn(async () => createPage()) });
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument),
+    IntersectionObserver: undefined,
+    ResizeObserver: undefined,
+  });
+  await vi.waitFor(() => expect(loadDocument).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(roots[1]?.dataset.readerState).toBe("ready"));
+  expect(roots[0]?.dataset.readerState).toBe("error");
+  cleanup();
 });
