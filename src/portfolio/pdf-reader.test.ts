@@ -150,6 +150,7 @@ test("a retried load cannot be overwritten by stale initialization", async () =>
 
   expect(loadDocument).toHaveBeenCalledTimes(2);
   expect(root.querySelector("[data-total-pages]")?.textContent).toBe("02");
+  expect(root.dataset.pageCountMismatch).toBeUndefined();
   expect(staleDocument.getPage).not.toHaveBeenCalled();
   expect(currentDocument.getPage).toHaveBeenCalledWith(1);
   expect(root.dataset.readerState).toBe("ready");
@@ -169,6 +170,56 @@ test("uses the PDF page count and surfaces an expected-count mismatch non-fatall
   expect(root.dataset.readerState).toBe("ready");
   expect(root.dataset.pageCountMismatch).toBe("18:20");
   expect(root.querySelector("[data-total-pages]")?.textContent).toBe("20");
+});
+
+test("does not commit the authoritative total before the first render succeeds", async () => {
+  const root = createRoot(18);
+  const renderFailure = new Error("page unavailable");
+  const loadDocument = vi.fn(async () => ({
+    numPages: 20,
+    getPage: vi.fn(async () => {
+      throw renderFailure;
+    }),
+  }));
+  const reader = createPdfReader(root, createDependencies(loadDocument));
+
+  await expect(reader.initialize()).rejects.toBe(renderFailure);
+
+  expect(root.dataset.readerState).toBe("error");
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+  expect(root.querySelector("[data-total-pages]")?.textContent).toBe("18");
+  expect(root.dataset.pageCountMismatch).toBeUndefined();
+});
+
+test("destroyed rendering cannot commit authoritative page metadata", async () => {
+  const root = createRoot(18);
+  const renderCompletion = deferred<unknown>();
+  const renderTask = {
+    cancel: vi.fn(),
+    promise: renderCompletion.promise,
+  };
+  const page = createPage(renderTask);
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 20,
+        getPage: vi.fn(async () => page),
+      })),
+    ),
+  );
+
+  const initialization = reader.initialize();
+  await flushPromises();
+  reader.destroy();
+  renderCompletion.resolve(undefined);
+  await initialization;
+
+  expect(renderTask.cancel).toHaveBeenCalledTimes(1);
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+  expect(root.querySelector("[data-total-pages]")?.textContent).toBe("18");
+  expect(root.dataset.pageCountMismatch).toBeUndefined();
+  expect(root.dataset.readerState).not.toBe("ready");
 });
 
 test("goTo clamps pages and renders the resulting page", async () => {

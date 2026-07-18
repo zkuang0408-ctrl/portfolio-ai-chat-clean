@@ -139,6 +139,11 @@ export function createPdfReader(
     const boundary = pageBoundary(pageNumber, totalPages);
     currentPageElement.textContent = counter.current;
     totalPagesElement.textContent = counter.total;
+    if (totalPages !== expectedPages) {
+      root.dataset.pageCountMismatch = `${expectedPages}:${totalPages}`;
+    } else {
+      delete root.dataset.pageCountMismatch;
+    }
     if (previousControl) {
       previousControl.disabled = !boundary.canGoPrevious;
     }
@@ -255,12 +260,6 @@ export function createPdfReader(
 
         document = loadedDocument;
         totalPages = loadedDocument.numPages;
-        totalPagesElement.textContent = pageCounter(1, totalPages).total;
-        if (totalPages !== expectedPages) {
-          root.dataset.pageCountMismatch = `${expectedPages}:${totalPages}`;
-        } else {
-          delete root.dataset.pageCountMismatch;
-        }
         await renderPage(1);
       } catch (error) {
         if (
