@@ -1,4 +1,21 @@
-import { documents, profile, projects } from "../content/portfolio";
+import {
+  documents,
+  profile,
+  projects,
+  type Project,
+} from "../content/portfolio";
+
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+
+  return value.replace(/[&<>"']/g, (character) => entities[character] ?? character);
+}
 
 function renderSectionHeading(index: string, eyebrow: string, title: string): string {
   return `
@@ -40,14 +57,65 @@ function renderAbout(): string {
   `;
 }
 
+function renderProjectReader(project: Project): string {
+  const projectTitle = escapeHtml(project.title);
+  const pdfTitle = escapeHtml(project.pdf.title);
+  const pdfUrl = escapeHtml(project.pdf.href);
+  const expectedPages = String(project.pdf.pageCount);
+
+  return `
+    <figure
+      class="project-media project-reader"
+      data-project-reader
+      data-pdf-url="${pdfUrl}"
+      data-expected-pages="${expectedPages}"
+      data-project-title="${projectTitle}"
+      tabindex="0"
+      role="group"
+      aria-label="${projectTitle} complete PDF"
+    >
+      <div class="project-reader-stage" data-reader-stage>
+        <canvas data-pdf-canvas aria-label="${pdfTitle}"></canvas>
+        <p data-reader-status aria-live="polite">Loading project</p>
+        <div data-reader-error hidden>
+          <p>Unable to load this project.</p>
+          <button type="button" data-reader-retry>Retry</button>
+          <a href="${pdfUrl}" target="_blank" rel="noopener">Open original PDF</a>
+        </div>
+        <button
+          class="project-reader-chevron project-reader-chevron--previous"
+          type="button"
+          data-page-action="previous"
+          aria-label="Previous page of ${projectTitle}"
+        >
+          <svg viewBox="0 0 40 70" aria-hidden="true">
+            <polyline points="25,9 3,35 25,61"></polyline>
+          </svg>
+        </button>
+        <button
+          class="project-reader-chevron project-reader-chevron--next"
+          type="button"
+          data-page-action="next"
+          aria-label="Next page of ${projectTitle}"
+        >
+          <svg viewBox="0 0 40 70" aria-hidden="true">
+            <polyline points="15,9 37,35 15,61"></polyline>
+          </svg>
+        </button>
+      </div>
+      <figcaption class="project-reader-counter">
+        <strong data-current-page>01</strong><span> / </span><span data-total-pages>${expectedPages}</span>
+      </figcaption>
+    </figure>
+  `;
+}
+
 function renderProjects(): string {
   const projectMarkup = projects
     .map(
       (project) => `
         <article class="project-card" id="project-${project.id}">
-          <figure class="project-media">
-            <img src="${project.image}" alt="${project.imageAlt}" loading="lazy" decoding="async" />
-          </figure>
+          ${renderProjectReader(project)}
           <div class="project-copy">
             <p class="project-number" aria-hidden="true">${project.number}</p>
             <p class="project-type">${project.type}</p>
