@@ -623,6 +623,100 @@ test("touch and pen horizontal swipes navigate while mouse and vertical gestures
   await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("01"));
 });
 
+test("a second concurrent touch invalidates the swipe until every pointer ends", async () => {
+  const root = createRoot(3);
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 3,
+        getPage: vi.fn(async () => createPage()),
+      })),
+    ),
+  );
+  await reader.initialize();
+
+  dispatchPointer(root, "pointerdown", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 100,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointerdown", {
+    pointerId: 2,
+    pointerType: "touch",
+    clientX: 120,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointerup", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 20,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointerup", {
+    pointerId: 2,
+    pointerType: "touch",
+    clientX: 20,
+    clientY: 0,
+  });
+  await flushPromises();
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+
+  dispatchPointer(root, "pointerdown", {
+    pointerId: 3,
+    pointerType: "touch",
+    clientX: 100,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointerup", {
+    pointerId: 3,
+    pointerType: "touch",
+    clientX: 20,
+    clientY: 0,
+  });
+  await vi.waitFor(() =>
+    expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"),
+  );
+});
+
+test("a nonmatching pointer cancellation does not clear the active swipe", async () => {
+  const root = createRoot(2);
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 2,
+        getPage: vi.fn(async () => createPage()),
+      })),
+    ),
+  );
+  await reader.initialize();
+
+  dispatchPointer(root, "pointerdown", {
+    pointerId: 1,
+    pointerType: "pen",
+    clientX: 100,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointercancel", {
+    pointerId: 2,
+    pointerType: "pen",
+    clientX: 0,
+    clientY: 0,
+  });
+  dispatchPointer(root, "pointerup", {
+    pointerId: 1,
+    pointerType: "pen",
+    clientX: 20,
+    clientY: 0,
+  });
+
+  await vi.waitFor(() =>
+    expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"),
+  );
+});
+
 test("resize rerenders the current page at the newly measured width", async () => {
   const root = createRoot(3);
   let width = 960;
@@ -673,6 +767,99 @@ test("transition frames are skipped for reduced motion and otherwise toggle mini
   callbacks.splice(0).forEach((callback) => callback(0));
   expect(root.classList.contains("is-rendering")).toBe(false);
   expect(root.classList.contains("is-ready")).toBe(true);
+});
+
+test("render failure invalidates a queued rendering transition before it runs", async () => {
+  const root = createRoot(1);
+  const callbacks: FrameRequestCallback[] = [];
+  const failure = new Error("page failed");
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 1,
+        getPage: vi.fn(async () => {
+          throw failure;
+        }),
+      })),
+      { requestFrame: (callback) => (callbacks.push(callback), callbacks.length) },
+    ),
+  );
+
+  await expect(reader.initialize()).rejects.toBe(failure);
+  callbacks.forEach((callback) => callback(0));
+
+  expect(root.dataset.readerState).toBe("error");
+  expect(root.classList.contains("is-rendering")).toBe(false);
+  expect(root.classList.contains("is-ready")).toBe(false);
+});
+
+test("render failure removes a rendering transition that already ran", async () => {
+  const root = createRoot(1);
+  const callbacks: FrameRequestCallback[] = [];
+  const completion = deferred<unknown>();
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 1,
+        getPage: vi.fn(async () =>
+          createPage({ cancel: vi.fn(), promise: completion.promise }),
+        ),
+      })),
+      { requestFrame: (callback) => (callbacks.push(callback), callbacks.length) },
+    ),
+  );
+  const initialization = reader.initialize();
+  await vi.waitFor(() => expect(callbacks).toHaveLength(1));
+  callbacks[0]?.(0);
+  expect(root.classList.contains("is-rendering")).toBe(true);
+
+  completion.reject(new Error("render failed"));
+  await expect(initialization).rejects.toThrow("render failed");
+
+  expect(root.dataset.readerState).toBe("error");
+  expect(root.classList.contains("is-rendering")).toBe(false);
+  expect(root.classList.contains("is-ready")).toBe(false);
+});
+
+test("pending navigation keeps controls at the committed page until render succeeds", async () => {
+  const root = createRoot(2);
+  const completion = deferred<unknown>();
+  const pages = [
+    createPage(),
+    createPage({ cancel: vi.fn(), promise: completion.promise }),
+  ];
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 2,
+        getPage: vi.fn(async (pageNumber) => pages[pageNumber - 1]!),
+      })),
+    ),
+  );
+  await reader.initialize();
+  const navigation = reader.goTo(2);
+  await flushPromises();
+
+  const previous = root.querySelector<HTMLButtonElement>(
+    '[data-page-action="previous"]',
+  )!;
+  const next = root.querySelector<HTMLButtonElement>(
+    '[data-page-action="next"]',
+  )!;
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+  expect(previous.disabled).toBe(true);
+  expect(previous.getAttribute("aria-disabled")).toBe("true");
+  expect(next.disabled).toBe(false);
+  expect(next.getAttribute("aria-disabled")).toBe("false");
+
+  completion.resolve(undefined);
+  await navigation;
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("02");
+  expect(previous.disabled).toBe(false);
+  expect(next.disabled).toBe(true);
 });
 
 test("destroy removes interaction listeners, cancels work and blocks queued transition callbacks", async () => {
@@ -870,4 +1057,56 @@ test("lazy manager cleanup cancels a queued resize frame with the browser fallba
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+test("lazy manager keeps retry-successful readers registered for resize", async () => {
+  const portfolio = document.createElement("main");
+  const root = createRoot(1);
+  portfolio.append(root);
+  let intersectionCallback!: IntersectionObserverCallback;
+  class FakeIntersectionObserver {
+    constructor(callback: IntersectionObserverCallback) {
+      intersectionCallback = callback;
+    }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+  const resizeObserve = vi.fn();
+  class FakeResizeObserver {
+    constructor(_callback: ResizeObserverCallback) {}
+    observe = resizeObserve;
+    disconnect = vi.fn();
+  }
+  const loadDocument = vi
+    .fn<PdfReaderDependencies["loadDocument"]>()
+    .mockRejectedValueOnce(new Error("initial load failed"))
+    .mockResolvedValueOnce({
+      numPages: 1,
+      getPage: vi.fn(async () => createPage()),
+    });
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument),
+    IntersectionObserver: FakeIntersectionObserver,
+    ResizeObserver: FakeResizeObserver,
+  });
+  intersectionCallback(
+    [
+      {
+        isIntersecting: true,
+        target: root,
+      } as unknown as IntersectionObserverEntry,
+    ],
+    {} as IntersectionObserver,
+  );
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("error"));
+
+  root.querySelector<HTMLButtonElement>("[data-reader-retry]")!.click();
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+
+  expect(resizeObserve).toHaveBeenCalledTimes(1);
+  expect(resizeObserve).toHaveBeenCalledWith(
+    root.querySelector("[data-reader-stage]"),
+  );
+  cleanup();
 });

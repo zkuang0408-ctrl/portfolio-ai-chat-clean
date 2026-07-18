@@ -202,7 +202,13 @@ export function createPdfReader(
     x: number;
     y: number;
   } | null = null;
-  const transitionFrames = new Set<number>();
+  const activePointers = new Set<number>();
+  let pointerSessionInvalidated = false;
+  const transitionFrames = new Set<{
+    active: boolean;
+    generation: number;
+    id: number;
+  }>();
 
   function updateControls(pageNumber: number): void {
     const boundary = pageBoundary(pageNumber, totalPages);
@@ -234,20 +240,38 @@ export function createPdfReader(
     if (dependencies.reducedMotion()) {
       return;
     }
-    let frameId = 0;
+    const frame = {
+      active: true,
+      generation: renderGeneration,
+      id: 0,
+    };
     let completedSynchronously = false;
-    frameId = dependencies.requestFrame(() => {
+    frame.id = dependencies.requestFrame(() => {
       completedSynchronously = true;
-      if (frameId !== 0) {
-        transitionFrames.delete(frameId);
-      }
-      if (!destroyed && renderGeneration === generation) {
+      transitionFrames.delete(frame);
+      const active = frame.active;
+      frame.active = false;
+      if (active && !destroyed && renderGeneration === generation) {
         callback();
       }
     });
-    if (!completedSynchronously) {
-      transitionFrames.add(frameId);
+    if (!completedSynchronously && frame.active) {
+      transitionFrames.add(frame);
     }
+  }
+
+  function normalizeTransitions(renderGeneration?: number): void {
+    transitionFrames.forEach((frame) => {
+      if (
+        renderGeneration === undefined ||
+        frame.generation === renderGeneration
+      ) {
+        frame.active = false;
+        cancelFrame?.(frame.id);
+        transitionFrames.delete(frame);
+      }
+    });
+    root.classList.remove("is-rendering", "is-ready");
   }
 
   function prefetchAdjacent(pageNumber: number): void {
@@ -274,7 +298,6 @@ export function createPdfReader(
     activeRenderTask = null;
     root.dataset.readerState = "rendering";
     errorRegion.hidden = true;
-    updateControls(targetPage);
     status.textContent = `Rendering page ${pageCounter(targetPage, totalPages).current}`;
     scheduleTransition(renderGeneration, () => {
       root.classList.remove("is-ready");
@@ -355,6 +378,7 @@ export function createPdfReader(
       }
 
       activeRenderTask = null;
+      normalizeTransitions(renderGeneration);
       updateControls(currentPage);
       root.dataset.readerState = "error";
       errorRegion.hidden = false;
@@ -450,6 +474,8 @@ export function createPdfReader(
     activeRenderTask?.cancel();
     activeRenderTask = null;
     pointerStart = null;
+    activePointers.clear();
+    pointerSessionInvalidated = false;
     previousControl.removeEventListener("click", handlePreviousClick);
     nextControl.removeEventListener("click", handleNextClick);
     retryControl.removeEventListener("click", handleRetryClick);
@@ -458,8 +484,7 @@ export function createPdfReader(
     root.removeEventListener("pointerup", handlePointerUp);
     root.removeEventListener("pointercancel", clearPointer);
     root.removeEventListener("lostpointercapture", clearPointer);
-    transitionFrames.forEach((frameId) => cancelFrame?.(frameId));
-    transitionFrames.clear();
+    normalizeTransitions();
   }
 
   function navigate(direction: "previous" | "next"): boolean {
@@ -504,22 +529,42 @@ export function createPdfReader(
 
   function handlePointerDown(event: PointerEvent): void {
     if (event.pointerType !== "touch" && event.pointerType !== "pen") {
-      pointerStart = null;
       return;
     }
-    pointerStart = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-    };
+    if (activePointers.has(event.pointerId)) {
+      return;
+    }
+    if (activePointers.size > 0) {
+      pointerSessionInvalidated = true;
+      pointerStart = null;
+    } else {
+      pointerSessionInvalidated = false;
+      pointerStart = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+    }
+    activePointers.add(event.pointerId);
   }
 
   function handlePointerUp(event: PointerEvent): void {
-    if (!pointerStart || pointerStart.id !== event.pointerId) {
+    if (!activePointers.delete(event.pointerId)) {
       return;
     }
     const start = pointerStart;
-    pointerStart = null;
+    const canComplete =
+      !pointerSessionInvalidated && start?.id === event.pointerId;
+    if (start?.id === event.pointerId) {
+      pointerStart = null;
+    }
+    if (activePointers.size === 0) {
+      pointerSessionInvalidated = false;
+      pointerStart = null;
+    }
+    if (!canComplete || !start) {
+      return;
+    }
     const direction = swipeDirection({
       deltaX: event.clientX - start.x,
       deltaY: event.clientY - start.y,
@@ -529,8 +574,17 @@ export function createPdfReader(
     }
   }
 
-  function clearPointer(): void {
-    pointerStart = null;
+  function clearPointer(event: PointerEvent): void {
+    if (!activePointers.delete(event.pointerId)) {
+      return;
+    }
+    if (pointerStart?.id === event.pointerId) {
+      pointerStart = null;
+    }
+    if (activePointers.size === 0) {
+      pointerSessionInvalidated = false;
+      pointerStart = null;
+    }
   }
 
   updateNavigation(currentPage);
@@ -602,21 +656,16 @@ export function startProjectReaders(
       return;
     }
     initializedRoots.add(readerRoot);
-    void controller
-      .initialize()
-      .then(() => {
-        if (destroyed || !resizeObserver) {
-          return;
-        }
-        const stage = readerRoot.querySelector<HTMLElement>(
-          "[data-reader-stage]",
-        );
-        if (stage) {
-          stages.set(stage, controller);
-          resizeObserver.observe(stage);
-        }
-      })
-      .catch(() => undefined);
+    if (resizeObserver) {
+      const stage = readerRoot.querySelector<HTMLElement>(
+        "[data-reader-stage]",
+      );
+      if (stage && !stages.has(stage)) {
+        stages.set(stage, controller);
+        resizeObserver.observe(stage);
+      }
+    }
+    void controller.initialize().catch(() => undefined);
   }
 
   const IntersectionObserverValue =
