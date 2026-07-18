@@ -1,6 +1,6 @@
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 interface CanvasSignature {
   alphaCoverage: number;
@@ -24,6 +24,141 @@ const canvasCompleteness = {
 } as const;
 
 const browserErrors = new WeakMap<Page, string[]>();
+const expectedRequestFailures = new WeakMap<Page, Map<string, number>>();
+const expectedConsoleErrors = new WeakMap<Page, Map<string, number>>();
+
+const projectPdfFiles = [
+  "inkseat.pdf",
+  "emovue.pdf",
+  "fruit-evolution.pdf",
+  "atempo.pdf",
+  "urosense.pdf",
+  "first-fly.pdf",
+] as const;
+
+const projectPdfUrls = projectPdfFiles.map(
+  (filename) => `/projects/pdfs/${filename}`,
+);
+
+function projectPdfFilename(url: string): string | null {
+  const { pathname } = new URL(url);
+  if (!pathname.startsWith("/projects/pdfs/") || !pathname.endsWith(".pdf")) {
+    return null;
+  }
+  return pathname.slice(pathname.lastIndexOf("/") + 1);
+}
+
+function trackProjectPdfRequests(page: Page): string[] {
+  const requestedFiles: string[] = [];
+  page.on("request", (request) => {
+    const filename = projectPdfFilename(request.url());
+    if (filename) requestedFiles.push(filename);
+  });
+  return requestedFiles;
+}
+
+function uniqueRequestedFiles(requestedFiles: readonly string[]): string[] {
+  return [...new Set(requestedFiles)];
+}
+
+function expectOneFailedRequest(page: Page, pathname: string): void {
+  const failures = expectedRequestFailures.get(page);
+  if (!failures) throw new Error("Browser error guards are not installed.");
+  failures.set(pathname, (failures.get(pathname) ?? 0) + 1);
+}
+
+function expectOneConsoleError(page: Page, text: string): void {
+  const errors = expectedConsoleErrors.get(page);
+  if (!errors) throw new Error("Browser error guards are not installed.");
+  errors.set(text, (errors.get(text) ?? 0) + 1);
+}
+
+function consumeExpectedConsoleError(page: Page, text: string): boolean {
+  const errors = expectedConsoleErrors.get(page);
+  if (!errors) return false;
+  const remaining = errors.get(text) ?? 0;
+  if (remaining === 0) return false;
+  errors.set(text, remaining - 1);
+  return true;
+}
+
+function consumeExpectedFailedRequest(page: Page, requestUrl: string): boolean {
+  const failures = expectedRequestFailures.get(page);
+  if (!failures) return false;
+  const pathname = new URL(requestUrl).pathname;
+  const remaining = failures.get(pathname) ?? 0;
+  if (remaining === 0) return false;
+  failures.set(pathname, remaining - 1);
+  return true;
+}
+
+async function waitForReaderReady(
+  reader: Locator,
+  timeout = 30_000,
+): Promise<void> {
+  await expect(reader).toHaveAttribute("data-reader-state", "ready", {
+    timeout,
+  });
+}
+
+async function loadAllFirstPagesSequentially(page: Page): Promise<void> {
+  const readers = page.locator("[data-project-reader]");
+  await expect(readers).toHaveCount(6);
+  for (let index = 0; index < 6; index += 1) {
+    const reader = readers.nth(index);
+    await reader.scrollIntoViewIfNeeded();
+    await waitForReaderReady(reader);
+    await expect(reader.locator("[data-current-page]")).toHaveText("01");
+  }
+}
+
+async function waitForBrowserLayout(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
+async function dispatchReaderPointerGesture(
+  reader: Locator,
+  input: {
+    endX: number;
+    endY: number;
+    pointerId: number;
+    pointerType: "touch" | "pen";
+    startX: number;
+    startY: number;
+  },
+): Promise<{ downPrevented: boolean; upPrevented: boolean }> {
+  return reader.evaluate((element, gesture) => {
+    const down = new PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      clientX: gesture.startX,
+      clientY: gesture.startY,
+      isPrimary: true,
+      pointerId: gesture.pointerId,
+      pointerType: gesture.pointerType,
+    });
+    element.dispatchEvent(down);
+    const up = new PointerEvent("pointerup", {
+      bubbles: true,
+      cancelable: true,
+      clientX: gesture.endX,
+      clientY: gesture.endY,
+      isPrimary: true,
+      pointerId: gesture.pointerId,
+      pointerType: gesture.pointerType,
+    });
+    element.dispatchEvent(up);
+    return {
+      downPrevented: down.defaultPrevented,
+      upPrevented: up.defaultPrevented,
+    };
+  }, input);
+}
 
 async function canvasSignature(
   page: Page,
@@ -213,9 +348,16 @@ async function expectCriticalLayoutInsideViewport(page: Page): Promise<void> {
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
   browserErrors.set(page, errors);
+  expectedRequestFailures.set(page, new Map());
+  expectedConsoleErrors.set(page, new Map());
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+    if (
+      message.type() === "error" &&
+      !consumeExpectedConsoleError(page, message.text())
+    ) {
+      errors.push(`console: ${message.text()}`);
+    }
   });
   page.on("response", (response) => {
     if (response.status() >= 400) {
@@ -223,6 +365,7 @@ test.beforeEach(async ({ page }) => {
     }
   });
   page.on("requestfailed", (request) => {
+    if (consumeExpectedFailedRequest(page, request.url())) return;
     errors.push(
       `requestfailed: ${request.failure()?.errorText ?? "unknown error"} ${request.url()}`,
     );
@@ -231,6 +374,20 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(async ({ page }) => {
   expect(browserErrors.get(page) ?? [], "browser errors").toEqual([]);
+  const unobservedExpectedFailures = [
+    ...(expectedRequestFailures.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedFailures,
+    "every narrowly exempted request failure should occur",
+  ).toEqual([]);
+  const unobservedExpectedConsoleErrors = [
+    ...(expectedConsoleErrors.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedConsoleErrors,
+    "every narrowly exempted console error should occur",
+  ).toEqual([]);
 });
 
 test("renders a responsive, complete portrait and becomes still", async ({
@@ -305,19 +462,7 @@ test("renders a responsive, complete portrait and becomes still", async ({
     ).toBeDefined();
   }
   if (artifactName) {
-    const projectImages = page.locator("#projects img");
-    for (let index = 0; index < (await projectImages.count()); index += 1) {
-      const image = projectImages.nth(index);
-      await image.scrollIntoViewIfNeeded();
-      await expect
-        .poll(() =>
-          image.evaluate(
-            (element: HTMLImageElement) =>
-              element.complete && element.naturalWidth > 0 && element.naturalHeight > 0,
-          ),
-        )
-        .toBe(true);
-    }
+    await loadAllFirstPagesSequentially(page);
     const isolatedScreenshot = testInfo.outputPath(artifactName);
     await page.screenshot({
       animations: "disabled",
@@ -354,20 +499,31 @@ test("publishes selected work, stable documents, and privacy-safe contact detail
 
   const projectCards = page.locator("#projects .project-card");
   await expect(projectCards).toHaveCount(6);
-  const projectImages = page.locator("#projects img");
-  await expect(projectImages).toHaveCount(6);
-  for (let index = 0; index < 6; index += 1) {
-    const image = projectImages.nth(index);
-    await image.scrollIntoViewIfNeeded();
-    await expect
-      .poll(() =>
-        image.evaluate(
-          (element: HTMLImageElement) =>
-            element.complete && element.naturalWidth > 0 && element.naturalHeight > 0,
-        ),
-      )
-      .toBe(true);
-  }
+  const readers = page.locator("[data-project-reader]");
+  await expect(readers).toHaveCount(6);
+  await expect(page.locator("[data-total-pages]")).toHaveText([
+    "18",
+    "19",
+    "25",
+    "20",
+    "25",
+    "28",
+  ]);
+  expect(
+    await readers.evaluateAll((elements) =>
+      elements.map((element) => ({
+        projectTitle: (element as HTMLElement).dataset.projectTitle,
+        url: (element as HTMLElement).dataset.pdfUrl,
+      })),
+    ),
+  ).toEqual([
+    { projectTitle: "INKSeat", url: projectPdfUrls[0] },
+    { projectTitle: "EMOVUE", url: projectPdfUrls[1] },
+    { projectTitle: "Fruit & Evolution", url: projectPdfUrls[2] },
+    { projectTitle: "Atempo / Breath Mirror", url: projectPdfUrls[3] },
+    { projectTitle: "UroSense", url: projectPdfUrls[4] },
+    { projectTitle: "First Fly", url: projectPdfUrls[5] },
+  ]);
 
   for (const documentUrl of [
     "/documents/zhao-shikuang-portfolio.pdf",
@@ -401,6 +557,197 @@ test("publishes selected work, stable documents, and privacy-safe contact detail
   }));
   expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1);
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
+});
+
+test.describe("canonical desktop PDF reader behavior", () => {
+  test.skip(
+    ({ viewport }) => viewport?.width !== 1_440,
+    "Canonical desktop project owns the lazy-network proof.",
+  );
+
+  test("loads only the approached project PDF", async ({ page }) => {
+    const requestedFiles = trackProjectPdfRequests(page);
+    await page.goto("/");
+    await waitForCompleteCanvas(page);
+
+    const firstReader = page.locator(
+      '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
+    );
+    await page.evaluate(() => {
+      const reader = document.querySelector<HTMLElement>(
+        '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
+      );
+      if (!reader) throw new Error("Missing INKSeat reader.");
+      const readerTop = reader.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        behavior: "instant",
+        top: Math.max(0, readerTop - window.innerHeight - 700),
+      });
+    });
+    await waitForBrowserLayout(page);
+    await expect(page.locator("#about")).toBeInViewport();
+    const initialDistance = await firstReader.evaluate(
+      (element) => element.getBoundingClientRect().top - window.innerHeight,
+    );
+    expect(initialDistance).toBeGreaterThan(600);
+    expect(uniqueRequestedFiles(requestedFiles)).toEqual([]);
+
+    await firstReader.evaluate((element) => {
+      const readerTop = element.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        behavior: "instant",
+        top: Math.max(0, readerTop - window.innerHeight - 550),
+      });
+    });
+    await waitForReaderReady(firstReader);
+
+    expect(uniqueRequestedFiles(requestedFiles)).toEqual(["inkseat.pdf"]);
+  });
+
+  test("navigates INKSeat without wrapping at either boundary", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const reader = page.locator(
+      '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
+    );
+    await reader.scrollIntoViewIfNeeded();
+    await waitForReaderReady(reader);
+
+    const currentPage = reader.locator("[data-current-page]");
+    const totalPages = reader.locator("[data-total-pages]");
+    const previous = reader.getByRole("button", {
+      name: "Previous page of INKSeat",
+    });
+    const next = reader.getByRole("button", {
+      name: "Next page of INKSeat",
+    });
+    await expect(currentPage).toHaveText("01");
+    await expect(totalPages).toHaveText("18");
+    await expect(previous).toBeDisabled();
+    await previous.evaluate((button: HTMLButtonElement) => button.click());
+    await expect(currentPage).toHaveText("01");
+
+    await next.click();
+    await expect(currentPage).toHaveText("02", { timeout: 30_000 });
+    await reader.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(currentPage).toHaveText("03", { timeout: 30_000 });
+    await page.keyboard.press("ArrowLeft");
+    await expect(currentPage).toHaveText("02", { timeout: 30_000 });
+
+    for (let pageNumber = 3; pageNumber <= 18; pageNumber += 1) {
+      await next.click();
+      await expect(currentPage).toHaveText(
+        String(pageNumber).padStart(2, "0"),
+        { timeout: 30_000 },
+      );
+    }
+    await expect(next).toBeDisabled();
+    await next.evaluate((button: HTMLButtonElement) => button.click());
+    await expect(currentPage).toHaveText("18");
+  });
+
+  test("isolates one failed PDF while another reader stays usable", async ({
+    page,
+  }) => {
+    const failedPath = "/projects/pdfs/emovue.pdf";
+    expectOneFailedRequest(page, failedPath);
+    expectOneConsoleError(page, "Failed to load resource: net::ERR_FAILED");
+    let abortedRequests = 0;
+    await page.route(`**${failedPath}`, async (route) => {
+      if (abortedRequests === 0) {
+        abortedRequests += 1;
+        await route.abort("failed");
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/");
+    const failedReader = page.locator(
+      `[data-project-reader][data-pdf-url="${failedPath}"]`,
+    );
+    await failedReader.scrollIntoViewIfNeeded();
+    await expect(failedReader).toHaveAttribute("data-reader-state", "error", {
+      timeout: 30_000,
+    });
+    const errorRegion = failedReader.locator("[data-reader-error]");
+    await expect(errorRegion).toBeVisible();
+    await expect(errorRegion).toContainText("Unable to load this project.");
+    await expect(
+      errorRegion.getByRole("button", { name: "Retry" }),
+    ).toBeVisible();
+    const originalPdf = errorRegion.getByRole("link", {
+      name: "Open original PDF",
+    });
+    await expect(originalPdf).toBeVisible();
+    await expect(originalPdf).toHaveAttribute("href", failedPath);
+    await expect(originalPdf).toHaveAttribute("target", "_blank");
+    expect(abortedRequests).toBe(1);
+
+    const healthyReader = page.locator(
+      '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
+    );
+    await healthyReader.scrollIntoViewIfNeeded();
+    await waitForReaderReady(healthyReader);
+    await expect(healthyReader.locator("[data-current-page]")).toHaveText("01");
+  });
+});
+
+test.describe("canonical mobile PDF reader behavior", () => {
+  test.skip(
+    ({ viewport }) => viewport?.width !== 390,
+    "Canonical 390px mobile project owns pointer-gesture coverage.",
+  );
+
+  test("uses horizontal touch navigation without consuming vertical movement", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const reader = page.locator(
+      '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
+    );
+    await reader.scrollIntoViewIfNeeded();
+    await waitForReaderReady(reader);
+    const currentPage = reader.locator("[data-current-page]");
+    await expect(currentPage).toHaveText("01");
+
+    const box = await reader.boundingBox();
+    if (!box) throw new Error("INKSeat reader has no gesture bounds.");
+    const horizontal = await dispatchReaderPointerGesture(reader, {
+      endX: box.x + box.width * 0.25,
+      endY: box.y + box.height * 0.5 + 8,
+      pointerId: 1,
+      pointerType: "touch",
+      startX: box.x + box.width * 0.75,
+      startY: box.y + box.height * 0.5,
+    });
+    expect(horizontal.downPrevented).toBe(false);
+    expect(horizontal.upPrevented).toBe(true);
+    await expect(currentPage).toHaveText("02", { timeout: 30_000 });
+
+    const vertical = await dispatchReaderPointerGesture(reader, {
+      endX: box.x + box.width * 0.5 - 12,
+      endY: box.y + box.height * 0.72,
+      pointerId: 2,
+      pointerType: "pen",
+      startX: box.x + box.width * 0.5,
+      startY: box.y + box.height * 0.3,
+    });
+    expect(vertical.downPrevented).toBe(false);
+    expect(vertical.upPrevented).toBe(false);
+    await expect(currentPage).toHaveText("02");
+
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await page.evaluate(() =>
+      window.scrollBy({ behavior: "instant", top: 120 }),
+    );
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(scrollBefore);
+    await expect(currentPage).toHaveText("02");
+  });
 });
 
 test("reduced motion draws the settled state directly", async ({ page }) => {

@@ -43,5 +43,19 @@ describe('Vercel deployment configuration', () => {
         },
       ]),
     });
+
+    const projectPdfHeaders = config.headers?.find(
+      (rule: { source?: string }) =>
+        rule.source === '/projects/pdfs/(.*)',
+    );
+    expect(projectPdfHeaders).toEqual({
+      source: '/projects/pdfs/(.*)',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=3600, s-maxage=31536000',
+        },
+      ],
+    });
   });
 });
