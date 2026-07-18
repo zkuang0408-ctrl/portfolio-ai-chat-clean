@@ -1,6 +1,11 @@
 import portraitUrl from "./assets/portrait.webp";
 import { renderHero } from "./hero/render-hero";
 import { startPortrait } from "./particles/controller";
+import {
+  startProjectReaders,
+  type PdfReaderDependencies,
+} from "./portfolio/pdf-reader";
+import { loadPdfDocument } from "./portfolio/pdf-runtime";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
 
@@ -15,6 +20,18 @@ const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
 renderPortfolio(portfolioRoot);
+
+const stopReaders = startProjectReaders(portfolioRoot, {
+  loadDocument:
+    loadPdfDocument as PdfReaderDependencies["loadDocument"],
+  measureWidth: (stage) => stage.clientWidth,
+  outputScale: () => window.devicePixelRatio || 1,
+  requestFrame: window.requestAnimationFrame.bind(window),
+  cancelFrame: window.cancelAnimationFrame.bind(window),
+  reducedMotion: () =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+});
+window.addEventListener("pagehide", stopReaders, { once: true });
 
 void startPortrait({
   canvas: portrait.canvas,

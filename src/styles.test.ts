@@ -5,6 +5,11 @@ import { expect, test } from "vitest";
 
 const styles = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
+function rule(selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return styles.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
+}
+
 test("uses the visible viewport height at the mobile breakpoint", () => {
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{\s*min-height:\s*100svh;/,
@@ -67,12 +72,88 @@ test("defines the editorial portfolio section system", () => {
     ".project-list",
     ".project-card",
     ".project-media",
+    ".project-reader",
+    ".project-reader-stage",
+    ".project-reader-counter",
     ".documents",
     ".contact",
   ]) {
     expect(styles, selector).toContain(`${selector} {`);
   }
   expect(styles).toMatch(/a:focus-visible\s*\{[\s\S]*?outline:/);
+});
+
+test("uses a clipped 16:9 reader stage and a centered editorial counter", () => {
+  expect(rule(".project-reader-stage")).toMatch(/position:\s*relative/);
+  expect(rule(".project-reader-stage")).toMatch(/aspect-ratio:\s*16\s*\/\s*9/);
+  expect(rule(".project-reader-stage")).toMatch(/overflow:\s*hidden/);
+  expect(rule(".project-reader-stage")).toMatch(/background:\s*#[0-9a-f]{3,6}/i);
+  expect(rule(".project-reader canvas")).toMatch(/display:\s*block/);
+  expect(rule(".project-reader canvas")).toMatch(/width:\s*100%/);
+  expect(rule(".project-reader canvas")).toMatch(/height:\s*100%/);
+  expect(rule(".project-reader canvas")).toMatch(/object-fit:\s*contain/);
+  expect(rule(".project-reader-counter")).toMatch(/text-align:\s*center/);
+  expect(rule(".project-reader-counter")).toMatch(/letter-spacing:/);
+  expect(styles).not.toMatch(/\.project-media\s+img\s*\{/);
+});
+
+test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
+  const chevron = rule(".project-reader-chevron");
+  const polyline = rule(".project-reader-chevron polyline");
+  const svg = rule(".project-reader-chevron svg");
+
+  expect(chevron).toMatch(/background:\s*transparent/);
+  expect(chevron).toMatch(/border:\s*(?:0|none)/);
+  expect(chevron).toMatch(/min-width:\s*44px/);
+  expect(chevron).toMatch(/min-height:\s*44px/);
+  expect(chevron).toMatch(/opacity:\s*0?\.58/);
+  expect(chevron).not.toMatch(/backdrop-filter|box-shadow|border-radius/);
+  expect(chevron.match(/background\s*:[^;]+;/g)).toEqual([
+    "background: transparent;",
+  ]);
+  expect(svg).toMatch(/width:\s*40px/);
+  expect(svg).toMatch(/height:\s*66px/);
+  expect(polyline).toMatch(/fill:\s*none/);
+  expect(polyline).toMatch(/stroke:\s*currentColor/);
+  expect(polyline).toMatch(/stroke-width:\s*2(?:px)?/);
+
+  expect(rule(".project-reader-chevron--previous")).toMatch(/left:\s*-4px/);
+  expect(rule(".project-reader-chevron--next")).toMatch(/right:\s*-4px/);
+  expect(styles).not.toMatch(
+    /\.project-reader-chevron[\s\S]*?(?:backdrop-filter|box-shadow)/,
+  );
+});
+
+test("styles reader loading, rendering, ready, error, disabled, hover, and focus states", () => {
+  expect(styles).toContain('[data-reader-state="loading"]');
+  expect(styles).toContain('[data-reader-state="rendering"]');
+  expect(styles).toContain('[data-reader-state="ready"]');
+  expect(styles).toContain('[data-reader-state="error"]');
+  expect(styles).toMatch(
+    /\.project-reader-chevron:hover[\s\S]*?opacity:\s*0?\.[6-9]/,
+  );
+  expect(styles).toMatch(
+    /\.project-reader-chevron:focus-visible[\s\S]*?outline:/,
+  );
+  expect(styles).toMatch(
+    /\.project-reader-chevron:disabled[\s\S]*?pointer-events:\s*none/,
+  );
+  expect(styles).toMatch(
+    /\[data-reader-error\]:not\(\[hidden\]\)[\s\S]*?display:\s*flex/,
+  );
+  expect(rule(".project-reader canvas")).toMatch(/transition:\s*opacity/);
+});
+
+test("keeps mobile reader geometry compact without shrinking the hit target", () => {
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron svg\s*\{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*60px;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron--previous\s*\{[\s\S]*?left:\s*-6px;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron--next\s*\{[\s\S]*?right:\s*-6px;/,
+  );
 });
 
 test("stacks portfolio content at the mobile breakpoint", () => {
@@ -87,5 +168,11 @@ test("stacks portfolio content at the mobile breakpoint", () => {
 test("enables smooth anchors only when motion is acceptable", () => {
   expect(styles).toMatch(
     /@media\s*\(prefers-reduced-motion:\s*no-preference\)[\s\S]*?html\s*\{\s*scroll-behavior:\s*smooth;/,
+  );
+});
+
+test("removes reader fades when reduced motion is requested", () => {
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.project-reader canvas\s*\{[\s\S]*?transition:\s*none;/,
   );
 });
