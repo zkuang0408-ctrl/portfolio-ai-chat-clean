@@ -304,6 +304,76 @@ test.each([
   },
 );
 
+test.each([
+  {
+    expectedError:
+      "PDF reader render dimension error: base viewport width must be positive and finite",
+    getViewport: ({ scale }: { scale: number }) => ({
+      width: 0 * scale,
+      height: 540 * scale,
+    }),
+    measureWidth: () => 960,
+    scenario: "a zero-width base viewport",
+  },
+  {
+    expectedError:
+      "PDF reader render dimension error: measured width must be positive and finite",
+    getViewport: ({ scale }: { scale: number }) => ({
+      width: 960 * scale,
+      height: 540 * scale,
+    }),
+    measureWidth: () => Number.NaN,
+    scenario: "a non-finite measured width",
+  },
+  {
+    expectedError:
+      "PDF reader render dimension error: scaled viewport dimensions must be positive and finite",
+    getViewport: ({ scale }: { scale: number }) =>
+      scale === 1
+        ? { width: 480, height: 270 }
+        : { width: Number.POSITIVE_INFINITY, height: 0 },
+    measureWidth: () => 960,
+    scenario: "invalid final viewport dimensions",
+  },
+])(
+  "rejects $scenario before mutating or rendering the canvas",
+  async ({ expectedError, getViewport, measureWidth }) => {
+    const root = createRoot();
+    const render = vi.fn(() => ({
+      cancel: vi.fn(),
+      promise: Promise.resolve(),
+    }));
+    const page: PdfPageLike = { getViewport, render };
+    const reader = createPdfReader(
+      root,
+      createDependencies(
+        vi.fn(async () => ({
+          numPages: 18,
+          getPage: vi.fn(async () => page),
+        })),
+        { measureWidth },
+      ),
+    );
+    const canvas = root.querySelector<HTMLCanvasElement>("[data-pdf-canvas]")!;
+    const initialSize = {
+      height: canvas.height,
+      styleHeight: canvas.style.height,
+      styleWidth: canvas.style.width,
+      width: canvas.width,
+    };
+
+    await expect(reader.initialize()).rejects.toThrow(expectedError);
+
+    expect(render).not.toHaveBeenCalled();
+    expect(canvas.width).toBe(initialSize.width);
+    expect(canvas.height).toBe(initialSize.height);
+    expect(canvas.style.width).toBe(initialSize.styleWidth);
+    expect(canvas.style.height).toBe(initialSize.styleHeight);
+    expect(root.dataset.readerState).toBe("error");
+    expect(root.dataset.readerState).not.toBe("ready");
+  },
+);
+
 test("prefetches only adjacent in-range pages without rendering them", async () => {
   const root = createRoot(3);
   const pages = [createPage(), createPage(), createPage()];

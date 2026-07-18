@@ -81,6 +81,12 @@ function validPageCount(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
 }
 
+function requirePositiveFiniteDimension(value: number, description: string): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`PDF reader render dimension error: ${description}`);
+  }
+}
+
 export function createPdfReader(
   root: HTMLElement,
   dependencies: PdfReaderDependencies,
@@ -184,9 +190,25 @@ export function createPdfReader(
       }
 
       const base = page.getViewport({ scale: 1 });
+      requirePositiveFiniteDimension(
+        base.width,
+        "base viewport width must be positive and finite",
+      );
       const cssWidth = Math.max(1, dependencies.measureWidth(stage));
+      requirePositiveFiniteDimension(
+        cssWidth,
+        "measured width must be positive and finite",
+      );
       const cssScale = cssWidth / base.width;
       const viewport = page.getViewport({ scale: cssScale });
+      requirePositiveFiniteDimension(
+        viewport.width,
+        "scaled viewport dimensions must be positive and finite",
+      );
+      requirePositiveFiniteDimension(
+        viewport.height,
+        "scaled viewport dimensions must be positive and finite",
+      );
       const requestedOutputScale = dependencies.outputScale();
       const outputScale = Number.isFinite(requestedOutputScale)
         ? Math.min(2, Math.max(1, requestedOutputScale))
