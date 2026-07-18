@@ -296,6 +296,39 @@ test("cancels active rendering and prevents stale completion from committing UI"
   expect(root.dataset.readerState).toBe("ready");
 });
 
+test("failed navigation restores controls to the retained current-page boundary", async () => {
+  const root = createRoot(2);
+  const failure = new Error("page 2 failed");
+  const pages = [
+    createPage(),
+    createPage({ cancel: vi.fn(), promise: Promise.reject(failure) }),
+  ];
+  const reader = createPdfReader(
+    root,
+    createDependencies(
+      vi.fn(async () => ({
+        numPages: 2,
+        getPage: vi.fn(async (pageNumber) => pages[pageNumber - 1]!),
+      })),
+    ),
+  );
+  await reader.initialize();
+
+  await expect(reader.goTo(2)).rejects.toBe(failure);
+
+  const previous = root.querySelector<HTMLButtonElement>(
+    '[data-page-action="previous"]',
+  )!;
+  const next = root.querySelector<HTMLButtonElement>(
+    '[data-page-action="next"]',
+  )!;
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+  expect(previous.disabled).toBe(true);
+  expect(previous.getAttribute("aria-disabled")).toBe("true");
+  expect(next.disabled).toBe(false);
+  expect(next.getAttribute("aria-disabled")).toBe("false");
+});
+
 test.each([
   { backingWidth: 960, outputScale: 0, transform: undefined },
   { backingWidth: 1920, outputScale: 3, transform: [2, 0, 0, 2, 0, 0] },
@@ -669,6 +702,33 @@ test("destroy removes interaction listeners, cancels work and blocks queued tran
   expect(root.classList.contains("is-ready")).toBe(false);
 });
 
+test("destroy cancels queued transition frames with the browser fallback", async () => {
+  const cancelAnimationFrame = vi.fn();
+  vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+  try {
+    const root = createRoot(1);
+    let frameId = 40;
+    const reader = createPdfReader(
+      root,
+      createDependencies(
+        vi.fn(async () => ({
+          numPages: 1,
+          getPage: vi.fn(async () => createPage()),
+        })),
+        { requestFrame: () => ++frameId },
+      ),
+    );
+    await reader.initialize();
+
+    reader.destroy();
+
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(41);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(42);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 test("lazy manager independently initializes six readers and coalesces resize notifications", async () => {
   const portfolio = document.createElement("main");
   const roots = Array.from({ length: 6 }, () => createRoot(2));
@@ -763,4 +823,51 @@ test("lazy manager fallback starts every reader and isolates a rejected load", a
   await vi.waitFor(() => expect(roots[1]?.dataset.readerState).toBe("ready"));
   expect(roots[0]?.dataset.readerState).toBe("error");
   cleanup();
+});
+
+test("lazy manager cleanup cancels a queued resize frame with the browser fallback", async () => {
+  const cancelAnimationFrame = vi.fn();
+  vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+  try {
+    const portfolio = document.createElement("main");
+    const root = createRoot(1);
+    portfolio.append(root);
+    let resizeCallback!: ResizeObserverCallback;
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+    const cleanup = startProjectReaders(portfolio, {
+      ...createDependencies(
+        vi.fn(async () => ({
+          numPages: 1,
+          getPage: vi.fn(async () => createPage()),
+        })),
+        {
+          reducedMotion: () => true,
+          requestFrame: () => 73,
+        },
+      ),
+      IntersectionObserver: undefined,
+      ResizeObserver: FakeResizeObserver,
+    });
+    await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+    resizeCallback(
+      [
+        {
+          target: root.querySelector("[data-reader-stage]")!,
+        } as ResizeObserverEntry,
+      ],
+      {} as ResizeObserver,
+    );
+
+    cleanup();
+
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(73);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

@@ -117,6 +117,18 @@ function requirePositiveFiniteDimension(value: number, description: string): voi
   }
 }
 
+function resolveCancelFrame(
+  dependencies: PdfReaderDependencies,
+): ((frameId: number) => void) | undefined {
+  if (dependencies.cancelFrame) {
+    return dependencies.cancelFrame;
+  }
+  if (typeof globalThis.cancelAnimationFrame === "function") {
+    return globalThis.cancelAnimationFrame.bind(globalThis);
+  }
+  return undefined;
+}
+
 export function createPdfReader(
   root: HTMLElement,
   dependencies: PdfReaderDependencies,
@@ -175,6 +187,7 @@ export function createPdfReader(
     "[data-reader-retry]",
     "reader retry control",
   );
+  const cancelFrame = resolveCancelFrame(dependencies);
 
   let document: PdfDocumentLike | null = null;
   let totalPages = expectedPages;
@@ -342,6 +355,7 @@ export function createPdfReader(
       }
 
       activeRenderTask = null;
+      updateControls(currentPage);
       root.dataset.readerState = "error";
       errorRegion.hidden = false;
       status.textContent = "Project unavailable";
@@ -444,7 +458,7 @@ export function createPdfReader(
     root.removeEventListener("pointerup", handlePointerUp);
     root.removeEventListener("pointercancel", clearPointer);
     root.removeEventListener("lostpointercapture", clearPointer);
-    transitionFrames.forEach((frameId) => dependencies.cancelFrame?.(frameId));
+    transitionFrames.forEach((frameId) => cancelFrame?.(frameId));
     transitionFrames.clear();
   }
 
@@ -539,6 +553,7 @@ export function startProjectReaders(
   const readerRoots = Array.from(
     root.querySelectorAll<HTMLElement>("[data-project-reader]"),
   );
+  const cancelFrame = resolveCancelFrame(dependencies);
   const controllers = new Map<HTMLElement, PdfReader>();
   const stages = new Map<Element, PdfReader>();
   const initializedRoots = new Set<HTMLElement>();
@@ -638,7 +653,7 @@ export function startProjectReaders(
     intersectionObserver?.disconnect();
     resizeObserver?.disconnect();
     if (resizeFrame !== null) {
-      dependencies.cancelFrame?.(resizeFrame);
+      cancelFrame?.(resizeFrame);
       resizeFrame = null;
     }
     pendingResize.clear();
