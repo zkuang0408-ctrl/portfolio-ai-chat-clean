@@ -16,6 +16,9 @@ vi.mock("./portfolio/pdf-reader", () => ({ startProjectReaders }));
 vi.mock("./portfolio/pdf-runtime", () => ({ loadPdfDocument }));
 
 beforeEach(() => {
+  window.dispatchEvent(
+    new PageTransitionEvent("pagehide", { persisted: false }),
+  );
   vi.resetModules();
   startPortrait.mockClear();
   loadPdfDocument.mockClear();
@@ -110,7 +113,7 @@ test("starts project readers after rendering their markup with browser dependenc
   );
 });
 
-test("cleans project readers up once on pagehide", async () => {
+test("preserves project readers in BFCache and cleans them up once on terminal pagehide", async () => {
   document.body.innerHTML = '<div id="app"></div>';
   vi.stubGlobal("requestAnimationFrame", vi.fn());
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
@@ -121,8 +124,17 @@ test("cleans project readers up once on pagehide", async () => {
 
   await import("./main");
 
-  window.dispatchEvent(new Event("pagehide"));
-  window.dispatchEvent(new Event("pagehide"));
+  window.dispatchEvent(
+    new PageTransitionEvent("pagehide", { persisted: true }),
+  );
+  expect(stopReaders).not.toHaveBeenCalled();
+
+  window.dispatchEvent(
+    new PageTransitionEvent("pagehide", { persisted: false }),
+  );
+  window.dispatchEvent(
+    new PageTransitionEvent("pagehide", { persisted: false }),
+  );
 
   expect(stopReaders).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledOnce();

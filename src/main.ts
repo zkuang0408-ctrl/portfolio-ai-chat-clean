@@ -31,7 +31,14 @@ const stopReaders = startProjectReaders(portfolioRoot, {
   reducedMotion: () =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 });
-window.addEventListener("pagehide", stopReaders, { once: true });
+function handlePageHide(event: PageTransitionEvent): void {
+  if (event.persisted) {
+    return;
+  }
+  stopReaders();
+  window.removeEventListener("pagehide", handlePageHide);
+}
+window.addEventListener("pagehide", handlePageHide);
 
 void startPortrait({
   canvas: portrait.canvas,

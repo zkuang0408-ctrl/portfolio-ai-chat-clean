@@ -508,9 +508,10 @@ test("button navigation updates counters and disables boundaries without wrappin
   await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("01"));
 });
 
-test("arrow keys navigate only the focused ready reader and prevent only effective navigation", async () => {
+test("arrow keys navigate from the reader or its focused controls and prevent only effective navigation", async () => {
   const first = createRoot(2);
   const second = createRoot(2);
+  document.body.append(first, second);
   const firstReader = createPdfReader(
     first,
     createDependencies(vi.fn(async () => ({ numPages: 2, getPage: vi.fn(async () => createPage()) }))),
@@ -537,15 +538,22 @@ test("arrow keys navigate only the focused ready reader and prevent only effecti
   await vi.waitFor(() => expect(first.querySelector("[data-current-page]")?.textContent).toBe("02"));
   expect(second.querySelector("[data-current-page]")?.textContent).toBe("01");
 
+  const previousControl =
+    first.querySelector<HTMLButtonElement>('[data-page-action="previous"]')!;
+  expect(previousControl.disabled).toBe(false);
+  previousControl.focus();
+  expect(document.activeElement).toBe(previousControl);
   const childArrow = new KeyboardEvent("keydown", {
     key: "ArrowLeft",
     bubbles: true,
     cancelable: true,
   });
-  first.querySelector('[data-page-action="next"]')!.dispatchEvent(childArrow);
-  expect(childArrow.defaultPrevented).toBe(false);
-  await flushPromises();
-  expect(first.querySelector("[data-current-page]")?.textContent).toBe("02");
+  previousControl.dispatchEvent(childArrow);
+  expect(childArrow.defaultPrevented).toBe(true);
+  await vi.waitFor(() =>
+    expect(first.querySelector("[data-current-page]")?.textContent).toBe("01"),
+  );
+  expect(second.querySelector("[data-current-page]")?.textContent).toBe("01");
 });
 
 test("load failure is isolated, exposes retry and preserves the original PDF link", async () => {

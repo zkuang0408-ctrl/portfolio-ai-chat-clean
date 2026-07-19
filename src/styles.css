@@ -409,6 +409,7 @@ a:focus-visible {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  touch-action: pan-y;
   border: 1px solid #1f1f1f;
   background: #070707;
   isolation: isolate;

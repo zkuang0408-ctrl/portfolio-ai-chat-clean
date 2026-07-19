@@ -94,6 +94,7 @@ test("uses a clipped 16:9 reader stage and a centered editorial counter", () => 
   expect(rule(".project-reader-stage")).toMatch(/position:\s*relative/);
   expect(rule(".project-reader-stage")).toMatch(/aspect-ratio:\s*16\s*\/\s*9/);
   expect(rule(".project-reader-stage")).toMatch(/overflow:\s*hidden/);
+  expect(rule(".project-reader-stage")).toMatch(/touch-action:\s*pan-y/);
   expect(rule(".project-reader-stage")).toMatch(/background:\s*#[0-9a-f]{3,6}/i);
   expect(rule(".project-reader canvas")).toMatch(/display:\s*block/);
   expect(rule(".project-reader canvas")).toMatch(/width:\s*100%/);

@@ -160,6 +160,42 @@ async function dispatchReaderPointerGesture(
   }, input);
 }
 
+async function dispatchTrustedTouchGesture(
+  page: Page,
+  input: {
+    endX: number;
+    endY: number;
+    startX: number;
+    startY: number;
+  },
+): Promise<void> {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: input.startX, y: input.startY }],
+    });
+    for (let step = 1; step <= 6; step += 1) {
+      const progress = step / 6;
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            x: input.startX + (input.endX - input.startX) * progress,
+            y: input.startY + (input.endY - input.startY) * progress,
+          },
+        ],
+      });
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await session.detach();
+  }
+}
+
 async function canvasSignature(
   page: Page,
   selector = ".portrait-canvas",
@@ -630,9 +666,10 @@ test.describe("canonical desktop PDF reader behavior", () => {
 
     await next.click();
     await expect(currentPage).toHaveText("02", { timeout: 30_000 });
-    await reader.focus();
+    await next.focus();
     await page.keyboard.press("ArrowRight");
     await expect(currentPage).toHaveText("03", { timeout: 30_000 });
+    await reader.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(currentPage).toHaveText("02", { timeout: 30_000 });
 
@@ -701,7 +738,7 @@ test.describe("canonical mobile PDF reader behavior", () => {
     "Canonical 390px mobile project owns pointer-gesture coverage.",
   );
 
-  test("uses horizontal touch and pen navigation without consuming vertical movement", async ({
+  test("uses trusted horizontal touch and synthetic pen navigation while preserving native vertical scroll", async ({
     page,
   }) => {
     await page.goto("/");
@@ -713,19 +750,63 @@ test.describe("canonical mobile PDF reader behavior", () => {
     const currentPage = reader.locator("[data-current-page]");
     await expect(currentPage).toHaveText("01");
 
-    const box = await reader.boundingBox();
+    const stage = reader.locator("[data-reader-stage]");
+    await reader.evaluate((element) => {
+      element.setAttribute("data-reader-pointer-events", "");
+      for (const type of [
+        "pointerdown",
+        "pointermove",
+        "pointerup",
+        "pointercancel",
+      ]) {
+        element.addEventListener(type, () => {
+          const events =
+            element.getAttribute("data-reader-pointer-events") ?? "";
+          element.setAttribute(
+            "data-reader-pointer-events",
+            events ? `${events},${type}` : type,
+          );
+        });
+      }
+    });
+    const readPointerEvents = async (): Promise<string[]> =>
+      (
+        (await reader.getAttribute("data-reader-pointer-events")) ?? ""
+      ).split(",").filter(Boolean);
+
+    const box = await stage.boundingBox();
     if (!box) throw new Error("INKSeat reader has no gesture bounds.");
-    const horizontalTouch = await dispatchReaderPointerGesture(reader, {
+    await dispatchTrustedTouchGesture(page, {
       endX: box.x + box.width * 0.25,
       endY: box.y + box.height * 0.5 + 8,
-      pointerId: 1,
-      pointerType: "touch",
       startX: box.x + box.width * 0.75,
       startY: box.y + box.height * 0.5,
     });
-    expect(horizontalTouch.downPrevented).toBe(false);
-    expect(horizontalTouch.upPrevented).toBe(true);
-    await expect(currentPage).toHaveText("02", { timeout: 30_000 });
+    await expect
+      .poll(
+        async () => {
+          const pointerEvents = await readPointerEvents();
+          return {
+            counter: await currentPage.textContent(),
+            sawPointerCancel: pointerEvents.includes("pointercancel"),
+            sawPointerDown: pointerEvents.includes("pointerdown"),
+            sawPointerMove: pointerEvents.includes("pointermove"),
+            sawPointerUp: pointerEvents.includes("pointerup"),
+            touchAction: await stage.evaluate(
+              (element) => getComputedStyle(element).touchAction,
+            ),
+          };
+        },
+        { timeout: 10_000 },
+      )
+      .toEqual({
+        counter: "02",
+        sawPointerCancel: false,
+        sawPointerDown: true,
+        sawPointerMove: true,
+        sawPointerUp: true,
+        touchAction: "pan-y",
+      });
 
     const horizontalPen = await dispatchReaderPointerGesture(reader, {
       endX: box.x + box.width * 0.25,
@@ -752,13 +833,20 @@ test.describe("canonical mobile PDF reader behavior", () => {
     await expect(currentPage).toHaveText("03");
 
     const scrollBefore = await page.evaluate(() => window.scrollY);
-    await page.evaluate(() =>
-      window.scrollBy({ behavior: "instant", top: 120 }),
-    );
+    const verticalEventStart = (await readPointerEvents()).length;
+    await dispatchTrustedTouchGesture(page, {
+      endX: box.x + box.width * 0.5 - 8,
+      endY: box.y + box.height * 0.25,
+      startX: box.x + box.width * 0.5,
+      startY: box.y + box.height * 0.75,
+    });
     await expect
       .poll(() => page.evaluate(() => window.scrollY))
       .toBeGreaterThan(scrollBefore);
     await expect(currentPage).toHaveText("03");
+    expect((await readPointerEvents()).slice(verticalEventStart)).toContain(
+      "pointercancel",
+    );
   });
 });
 

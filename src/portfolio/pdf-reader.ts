@@ -517,7 +517,6 @@ export function createPdfReader(
 
   function handleKeydown(event: KeyboardEvent): void {
     if (
-      event.target !== root ||
       (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
     ) {
       return;
