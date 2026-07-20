@@ -190,10 +190,10 @@ if __name__ == "__main__":
 
 ~~~powershell
 python -m unittest tools.tests.test_sanitize_resume -v
-python tools/sanitize_resume.py --input 'D:\edge浏览器下载\A4 (1).pdf' --output public/documents/zhao-shikuang-resume-public.pdf --public-email zkuang0408@gmail.com
+python tools/sanitize_resume.py --input 'D:\edge浏览器下载\A4 (2).pdf' --output public/documents/zhao-shikuang-resume-public.pdf --public-email zkuang0408@gmail.com
 ~~~
 
-Expected: unit test PASS and a one-page PDF is created. The original `A4 (1).pdf` remains outside the repository.
+Expected: unit test PASS and a one-page PDF is created. The original `A4 (2).pdf` remains outside the repository. Before processing, verify its SHA-256 digest is `A964335B8E8FC2AC475A850381B0A8346F4F63CF50F15652030C477D7A7368BA` so the knowledge build cannot silently use an older resume.
 
 - [ ] **Step 5: Add privacy and asset checks, render, and inspect**
 
@@ -294,7 +294,7 @@ test("covers the profile, sanitized resume, and six ordered project PDFs", () =>
     publicHref: "/documents/zhao-shikuang-resume-public.pdf",
   });
   expect(JSON.stringify(knowledgeSources)).toContain("赵实旷");
-  expect(JSON.stringify(knowledgeSources)).not.toContain("A4 (1).pdf");
+  expect(JSON.stringify(knowledgeSources)).not.toContain("A4 (2).pdf");
 });
 ~~~
 
@@ -1095,7 +1095,7 @@ git commit -m "feat: complete grounded portfolio AI chat"
 
 ## Final handoff checklist
 
-- [ ] The original `D:/edge浏览器下载/A4 (1).pdf` is unchanged and absent from tracked/deployed files.
+- [ ] The original `D:/edge浏览器下载/A4 (2).pdf` is unchanged, matches SHA-256 `A964335B8E8FC2AC475A850381B0A8346F4F63CF50F15652030C477D7A7368BA`, and is absent from tracked/deployed files.
 - [ ] The public resume derivative contains only approved public contact information and passes rendered visual review.
 - [ ] The server-only index covers profile, sanitized resume, and all six PDF page sets with valid digests.
 - [ ] `Retriever` and `ChatProvider` boundaries allow future vector/provider replacement.
