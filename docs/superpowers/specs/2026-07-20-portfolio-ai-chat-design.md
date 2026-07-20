@@ -219,6 +219,10 @@ Chunks never span pages. This is required for trustworthy page citations.
 - Intentionally visual cover, moodboard, and closing pages may be allowlisted and excluded from retrieval without removing them from the public PDF.
 - OCR output is knowledge text only; the original PDF remains unchanged.
 
+The supplied resume source is `D:/edge浏览器下载/A4 (1).pdf`. It is a one-page A4 document with image-heavy content and private contact details. The original file must never be committed or deployed. Before knowledge generation, create a separate public derivative that truly removes the private QQ email, phone number, and street address while retaining the approved public Gmail address. Do not use a visual-only overlay that leaves hidden private text or pixels recoverable. Render the derivative and scan its extractable text before accepting it. The local knowledge index uses only the sanitized derivative.
+
+OCR is a local content-authoring operation, not a Vercel deployment operation. Commit the generated server-only index and a source-digest manifest. The Vercel `prebuild` step verifies that current source hashes match the generated manifest and fails if a document changed without regenerating the index. This keeps production builds deterministic and avoids repeating OCR across all portfolio pages on every deployment.
+
 ### Local hybrid retrieval
 
 The first retriever combines:
@@ -375,12 +379,13 @@ Missing required production secrets must fail deployment validation or leave the
 ## Content update and deployment workflow
 
 1. Replace or add public source documents and update the knowledge manifest.
-2. Run the knowledge generation command locally.
-3. Review extraction warnings, OCR use, source titles, and citation targets.
-4. Run knowledge validation, unit tests, browser tests, and production build.
-5. Push a Vercel preview deployment.
-6. Smoke-test representative Chinese and English questions, source links, limits, and error fallback.
-7. Promote the verified deployment to production.
+2. If the private resume changes, regenerate and visually verify its sanitized public derivative before indexing.
+3. Run the knowledge generation and OCR command locally to update the server-only index and source digests.
+4. Review extraction warnings, OCR use, source titles, privacy scan, and citation targets.
+5. Run knowledge validation, unit tests, browser tests, and production build.
+6. Push a Vercel preview deployment.
+7. Smoke-test representative Chinese and English questions, source links, limits, and error fallback.
+8. Promote the verified deployment to production.
 
 The build must stop for missing files, unexpected page-count changes, duplicate stable IDs, empty required sources, malformed generated chunks, or citation targets that cannot open the configured reader/page.
 
@@ -463,3 +468,4 @@ The feature is complete when:
 10. AI/API/KV failures leave the rest of the portfolio fully usable.
 11. Tests, production build, preview deployment, and production smoke checks pass.
 12. The compromised design-time API key has been revoked and is absent from repository history and deployment configuration.
+13. The original private resume is absent from the repository and deployment; the published derivative and generated index contain none of its private contact fields.
