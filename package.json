@@ -5,6 +5,9 @@
   "description": "",
   "scripts": {
     "dev": "vite",
+    "knowledge:generate": "tsx scripts/build-knowledge-index.ts --generate",
+    "knowledge:verify": "tsx scripts/build-knowledge-index.ts --verify",
+    "prebuild": "npm run knowledge:verify",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
