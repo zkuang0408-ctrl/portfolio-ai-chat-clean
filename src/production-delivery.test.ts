@@ -24,6 +24,8 @@ describe('production document assets', () => {
       '@napi-rs/canvas': '1.0.2',
       'tesseract.js': '7.0.0',
     });
+    expect(Object.hasOwn(packageJson.dependencies, 'openai')).toBe(false);
+    expect(Object.hasOwn(packageJson.devDependencies, 'openai')).toBe(false);
     expect(tsconfig.include).toEqual([
       'src',
       'api',
