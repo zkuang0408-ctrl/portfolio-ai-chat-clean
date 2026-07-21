@@ -12,16 +12,27 @@ import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/legacy/build/pdf
 
 export interface OcrWorker {
   recognize(image: Buffer): Promise<{ readonly data: { readonly text: string } }>;
+  setParameters?(parameters: {
+    readonly tessedit_pageseg_mode: string;
+  }): Promise<unknown>;
   terminate(): Promise<unknown>;
+}
+
+interface InitializableOcrWorker extends OcrWorker {
+  reinitialize(languages: string[]): Promise<unknown>;
+  setParameters(parameters: {
+    readonly tessedit_pageseg_mode: string;
+  }): Promise<unknown>;
 }
 
 interface TesseractModuleBoundary {
   readonly createWorker: (
-    languages: string[],
+    languages: string | string[],
     oem: number,
     options: { readonly cachePath: string },
-  ) => Promise<OcrWorker>;
+  ) => Promise<InitializableOcrWorker>;
   readonly OEM: { readonly LSTM_ONLY: number };
+  readonly PSM: { readonly AUTO: string };
 }
 
 type MakeDirectory = (
@@ -72,9 +83,19 @@ export async function createDefaultOcrWorker(
   await makeDirectory(TESSERACT_CACHE_PATH, { recursive: true });
   const tesseract = await loadTesseract();
 
-  return tesseract.createWorker(["chi_sim", "eng"], tesseract.OEM.LSTM_ONLY, {
+  const worker = await tesseract.createWorker("chi_sim", tesseract.OEM.LSTM_ONLY, {
     cachePath: TESSERACT_CACHE_PATH,
   });
+  try {
+    await worker.reinitialize(["chi_sim", "eng"]);
+    await worker.setParameters({
+      tessedit_pageseg_mode: tesseract.PSM.AUTO,
+    });
+    return worker;
+  } catch (error: unknown) {
+    await worker.terminate();
+    throw error;
+  }
 }
 
 export async function renderPdfPageToPng(
@@ -132,7 +153,15 @@ export async function createPdfOcrRun(
       throw new Error("OCR extraction run has already finished");
     }
     const image = await renderPage(page, OCR_SCALE);
-    const result = await worker.recognize(image);
+    let result = await worker.recognize(image);
+    if (!result.data.text.trim() && worker.setParameters) {
+      await worker.setParameters({ tessedit_pageseg_mode: "11" });
+      try {
+        result = await worker.recognize(image);
+      } finally {
+        await worker.setParameters({ tessedit_pageseg_mode: "3" });
+      }
+    }
     return result.data.text;
   };
 

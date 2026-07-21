@@ -61,6 +61,30 @@ test("uses injected OCR once for a non-visual page with too little native text",
   expect(ocrPage.mock.calls[0]?.[1]).toBe(1);
 });
 
+test("retries an empty OCR result with sparse text segmentation and restores auto", async () => {
+  const recognize = vi
+    .fn()
+    .mockResolvedValueOnce({ data: { text: "  " } })
+    .mockResolvedValueOnce({ data: { text: "section heading" } });
+  const setParameters = vi.fn().mockResolvedValue(undefined);
+  const run = await createPdfOcrRun({
+    createWorker: vi.fn().mockResolvedValue({
+      recognize,
+      setParameters,
+      terminate: vi.fn().mockResolvedValue(undefined),
+    }),
+    renderPage: vi.fn().mockResolvedValue(Buffer.from("png")),
+  });
+
+  await expect(run.ocrPage(fakePage([]), 1)).resolves.toBe("section heading");
+  expect(recognize).toHaveBeenCalledTimes(2);
+  expect(setParameters.mock.calls).toEqual([
+    [{ tessedit_pageseg_mode: "11" }],
+    [{ tessedit_pageseg_mode: "3" }],
+  ]);
+  await run.terminate();
+});
+
 test("keeps allowlisted visual pages as PDF text without OCR", async () => {
   const ocrPage = vi.fn<OcrPage>();
 
@@ -316,9 +340,15 @@ test("propagates termination failure after successful extraction", async () => {
 test("creates the default cache directory recursively before its worker", async () => {
   const events: string[] = [];
   const terminate = vi.fn().mockResolvedValue(undefined);
+  const reinitialize = vi.fn(async () => {
+    events.push("reinitialize");
+  });
+  const setParameters = vi.fn(async () => {
+    events.push("parameters");
+  });
   const createWorker = vi.fn(async () => {
     events.push("worker");
-    return { recognize: vi.fn(), terminate };
+    return { recognize: vi.fn(), reinitialize, setParameters, terminate };
   });
   const makeDirectory = vi.fn(async () => {
     events.push("directory");
@@ -329,16 +359,19 @@ test("creates the default cache directory recursively before its worker", async 
     loadTesseract: vi.fn().mockResolvedValue({
       createWorker,
       OEM: { LSTM_ONLY: 1 },
+      PSM: { AUTO: "3" },
     }),
   });
 
-  expect(events).toEqual(["directory", "worker"]);
+  expect(events).toEqual(["directory", "worker", "reinitialize", "parameters"]);
   expect(makeDirectory).toHaveBeenCalledWith("tmp/tesseract-cache", {
     recursive: true,
   });
-  expect(createWorker).toHaveBeenCalledWith(["chi_sim", "eng"], 1, {
+  expect(createWorker).toHaveBeenCalledWith("chi_sim", 1, {
     cachePath: "tmp/tesseract-cache",
   });
+  expect(reinitialize).toHaveBeenCalledWith(["chi_sim", "eng"]);
+  expect(setParameters).toHaveBeenCalledWith({ tessedit_pageseg_mode: "3" });
   await worker.terminate();
 });
 

@@ -33,6 +33,18 @@ test("publishes only the approved portfolio knowledge sources in display order",
   expect(knowledgeSources.find(({ id }) => id === "profile")).toMatchObject({
     publicHref: "#about",
   });
+  expect(knowledgeSources.find(({ id }) => id === "inkseat")).toMatchObject({
+    visualPages: [13],
+  });
+  expect(knowledgeSources.find(({ id }) => id === "urosense")).toMatchObject({
+    visualPages: [17, 18, 19, 24],
+  });
+  expect(
+    knowledgeSources.find(({ id }) => id === "atempo")?.visualPages,
+  ).toBeUndefined();
+  expect(
+    knowledgeSources.find(({ id }) => id === "first-fly")?.visualPages,
+  ).toBeUndefined();
 
   const projectSources = knowledgeSources.filter(
     (source) => source.kind === "project-pdf",

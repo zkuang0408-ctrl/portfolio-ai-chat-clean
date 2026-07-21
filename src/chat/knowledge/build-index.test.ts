@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { profile } from "../../content/portfolio";
 import {
@@ -10,7 +10,9 @@ import {
   buildKnowledgeIndex,
   buildTerms,
   chunkExtractedPages,
+  extractPdfSourcesWithSharedOcr,
   parseKnowledgeIndexMode,
+  publishAtomically,
   sha256,
   stableSerialize,
   validateGeneratedIndex,
@@ -193,7 +195,7 @@ describe("knowledge validation", () => {
   });
 
   test("requires every source to have searchable content", () => {
-    const source = projectSource({ pageCount: 1 });
+    const source = projectSource({ pageCount: 1, visualPages: [1] });
 
     expect(() =>
       buildKnowledgeIndex(
@@ -214,6 +216,18 @@ describe("knowledge validation", () => {
     );
 
     expect(index.chunks.map(({ page: chunkPage }) => chunkPage)).toEqual([2]);
+  });
+
+  test("rejects an empty non-visual page even when the source has other content", () => {
+    const source = projectSource();
+
+    expect(() =>
+      buildKnowledgeIndex(
+        [source],
+        new Map([[source.id, [page(1, "  \n "), page(2, "Useful content")]]]),
+        { project: "a".repeat(64) },
+      ),
+    ).toThrow("Knowledge source project page 1 has no searchable content");
   });
 
   test("rejects invalid page counts, page numbers, and viewer targets", () => {
@@ -250,6 +264,115 @@ describe("knowledge validation", () => {
         { project: "a".repeat(64) },
       ),
     ).toThrow("Invalid public viewer target for knowledge chunk project:p1:c0");
+  });
+
+  test("rejects non-string aliases and tags in committed chunks", () => {
+    const source = projectSource();
+    const digest = { project: "a".repeat(64) };
+
+    for (const chunk of [
+      validChunk({ aliases: [1] as unknown as readonly string[] }),
+      validChunk({ tags: [2] as unknown as readonly string[] }),
+    ]) {
+      expect(() =>
+        validateGeneratedIndex(
+          { version: 1, sourceDigests: digest, chunks: [chunk] },
+          [source],
+          digest,
+        ),
+      ).toThrow("Invalid metadata for knowledge chunk project:p1:c0");
+    }
+  });
+});
+
+describe("generation resource ownership", () => {
+  const sources = [
+    projectSource({ id: "one", projectId: "one", pageCount: 1 }),
+    projectSource({ id: "two", projectId: "two", pageCount: 1 }),
+  ] as const;
+
+  test("creates one OCR run, reuses it across documents, and terminates once", async () => {
+    const ocrPage = vi.fn(async () => "ocr");
+    const terminate = vi.fn(async () => undefined);
+    const createRun = vi.fn(async () => ({ ocrPage, terminate }));
+    const destroyed: string[] = [];
+    const loadSource = vi.fn(async (source: KnowledgeSource) => ({
+      document: { id: source.id },
+      digest: source.id.repeat(64).slice(0, 64),
+      destroy: async () => destroyed.push(source.id),
+    }));
+    const extractPages = vi.fn(
+      async (
+        document: { id: string },
+        options: { readonly ocrPage: typeof ocrPage },
+      ) => {
+        expect(options.ocrPage).toBe(ocrPage);
+        return [page(1, `Content ${document.id}`)];
+      },
+    );
+
+    const result = await extractPdfSourcesWithSharedOcr(sources, {
+      createRun,
+      loadSource,
+      extractPages,
+    });
+
+    expect(createRun).toHaveBeenCalledOnce();
+    expect(loadSource).toHaveBeenCalledTimes(2);
+    expect(extractPages).toHaveBeenCalledTimes(2);
+    expect(result.pagesBySource.size).toBe(2);
+    expect(destroyed).toEqual(["one", "two"]);
+    expect(terminate).toHaveBeenCalledOnce();
+  });
+
+  test("terminates the one shared OCR run when a later document fails", async () => {
+    const terminate = vi.fn(async () => undefined);
+    const destroyed: string[] = [];
+    const failure = new Error("synthetic extraction failure");
+    const extractPages = vi
+      .fn()
+      .mockResolvedValueOnce([page(1, "First")])
+      .mockRejectedValueOnce(failure);
+
+    await expect(
+      extractPdfSourcesWithSharedOcr(sources, {
+        createRun: vi.fn(async () => ({
+          ocrPage: vi.fn(async () => "ocr"),
+          terminate,
+        })),
+        loadSource: vi.fn(async (source: KnowledgeSource) => ({
+          document: { id: source.id },
+          digest: "a".repeat(64),
+          destroy: async () => destroyed.push(source.id),
+        })),
+        extractPages,
+      }),
+    ).rejects.toBe(failure);
+
+    expect(destroyed).toEqual(["one", "two"]);
+    expect(terminate).toHaveBeenCalledOnce();
+  });
+});
+
+describe("atomic index publishing", () => {
+  test("preserves the destination and cleans the temporary file on publish failure", async () => {
+    const files = new Map([["index.json", "committed"]]);
+    const rename = vi.fn(async () => {
+      throw Object.assign(new Error("replacement denied"), { code: "EPERM" });
+    });
+
+    await expect(
+      publishAtomically("index.json", "replacement", {
+        processId: 7,
+        writeFile: async (path, content) => void files.set(path, content),
+        rename,
+        removeFile: async (path) => void files.delete(path),
+      }),
+    ).rejects.toThrow("replacement denied");
+
+    expect(files.get("index.json")).toBe("committed");
+    expect(files.has("index.json.tmp-7")).toBe(false);
+    expect(rename).toHaveBeenCalledOnce();
   });
 });
 

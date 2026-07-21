@@ -26,6 +26,11 @@ const projectAliases: Readonly<Record<string, readonly string[]>> = {
   "first-fly": ["First Fly", "未来出行", "飞行座舱", "Future Mobility"],
 };
 
+const projectVisualPages: Readonly<Record<string, readonly number[]>> = {
+  inkseat: [13],
+  urosense: [17, 18, 19, 24],
+};
+
 const projectSources: readonly KnowledgeSource[] = projects.map((project) => ({
   id: project.id,
   kind: "project-pdf",
@@ -36,6 +41,9 @@ const projectSources: readonly KnowledgeSource[] = projects.map((project) => ({
   publicHref: project.pdf.href,
   projectId: project.id,
   pageCount: project.pdf.pageCount,
+  ...(projectVisualPages[project.id]
+    ? { visualPages: projectVisualPages[project.id] }
+    : {}),
 }));
 
 export const knowledgeSources: readonly KnowledgeSource[] = [

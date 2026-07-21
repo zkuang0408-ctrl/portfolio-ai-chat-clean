@@ -8,13 +8,16 @@ import {
   assertPrivacySafe,
   buildKnowledgeIndex,
   chunkExtractedPages,
+  extractPdfSourcesWithSharedOcr,
   parseKnowledgeIndexMode,
+  publishAtomically,
   sha256,
   stableSerialize,
   validateGeneratedIndex,
 } from "../src/chat/knowledge/build-index";
 import { knowledgeSources } from "../src/chat/knowledge/manifest";
 import { createPdfOcrRun } from "../src/chat/knowledge/ocr";
+import { extractPdfPages } from "../src/chat/knowledge/pdf-extractor";
 
 import type {
   ExtractedPage,
@@ -30,11 +33,6 @@ const INDEX_PATH = resolve(
 const HELP =
   "Usage: npm run knowledge:generate | npm run knowledge:verify\n" +
   "The underlying CLI accepts exactly one of --generate or --verify.";
-
-interface SourceExtraction {
-  readonly pages: readonly ExtractedPage[];
-  readonly digest: string;
-}
 
 async function readSourceFile(source: KnowledgeSource): Promise<Buffer> {
   if (!source.filePath) {
@@ -54,69 +52,60 @@ async function digestSource(source: KnowledgeSource): Promise<string> {
   return sha256(await readSourceFile(source));
 }
 
-async function extractSource(
-  source: KnowledgeSource,
-): Promise<SourceExtraction> {
-  if (source.kind === "profile") {
-    if (!source.structuredText) {
-      throw new Error(`Knowledge source ${source.id} has no structured content`);
-    }
-    const pages: readonly ExtractedPage[] = [
-      { page: 1, text: source.structuredText, method: "structured" },
-    ];
-    return { pages, digest: sha256(source.structuredText) };
-  }
-
+async function loadPdfSource(source: KnowledgeSource) {
   const bytes = await readSourceFile(source);
   const loadingTask = getDocument({
     data: new Uint8Array(bytes),
     useWorkerFetch: false,
   });
-  const document = await loadingTask.promise;
-  let run: Awaited<ReturnType<typeof createPdfOcrRun>> | undefined;
   try {
-    run = await createPdfOcrRun();
-    const pages = await run.extract(document, {
-      expectedPageCount: source.pageCount,
-      visualPages: source.visualPages,
-    });
-    pages.forEach(({ text }) => assertPrivacySafe(text));
-    return { pages, digest: sha256(bytes) };
-  } finally {
-    await run?.terminate();
-    await loadingTask.destroy();
-  }
-}
-
-async function writeAtomically(path: string, content: string): Promise<void> {
-  const temporaryPath = `${path}.tmp-${process.pid}`;
-  await writeFile(temporaryPath, content, "utf8");
-  try {
-    await rename(temporaryPath, path);
+    const document = await loadingTask.promise;
+    return {
+      document,
+      digest: sha256(bytes),
+      destroy: () => loadingTask.destroy(),
+    };
   } catch (error: unknown) {
-    if (
-      typeof error !== "object" ||
-      error === null ||
-      !("code" in error) ||
-      (error.code !== "EEXIST" && error.code !== "EPERM")
-    ) {
-      throw error;
-    }
-    await rm(path, { force: true });
-    await rename(temporaryPath, path);
-  } finally {
-    await rm(temporaryPath, { force: true });
+    await loadingTask.destroy();
+    throw error;
   }
 }
 
 async function generate(): Promise<void> {
   const pagesBySource = new Map<string, readonly ExtractedPage[]>();
   const sourceDigests: Record<string, string> = {};
-  for (const source of knowledgeSources) {
+  const profileSources = knowledgeSources.filter(
+    (source) => source.kind === "profile",
+  );
+  for (const source of profileSources) {
     console.log(`Extracting knowledge source: ${source.id}`);
-    const extraction = await extractSource(source);
-    pagesBySource.set(source.id, extraction.pages);
-    sourceDigests[source.id] = extraction.digest;
+    if (!source.structuredText) {
+      throw new Error(`Knowledge source ${source.id} has no structured content`);
+    }
+    pagesBySource.set(source.id, [
+      { page: 1, text: source.structuredText, method: "structured" },
+    ]);
+    sourceDigests[source.id] = sha256(source.structuredText);
+  }
+
+  const pdfSources = knowledgeSources.filter(
+    (source) => source.kind !== "profile",
+  );
+  const pdfExtraction = await extractPdfSourcesWithSharedOcr(pdfSources, {
+    createRun: createPdfOcrRun,
+    loadSource: loadPdfSource,
+    extractPages: extractPdfPages,
+    onSource: (source) =>
+      console.log(`Extracting knowledge source: ${source.id}`),
+  });
+  for (const source of pdfSources) {
+    const pages = pdfExtraction.pagesBySource.get(source.id);
+    if (!pages) {
+      throw new Error(`Knowledge source ${source.id} has no extracted pages`);
+    }
+    pages.forEach(({ text }) => assertPrivacySafe(text));
+    pagesBySource.set(source.id, pages);
+    sourceDigests[source.id] = pdfExtraction.sourceDigests[source.id]!;
   }
 
   const index = buildKnowledgeIndex(
@@ -126,7 +115,12 @@ async function generate(): Promise<void> {
   );
   const serialized = stableSerialize(index);
   assertPrivacySafe(serialized);
-  await writeAtomically(INDEX_PATH, serialized);
+  await publishAtomically(INDEX_PATH, serialized, {
+    processId: process.pid,
+    writeFile: (path, content) => writeFile(path, content, "utf8"),
+    rename,
+    removeFile: (path) => rm(path, { force: true }),
+  });
 
   for (const source of knowledgeSources) {
     const pages = pagesBySource.get(source.id) ?? [];

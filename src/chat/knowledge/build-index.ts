@@ -16,6 +16,115 @@ export interface ChunkingOptions {
   readonly overlapCharacters?: number;
 }
 
+export interface LoadedPdfSource<Document> {
+  readonly document: Document;
+  readonly digest: string;
+  destroy(): Promise<unknown>;
+}
+
+export interface SharedOcrRun<OcrPageFunction> {
+  readonly ocrPage: OcrPageFunction;
+  terminate(): Promise<unknown>;
+}
+
+export interface SharedPdfExtractionOptions<OcrPageFunction> {
+  readonly expectedPageCount?: number;
+  readonly visualPages?: readonly number[];
+  readonly ocrPage: OcrPageFunction;
+}
+
+export interface SharedPdfExtractionDependencies<
+  Document,
+  OcrPageFunction,
+> {
+  createRun(): Promise<SharedOcrRun<OcrPageFunction>>;
+  loadSource(source: KnowledgeSource): Promise<LoadedPdfSource<Document>>;
+  extractPages(
+    document: Document,
+    options: SharedPdfExtractionOptions<OcrPageFunction>,
+  ): Promise<readonly ExtractedPage[]>;
+  onSource?(source: KnowledgeSource): void;
+}
+
+export interface SharedPdfExtractionResult {
+  readonly pagesBySource: ReadonlyMap<string, readonly ExtractedPage[]>;
+  readonly sourceDigests: Readonly<Record<string, string>>;
+}
+
+export async function extractPdfSourcesWithSharedOcr<
+  Document,
+  OcrPageFunction,
+>(
+  sources: readonly KnowledgeSource[],
+  dependencies: SharedPdfExtractionDependencies<Document, OcrPageFunction>,
+): Promise<SharedPdfExtractionResult> {
+  const run = await dependencies.createRun();
+  const pagesBySource = new Map<string, readonly ExtractedPage[]>();
+  const sourceDigests: Record<string, string> = {};
+  let extractionError: unknown;
+
+  try {
+    for (const source of sources) {
+      if (source.kind === "profile") {
+        throw new Error("Structured profile sources cannot use PDF extraction");
+      }
+      dependencies.onSource?.(source);
+      const loaded = await dependencies.loadSource(source);
+      try {
+        const pages = await dependencies.extractPages(loaded.document, {
+          expectedPageCount: source.pageCount,
+          visualPages: source.visualPages,
+          ocrPage: run.ocrPage,
+        });
+        pagesBySource.set(source.id, pages);
+        sourceDigests[source.id] = loaded.digest;
+      } finally {
+        await loaded.destroy();
+      }
+    }
+  } catch (error: unknown) {
+    extractionError = error;
+  }
+
+  try {
+    await run.terminate();
+  } catch (terminationError: unknown) {
+    if (extractionError === undefined) throw terminationError;
+  }
+  if (extractionError !== undefined) throw extractionError;
+
+  return { pagesBySource, sourceDigests };
+}
+
+export interface AtomicPublishDependencies {
+  readonly processId: number;
+  writeFile(path: string, content: string): Promise<unknown>;
+  rename(source: string, destination: string): Promise<unknown>;
+  removeFile(path: string): Promise<unknown>;
+}
+
+export async function publishAtomically(
+  destination: string,
+  content: string,
+  dependencies: AtomicPublishDependencies,
+): Promise<void> {
+  const temporaryPath = `${destination}.tmp-${dependencies.processId}`;
+  let publishError: unknown;
+  try {
+    await dependencies.writeFile(temporaryPath, content);
+    await dependencies.rename(temporaryPath, destination);
+  } catch (error: unknown) {
+    publishError = error;
+  }
+
+  try {
+    await dependencies.removeFile(temporaryPath);
+  } catch (cleanupError: unknown) {
+    if (publishError === undefined) throw cleanupError;
+  }
+  if (publishError !== undefined) throw publishError;
+}
+
 export type KnowledgeIndexMode = "generate" | "verify";
 
 export function parseKnowledgeIndexMode(
@@ -189,6 +298,7 @@ function validateExtractedPages(
     );
   }
 
+  const visualPages = new Set(source.visualPages ?? []);
   sortedPages.forEach((extractedPage, index) => {
     const expectedPage = index + 1;
     if (extractedPage.page !== expectedPage) {
@@ -197,6 +307,14 @@ function validateExtractedPages(
       );
     }
     assertPrivacySafe(extractedPage.text);
+    if (
+      !visualPages.has(extractedPage.page) &&
+      normalizeKnowledgeText(extractedPage.text).length === 0
+    ) {
+      throw new Error(
+        `Knowledge source ${source.id} page ${extractedPage.page} has no searchable content`,
+      );
+    }
   });
   return sortedPages;
 }
@@ -415,7 +533,12 @@ export function validateGeneratedIndex(
       throw new Error(`Empty knowledge chunk ${value.id}`);
     }
     requireStringArray(value.terms, `terms for knowledge chunk ${value.id}`);
-    if (!Array.isArray(value.aliases) || !Array.isArray(value.tags)) {
+    if (
+      !Array.isArray(value.aliases) ||
+      value.aliases.some((item) => typeof item !== "string") ||
+      !Array.isArray(value.tags) ||
+      value.tags.some((item) => typeof item !== "string")
+    ) {
       throw new Error(`Invalid metadata for knowledge chunk ${value.id}`);
     }
     assertPrivacySafe(stableSerialize(value));
