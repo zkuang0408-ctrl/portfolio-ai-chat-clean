@@ -1,0 +1,16 @@
+node_modules/
+/assets/
+dist/
+coverage/
+test-results/
+playwright-report/
+output/playwright/
+.vercel/
+.superpowers/
+.worktrees/
+*.local
+tmp/pdfs/
+tmp/tesseract-cache/
+knowledge/private-sources/
+__pycache__/
+*.py[cod]
