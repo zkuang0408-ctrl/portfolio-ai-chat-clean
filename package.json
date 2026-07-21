@@ -8,7 +8,7 @@
     "knowledge:generate": "tsx scripts/build-knowledge-index.ts --generate",
     "knowledge:verify": "tsx scripts/build-knowledge-index.ts --verify",
     "prebuild": "npm run knowledge:verify",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsx scripts/check-client-bundle.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "pretest:e2e": "node ./scripts/clean-e2e-output.mjs",

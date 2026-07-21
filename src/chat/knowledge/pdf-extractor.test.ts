@@ -85,6 +85,41 @@ test("retries an empty OCR result with sparse text segmentation and restores aut
   await run.terminate();
 });
 
+test("preserves sparse recognition failure and attaches PSM restoration failure", async () => {
+  const recognitionError = new Error("synthetic recognition failure");
+  const restorationError = new Error("synthetic restoration failure");
+  const recognize = vi
+    .fn()
+    .mockResolvedValueOnce({ data: { text: "" } })
+    .mockRejectedValueOnce(recognitionError);
+  const setParameters = vi
+    .fn()
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValueOnce(restorationError);
+  const run = await createPdfOcrRun({
+    createWorker: vi.fn().mockResolvedValue({
+      recognize,
+      setParameters,
+      terminate: vi.fn().mockResolvedValue(undefined),
+    }),
+    renderPage: vi.fn().mockResolvedValue(Buffer.from("png")),
+  });
+
+  let thrown: unknown;
+  try {
+    await run.ocrPage(fakePage([]), 1);
+  } catch (error: unknown) {
+    thrown = error;
+  }
+
+  expect(thrown).toBe(recognitionError);
+  expect((thrown as Error).cause).toBeInstanceOf(AggregateError);
+  expect(((thrown as Error).cause as AggregateError).errors).toContain(
+    restorationError,
+  );
+  await run.terminate();
+});
+
 test("keeps allowlisted visual pages as PDF text without OCR", async () => {
   const ocrPage = vi.fn<OcrPage>();
 
@@ -178,6 +213,30 @@ test("cleans up a fetched page when native text extraction throws", async () => 
   vi.spyOn(page, "getTextContent").mockRejectedValue(new Error("text failed"));
 
   await expect(extractPdfPages(fakeDocument([page]))).rejects.toThrow("text failed");
+  expect(page.cleanup).toHaveBeenCalledOnce();
+});
+
+test("preserves page extraction failure and attaches page cleanup failure", async () => {
+  const extractionError = new Error("synthetic page extraction failure");
+  const cleanupError = new Error("synthetic page cleanup failure");
+  const page = fakePage([]);
+  vi.spyOn(page, "getTextContent").mockRejectedValue(extractionError);
+  page.cleanup.mockImplementation(() => {
+    throw cleanupError;
+  });
+
+  let thrown: unknown;
+  try {
+    await extractPdfPages(fakeDocument([page]));
+  } catch (error: unknown) {
+    thrown = error;
+  }
+
+  expect(thrown).toBe(extractionError);
+  expect((thrown as Error).cause).toBeInstanceOf(AggregateError);
+  expect(((thrown as Error).cause as AggregateError).errors).toContain(
+    cleanupError,
+  );
   expect(page.cleanup).toHaveBeenCalledOnce();
 });
 
@@ -321,6 +380,10 @@ test("preserves the primary extraction error when termination also fails", async
   await expect(
     run.extract(fakeDocument([fakePage([{ str: "low" }])])),
   ).rejects.toBe(primaryError);
+  expect(primaryError.cause).toBeInstanceOf(AggregateError);
+  expect((primaryError.cause as AggregateError).errors).toContain(
+    terminationError,
+  );
 });
 
 test("propagates termination failure after successful extraction", async () => {
@@ -373,6 +436,38 @@ test("creates the default cache directory recursively before its worker", async 
   expect(reinitialize).toHaveBeenCalledWith(["chi_sim", "eng"]);
   expect(setParameters).toHaveBeenCalledWith({ tessedit_pageseg_mode: "3" });
   await worker.terminate();
+});
+
+test("preserves OCR initialization failure and attaches termination failure", async () => {
+  const initializationError = new Error("synthetic initialization failure");
+  const terminationError = new Error("synthetic termination failure");
+  const terminate = vi.fn().mockRejectedValue(terminationError);
+
+  let thrown: unknown;
+  try {
+    await createDefaultOcrWorker({
+      makeDirectory: vi.fn().mockResolvedValue(undefined),
+      loadTesseract: vi.fn().mockResolvedValue({
+        createWorker: vi.fn().mockResolvedValue({
+          recognize: vi.fn(),
+          reinitialize: vi.fn().mockRejectedValue(initializationError),
+          setParameters: vi.fn(),
+          terminate,
+        }),
+        OEM: { LSTM_ONLY: 1 },
+        PSM: { AUTO: "3" },
+      }),
+    });
+  } catch (error: unknown) {
+    thrown = error;
+  }
+
+  expect(thrown).toBe(initializationError);
+  expect((thrown as Error).cause).toBeInstanceOf(AggregateError);
+  expect(((thrown as Error).cause as AggregateError).errors).toContain(
+    terminationError,
+  );
+  expect(terminate).toHaveBeenCalledOnce();
 });
 
 test("renders a real in-memory PDF.js page to a PNG buffer", async () => {

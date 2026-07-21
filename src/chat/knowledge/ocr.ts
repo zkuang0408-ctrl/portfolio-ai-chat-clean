@@ -6,6 +6,7 @@ import {
   type ExtractPdfPagesOptions,
   type OcrPage,
 } from "./pdf-extractor";
+import { runWithCleanup } from "./cleanup-error";
 
 import type { ExtractedPage } from "./types";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -92,9 +93,14 @@ export async function createDefaultOcrWorker(
       tessedit_pageseg_mode: tesseract.PSM.AUTO,
     });
     return worker;
-  } catch (error: unknown) {
-    await worker.terminate();
-    throw error;
+  } catch (initializationError: unknown) {
+    return runWithCleanup(
+      async () => {
+        throw initializationError;
+      },
+      () => worker.terminate(),
+      "OCR initialization termination also failed",
+    );
   }
 }
 
@@ -156,11 +162,11 @@ export async function createPdfOcrRun(
     let result = await worker.recognize(image);
     if (!result.data.text.trim() && worker.setParameters) {
       await worker.setParameters({ tessedit_pageseg_mode: "11" });
-      try {
-        result = await worker.recognize(image);
-      } finally {
-        await worker.setParameters({ tessedit_pageseg_mode: "3" });
-      }
+      result = await runWithCleanup(
+        () => worker.recognize(image),
+        () => worker.setParameters!({ tessedit_pageseg_mode: "3" }),
+        "OCR page-segmentation restoration also failed",
+      );
     }
     return result.data.text;
   };
@@ -185,14 +191,14 @@ export async function createPdfOcrRun(
       }
       extractionState = "finished";
 
-      try {
-        await terminate();
-      } catch (terminationError: unknown) {
-        if (!extractionFailed) throw terminationError;
-      }
-
-      if (extractionFailed) throw extractionError;
-      return extractedPages ?? [];
+      return runWithCleanup(
+        async () => {
+          if (extractionFailed) throw extractionError;
+          return extractedPages ?? [];
+        },
+        terminate,
+        "OCR extraction termination also failed",
+      );
     },
     terminate,
   };

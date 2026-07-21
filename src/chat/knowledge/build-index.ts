@@ -6,6 +6,7 @@ import type {
   KnowledgeChunk,
   KnowledgeSource,
 } from "./types";
+import { attachCleanupError, runWithCleanup } from "./cleanup-error";
 
 export const DEFAULT_CHUNK_CHARACTERS = 1_200;
 export const DEFAULT_OVERLAP_CHARACTERS = 150;
@@ -70,17 +71,18 @@ export async function extractPdfSourcesWithSharedOcr<
       }
       dependencies.onSource?.(source);
       const loaded = await dependencies.loadSource(source);
-      try {
-        const pages = await dependencies.extractPages(loaded.document, {
-          expectedPageCount: source.pageCount,
-          visualPages: source.visualPages,
-          ocrPage: run.ocrPage,
-        });
-        pagesBySource.set(source.id, pages);
-        sourceDigests[source.id] = loaded.digest;
-      } finally {
-        await loaded.destroy();
-      }
+      const pages = await runWithCleanup(
+        () =>
+          dependencies.extractPages(loaded.document, {
+            expectedPageCount: source.pageCount,
+            visualPages: source.visualPages,
+            ocrPage: run.ocrPage,
+          }),
+        () => loaded.destroy(),
+        "PDF document cleanup also failed",
+      );
+      pagesBySource.set(source.id, pages);
+      sourceDigests[source.id] = loaded.digest;
     }
   } catch (error: unknown) {
     extractionError = error;
@@ -90,6 +92,11 @@ export async function extractPdfSourcesWithSharedOcr<
     await run.terminate();
   } catch (terminationError: unknown) {
     if (extractionError === undefined) throw terminationError;
+    extractionError = attachCleanupError(
+      extractionError,
+      terminationError,
+      "OCR termination also failed",
+    );
   }
   if (extractionError !== undefined) throw extractionError;
 
@@ -121,6 +128,11 @@ export async function publishAtomically(
     await dependencies.removeFile(temporaryPath);
   } catch (cleanupError: unknown) {
     if (publishError === undefined) throw cleanupError;
+    publishError = attachCleanupError(
+      publishError,
+      cleanupError,
+      "Temporary index cleanup also failed",
+    );
   }
   if (publishError !== undefined) throw publishError;
 }
@@ -213,29 +225,54 @@ function containsLabeledPhone(text: string): boolean {
   return false;
 }
 
+function containsPhoneCandidate(text: string): boolean {
+  if (/(?<!\d)1[3-9]\d{9}(?!\d)/u.test(text)) return true;
+
+  for (const match of text.matchAll(
+    /(?<![\p{L}\p{N}])\+(?:[\d(][\d() .-]{5,}\d)/gu,
+  )) {
+    const digits = match[0].replace(/\D/gu, "");
+    if (digits.length >= 8 && digits.length <= 15) return true;
+  }
+  return false;
+}
+
+function containsPrivateAddress(text: string): boolean {
+  const technicalAddress =
+    /\b(?:ip|memory|network|physical|virtual|return|base|web|email)\s+address\b|\baddress\s+(?:bus|space|width|register)\b/iu;
+  const privateMarker = /\bPRIVATE_ADDRESS\b/iu;
+  const contactLabel =
+    /(?:\b(?:home|residential|mailing|contact)\s+address\b|家庭地址|联系地址|住址)\s*[:：]?\s*\S+/iu;
+  const genericAddressLabel = /\baddress\s*[:：]\s*\S+/iu;
+  const streetAddress =
+    /(?:\b\d{1,6}\s+[\p{L}][\p{L} .'-]{0,60}\s+(?:street|st|avenue|ave|road|rd|lane|ln|boulevard|blvd|drive|dr)\b|(?:路|街|道|巷)\s*\d+\s*号)/iu;
+
+  return text.split(/\r?\n/u).some((line) => {
+    if (privateMarker.test(line)) return true;
+    if (technicalAddress.test(line)) return false;
+    return (
+      contactLabel.test(line) ||
+      genericAddressLabel.test(line) ||
+      streetAddress.test(line)
+    );
+  });
+}
+
 export function assertPrivacySafe(text: string): void {
   const normalized = text.normalize("NFKC");
-  const withoutApprovedEmail = normalized.replaceAll(
-    new RegExp(APPROVED_PUBLIC_EMAIL.replace(".", "\\."), "giu"),
-    "[APPROVED_PUBLIC_EMAIL]",
+  const emailTokens = normalized.match(
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu,
+  ) ?? [];
+  const hasUnapprovedEmail = emailTokens.some(
+    (email) => email.toLowerCase() !== APPROVED_PUBLIC_EMAIL.toLowerCase(),
   );
-  const hasUnapprovedEmail =
-    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu.test(
-      withoutApprovedEmail,
-    );
-  const hasChineseMobile = /(?<!\d)1[3-9]\d{9}(?!\d)/u.test(normalized);
-  const hasPrivateAddress =
-    /\bPRIVATE_ADDRESS\b/iu.test(normalized) ||
-    /(?:address|home address|住址|家庭地址|联系地址)\s*[:：]\s*\S+/iu.test(
-      normalized,
-    );
   const hasPrivateQq = /(?:qq|扣扣)\s*[:：]?\s*\d{5,12}/iu.test(normalized);
 
   if (
     hasUnapprovedEmail ||
-    hasChineseMobile ||
+    containsPhoneCandidate(normalized) ||
     containsLabeledPhone(normalized) ||
-    hasPrivateAddress ||
+    containsPrivateAddress(normalized) ||
     hasPrivateQq
   ) {
     throw new Error("Private contact data detected");
@@ -347,11 +384,24 @@ export function chunkExtractedPages(
     const normalized = normalizeKnowledgeText(extractedPage.text);
     if (!normalized) continue;
     const characters = Array.from(normalized);
-    const step = chunkCharacters - overlapCharacters;
     let chunkIndex = 0;
+    let start = 0;
 
-    for (let start = 0; start < characters.length; start += step) {
-      const text = characters.slice(start, start + chunkCharacters).join("");
+    while (start < characters.length) {
+      let end = Math.min(start + chunkCharacters, characters.length);
+      if (end < characters.length) {
+        while (
+          end > start + overlapCharacters &&
+          (characters[end - 1] === " " ||
+            (overlapCharacters > 0 && characters[end - overlapCharacters] === " "))
+        ) {
+          end -= 1;
+        }
+        if (end <= start + overlapCharacters) {
+          throw new Error("Unable to create normalized knowledge chunk overlap");
+        }
+      }
+      const text = characters.slice(start, end).join("");
       const pageNumber = extractedPage.page;
       const base = {
         id: `${source.id}:p${pageNumber}:c${chunkIndex}`,
@@ -373,7 +423,8 @@ export function chunkExtractedPages(
       } satisfies KnowledgeChunk;
       chunks.push(base);
       chunkIndex += 1;
-      if (start + chunkCharacters >= characters.length) break;
+      if (end >= characters.length) break;
+      start = end - overlapCharacters;
     }
   }
 
@@ -428,15 +479,111 @@ export function buildKnowledgeIndex(
 function requireStringArray(
   value: unknown,
   description: string,
+  allowEmpty = false,
 ): readonly string[] {
   if (
     !Array.isArray(value) ||
-    value.length === 0 ||
+    (!allowEmpty && value.length === 0) ||
     value.some((item) => typeof item !== "string" || item.length === 0)
   ) {
     throw new Error(`Invalid ${description}`);
   }
-  return value as string[];
+  return value.map((item) => String(item));
+}
+
+function requireExactKeys(
+  value: Record<string, unknown>,
+  expectedKeys: readonly string[],
+  description: string,
+): void {
+  const actualKeys = Object.keys(value).sort();
+  const canonicalKeys = [...expectedKeys].sort();
+  if (
+    actualKeys.length !== canonicalKeys.length ||
+    actualKeys.some((key, index) => key !== canonicalKeys[index])
+  ) {
+    throw new Error(`Invalid ${description} keys`);
+  }
+}
+
+function requireString(value: unknown, description: string): string {
+  if (typeof value !== "string") throw new Error(`Invalid ${description}`);
+  return value;
+}
+
+function requireInteger(value: unknown, description: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new Error(`Invalid ${description}`);
+  }
+  return value;
+}
+
+function arraysEqual(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function validatePageChunkShape(
+  source: KnowledgeSource,
+  pageNumber: number,
+  chunks: readonly KnowledgeChunk[],
+): void {
+  chunks.forEach((chunk, chunkIndex) => {
+    const expectedId = `${source.id}:p${pageNumber}:c${chunkIndex}`;
+    if (chunk.id !== expectedId) {
+      throw new Error(`Invalid stable knowledge chunk ID: ${chunk.id}`);
+    }
+  });
+
+  if (chunks.length < 2) return;
+  for (let index = 0; index < chunks.length; index += 1) {
+    const characters = Array.from(chunks[index]!.text);
+    const isFinal = index === chunks.length - 1;
+    if (isFinal && characters.length <= DEFAULT_OVERLAP_CHARACTERS) {
+      throw new Error(`Invalid final chunk length: ${chunks[index]!.id}`);
+    }
+    if (index > 0) {
+      const previous = Array.from(chunks[index - 1]!.text);
+      const overlap = characters.slice(0, DEFAULT_OVERLAP_CHARACTERS).join("");
+      const expectedOverlap = previous
+        .slice(-DEFAULT_OVERLAP_CHARACTERS)
+        .join("");
+      if (overlap !== expectedOverlap) {
+        throw new Error(`Invalid knowledge chunk overlap: ${chunks[index]!.id}`);
+      }
+    }
+  }
+
+  const reconstructedText = chunks
+    .map((chunk, index) =>
+      index === 0
+        ? chunk.text
+        : Array.from(chunk.text).slice(DEFAULT_OVERLAP_CHARACTERS).join(""),
+    )
+    .join("");
+  const canonicalChunks = chunkExtractedPages(source, [
+    {
+      page: pageNumber,
+      text: reconstructedText,
+      method: source.kind === "profile" ? "structured" : "pdf-text",
+    },
+  ]);
+  if (
+    canonicalChunks.length !== chunks.length ||
+    canonicalChunks.some(
+      (chunk, index) =>
+        chunk.id !== chunks[index]?.id || chunk.text !== chunks[index]?.text,
+    )
+  ) {
+    throw new Error(
+      `Invalid canonical chunk progression: ${source.id}:p${pageNumber}`,
+    );
+  }
 }
 
 export function validateGeneratedIndex(
@@ -445,7 +592,15 @@ export function validateGeneratedIndex(
   currentDigests: Readonly<Record<string, string>>,
 ): GeneratedKnowledgeIndex {
   validateSourceManifest(sources);
-  if (!isRecord(candidate) || candidate.version !== 1) {
+  if (!isRecord(candidate)) {
+    throw new Error("Invalid generated knowledge index schema");
+  }
+  requireExactKeys(
+    candidate,
+    ["version", "sourceDigests", "chunks"],
+    "generated knowledge index",
+  );
+  if (candidate.version !== 1) {
     throw new Error("Invalid generated knowledge index version");
   }
   if (!isRecord(candidate.sourceDigests) || !Array.isArray(candidate.chunks)) {
@@ -474,88 +629,155 @@ export function validateGeneratedIndex(
     }
   }
 
+  const digests: Record<string, string> = {};
+  for (const source of sources) {
+    digests[source.id] = requireString(
+      candidate.sourceDigests[source.id],
+      `digest for knowledge source ${source.id}`,
+    );
+  }
+
   const seenChunkIds = new Set<string>();
-  const sourceChunkCounts = new Map<string, number>();
-  const pageChunkCounts = new Map<string, number>();
-  const chunks: KnowledgeChunk[] = [];
   for (const value of candidate.chunks) {
-    if (!isRecord(value) || typeof value.id !== "string") {
-      throw new Error("Invalid generated knowledge chunk schema");
-    }
+    if (!isRecord(value) || typeof value.id !== "string") continue;
     if (seenChunkIds.has(value.id)) {
       throw new Error(`Duplicate knowledge chunk ID: ${value.id}`);
     }
     seenChunkIds.add(value.id);
-
-    if (typeof value.sourceId !== "string") {
-      throw new Error(`Invalid source for knowledge chunk ${value.id}`);
+  }
+  const parsedChunks: KnowledgeChunk[] = [];
+  for (const value of candidate.chunks) {
+    if (!isRecord(value)) {
+      throw new Error("Invalid generated knowledge chunk schema");
     }
-    const source = sourceById.get(value.sourceId);
+    const id = requireString(value.id, "knowledge chunk ID");
+    const sourceId = requireString(value.sourceId, `source for knowledge chunk ${id}`);
+    const source = sourceById.get(sourceId);
     if (!source) {
-      throw new Error(`Invalid source for knowledge chunk ${value.id}`);
+      throw new Error(`Invalid source for knowledge chunk ${id}`);
     }
-    if (!Number.isInteger(value.page)) {
-      throw new Error(`Invalid page for knowledge chunk ${value.id}`);
-    }
-    const pageNumber = value.page as number;
+    requireExactKeys(
+      value,
+      [
+        "id",
+        "sourceId",
+        ...(source.projectId === undefined ? [] : ["projectId"]),
+        "page",
+        "title",
+        "text",
+        "terms",
+        "aliases",
+        "tags",
+        "citationLabel",
+        "publicHref",
+      ],
+      `knowledge chunk ${id}`,
+    );
+    const pageNumber = requireInteger(value.page, `page for knowledge chunk ${id}`);
     const maximumPage = source.kind === "profile" ? 1 : source.pageCount!;
     if (pageNumber < 1 || pageNumber > maximumPage) {
-      throw new Error(`Invalid page for knowledge chunk ${value.id}`);
+      throw new Error(`Invalid page for knowledge chunk ${id}`);
     }
-
-    const pageKey = `${source.id}:${pageNumber}`;
-    const expectedChunkIndex = pageChunkCounts.get(pageKey) ?? 0;
-    const expectedId = `${source.id}:p${pageNumber}:c${expectedChunkIndex}`;
-    if (value.id !== expectedId) {
-      throw new Error(`Invalid stable knowledge chunk ID: ${value.id}`);
-    }
-    pageChunkCounts.set(pageKey, expectedChunkIndex + 1);
 
     const expectedCitation =
       source.kind === "profile"
         ? source.title
         : `${source.title} · p. ${pageNumber}`;
     if (value.publicHref !== source.publicHref) {
-      throw new Error(
-        `Invalid public viewer target for knowledge chunk ${value.id}`,
-      );
+      throw new Error(`Invalid public viewer target for knowledge chunk ${id}`);
     }
     if (value.citationLabel !== expectedCitation) {
-      throw new Error(`Invalid citation label for knowledge chunk ${value.id}`);
+      throw new Error(`Invalid citation label for knowledge chunk ${id}`);
     }
     if (value.projectId !== source.projectId) {
-      throw new Error(`Invalid project for knowledge chunk ${value.id}`);
+      throw new Error(`Invalid project for knowledge chunk ${id}`);
     }
     if (value.title !== source.title) {
-      throw new Error(`Invalid title for knowledge chunk ${value.id}`);
+      throw new Error(`Invalid title for knowledge chunk ${id}`);
     }
-    if (typeof value.text !== "string" || !normalizeKnowledgeText(value.text)) {
-      throw new Error(`Empty knowledge chunk ${value.id}`);
+    const text = requireString(value.text, `text for knowledge chunk ${id}`);
+    if (!text || text !== normalizeKnowledgeText(text)) {
+      throw new Error(`Invalid normalized text for knowledge chunk ${id}`);
     }
-    requireStringArray(value.terms, `terms for knowledge chunk ${value.id}`);
-    if (
-      !Array.isArray(value.aliases) ||
-      value.aliases.some((item) => typeof item !== "string") ||
-      !Array.isArray(value.tags) ||
-      value.tags.some((item) => typeof item !== "string")
-    ) {
-      throw new Error(`Invalid metadata for knowledge chunk ${value.id}`);
+    if (Array.from(text).length > DEFAULT_CHUNK_CHARACTERS) {
+      throw new Error(`Knowledge chunk exceeds maximum length: ${id}`);
     }
-    assertPrivacySafe(stableSerialize(value));
-    sourceChunkCounts.set(
-      source.id,
-      (sourceChunkCounts.get(source.id) ?? 0) + 1,
+    let aliases: readonly string[];
+    let tags: readonly string[];
+    try {
+      aliases = requireStringArray(
+        value.aliases,
+        `aliases for knowledge chunk ${id}`,
+        true,
+      );
+      tags = requireStringArray(
+        value.tags,
+        `tags for knowledge chunk ${id}`,
+        true,
+      );
+    } catch {
+      throw new Error(`Invalid metadata for knowledge chunk ${id}`);
+    }
+    if (!arraysEqual(aliases, source.aliases) || !arraysEqual(tags, source.tags)) {
+      throw new Error(`Invalid metadata for knowledge chunk ${id}`);
+    }
+    const terms = requireStringArray(value.terms, `terms for knowledge chunk ${id}`);
+    const expectedTerms = buildTerms(
+      [source.title, ...source.aliases, ...source.tags, text].join(" "),
     );
-    chunks.push(value as unknown as KnowledgeChunk);
+    if (!arraysEqual(terms, expectedTerms)) {
+      throw new Error(`Invalid terms for knowledge chunk ${id}`);
+    }
+
+    const chunk: KnowledgeChunk = {
+      id,
+      sourceId,
+      ...(source.projectId === undefined ? {} : { projectId: source.projectId }),
+      page: pageNumber,
+      title: source.title,
+      text,
+      terms: [...terms],
+      aliases: [...aliases],
+      tags: [...tags],
+      citationLabel: expectedCitation,
+      publicHref: source.publicHref!,
+    };
+    assertPrivacySafe(stableSerialize(chunk));
+    parsedChunks.push(chunk);
   }
 
+  const chunks: KnowledgeChunk[] = [];
+  let cursor = 0;
   for (const source of sources) {
-    if (!sourceChunkCounts.has(source.id)) {
+    const sourceStart = cursor;
+    const maximumPage = source.kind === "profile" ? 1 : source.pageCount!;
+    const visualPages = new Set(source.visualPages ?? []);
+    for (let pageNumber = 1; pageNumber <= maximumPage; pageNumber += 1) {
+      const pageChunks: KnowledgeChunk[] = [];
+      while (
+        parsedChunks[cursor]?.sourceId === source.id &&
+        parsedChunks[cursor]?.page === pageNumber
+      ) {
+        pageChunks.push(parsedChunks[cursor]!);
+        cursor += 1;
+      }
+      if (pageChunks.length === 0 && !visualPages.has(pageNumber)) {
+        throw new Error(
+          `Knowledge source ${source.id} page ${pageNumber} has no searchable content`,
+        );
+      }
+      validatePageChunkShape(source, pageNumber, pageChunks);
+      chunks.push(...pageChunks);
+    }
+    if (cursor === sourceStart) {
       throw new Error(`Knowledge source ${source.id} has no searchable content`);
     }
   }
+  if (cursor !== parsedChunks.length) {
+    throw new Error("Generated knowledge chunks are not in canonical order");
+  }
 
-  const index = candidate as unknown as GeneratedKnowledgeIndex;
+  const index: GeneratedKnowledgeIndex = { version: 1, sourceDigests: digests, chunks };
   assertPrivacySafe(stableSerialize(index));
   return index;
 }

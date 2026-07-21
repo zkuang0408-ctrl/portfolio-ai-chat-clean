@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 import type { ExtractedPage } from "./types";
+import { runWithCleanup } from "./cleanup-error";
 
 export const NATIVE_TEXT_MINIMUM_CHARACTERS = 40;
 
@@ -52,31 +53,33 @@ export async function extractPdfPages(
 
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
     const page = await document.getPage(pageNumber);
-    try {
-      const text = await getNativePageText(page);
+    const extractedPage = await runWithCleanup(
+      async (): Promise<ExtractedPage> => {
+        const text = await getNativePageText(page);
 
-      if (
-        normalizedCharacterCount(text) >= NATIVE_TEXT_MINIMUM_CHARACTERS ||
-        visualPageNumbers.has(pageNumber)
-      ) {
-        extractedPages.push({ page: pageNumber, text, method: "pdf-text" });
-        continue;
-      }
+        if (
+          normalizedCharacterCount(text) >= NATIVE_TEXT_MINIMUM_CHARACTERS ||
+          visualPageNumbers.has(pageNumber)
+        ) {
+          return { page: pageNumber, text, method: "pdf-text" };
+        }
 
-      if (!ocrPage) {
-        throw new Error(
-          `OCR page function is required for PDF page ${pageNumber} with fewer than ${NATIVE_TEXT_MINIMUM_CHARACTERS} characters`,
-        );
-      }
+        if (!ocrPage) {
+          throw new Error(
+            `OCR page function is required for PDF page ${pageNumber} with fewer than ${NATIVE_TEXT_MINIMUM_CHARACTERS} characters`,
+          );
+        }
 
-      extractedPages.push({
-        page: pageNumber,
-        text: normalizePdfText(await ocrPage(page, pageNumber)),
-        method: "ocr",
-      });
-    } finally {
-      page.cleanup();
-    }
+        return {
+          page: pageNumber,
+          text: normalizePdfText(await ocrPage(page, pageNumber)),
+          method: "ocr",
+        };
+      },
+      () => page.cleanup(),
+      "PDF page cleanup also failed",
+    );
+    extractedPages.push(extractedPage);
   }
 
   return extractedPages;

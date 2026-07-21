@@ -1,21 +1,28 @@
 // @vitest-environment node
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function importedModules(filePath: string): readonly string[] {
   const source = readFileSync(filePath, 'utf8');
-  return Array.from(
-    source.matchAll(/(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g),
-    (match) => match[1]!,
+  const patterns = [
+    /(?:import|export)\s+(?:[^;\n]*?\s+from\s+)?["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /\bimport\.meta\.glob(?:Eager)?\s*\(\s*["']([^"']+)["']/g,
+  ];
+  return patterns.flatMap((pattern) =>
+    Array.from(source.matchAll(pattern), (match) => match[1]!),
   );
 }
 
 function browserImportGraph(entryPath: string): readonly string[] {
   const visited = new Set<string>();
   const pending = [entryPath];
+  const sourceRoot = dirname(entryPath);
 
   while (pending.length > 0) {
     const current = pending.pop()!;
@@ -23,9 +30,40 @@ function browserImportGraph(entryPath: string): readonly string[] {
     visited.add(current);
 
     for (const modulePath of importedModules(current)) {
-      if (!modulePath.startsWith('.')) continue;
-      const base = resolve(dirname(current), modulePath);
-      for (const candidate of [base, `${base}.ts`, `${base}.json`, resolve(base, 'index.ts')]) {
+      if (!modulePath.startsWith('.') && !modulePath.startsWith('@/')) continue;
+      const base = modulePath.startsWith('@/')
+        ? resolve(sourceRoot, modulePath.slice(2))
+        : resolve(dirname(current), modulePath);
+      if (base.includes('*')) {
+        const globDirectory = dirname(base);
+        if (!existsSync(globDirectory)) continue;
+        const escapedName = dirname(base) === base
+          ? base
+          : base.slice(globDirectory.length + 1);
+        const matcher = new RegExp(
+          `^${escapedName
+            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+            .replaceAll('*', '.*')}$`,
+        );
+        for (const entry of readdirSync(globDirectory, { withFileTypes: true })) {
+          if (entry.isFile() && matcher.test(entry.name)) {
+            pending.push(resolve(globDirectory, entry.name));
+          }
+        }
+        continue;
+      }
+      for (const candidate of [
+        base,
+        `${base}.ts`,
+        `${base}.tsx`,
+        `${base}.js`,
+        `${base}.mjs`,
+        `${base}.json`,
+        resolve(base, 'index.ts'),
+        resolve(base, 'index.tsx'),
+        resolve(base, 'index.js'),
+        resolve(base, 'index.mjs'),
+      ]) {
         if (existsSync(candidate)) {
           pending.push(candidate);
           break;
@@ -44,7 +82,7 @@ function sourceFiles(rootPath: string): readonly string[] {
     const path = resolve(rootPath, entry.name);
     return entry.isDirectory()
       ? sourceFiles(path)
-      : entry.name.endsWith('.ts')
+      : /\.(?:ts|tsx|js|mjs)$/u.test(entry.name)
         ? [path]
         : [];
   });
@@ -93,8 +131,38 @@ describe('production document assets', () => {
       'knowledge:generate': 'tsx scripts/build-knowledge-index.ts --generate',
       'knowledge:verify': 'tsx scripts/build-knowledge-index.ts --verify',
       prebuild: 'npm run knowledge:verify',
-      build: 'tsc --noEmit && vite build',
+      build: 'tsc --noEmit && vite build && tsx scripts/check-client-bundle.ts',
     });
+    expect(
+      existsSync(new URL('../scripts/check-client-bundle.ts', import.meta.url)),
+    ).toBe(true);
+  });
+
+  it('follows literal dynamic imports, globs, and browser source extensions', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'browser-graph-'));
+    const pages = join(directory, 'pages');
+    const sensitive = join(directory, 'generated-index.json');
+    const { mkdirSync } = await import('node:fs');
+    mkdirSync(pages);
+    writeFileSync(
+      join(directory, 'main.ts'),
+      `void import('./view.tsx');\nconst pages = import.meta.glob('./pages/*.mjs');\n`,
+      'utf8',
+    );
+    writeFileSync(join(directory, 'view.tsx'), `import './bridge.js';\n`, 'utf8');
+    writeFileSync(join(directory, 'bridge.js'), `import './generated-index.json';\n`, 'utf8');
+    writeFileSync(join(pages, 'lazy.mjs'), `export const value = 1;\n`, 'utf8');
+    writeFileSync(sensitive, '{}\n', 'utf8');
+
+    try {
+      const graph = browserImportGraph(join(directory, 'main.ts'));
+      expect(graph).toContain(resolve(directory, 'view.tsx'));
+      expect(graph).toContain(resolve(directory, 'bridge.js'));
+      expect(graph).toContain(resolve(directory, 'generated-index.json'));
+      expect(graph).toContain(resolve(pages, 'lazy.mjs'));
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
   });
 
   it('keeps the generated knowledge index server-only', () => {
