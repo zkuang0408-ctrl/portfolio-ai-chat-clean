@@ -52,27 +52,31 @@ export async function extractPdfPages(
 
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
     const page = await document.getPage(pageNumber);
-    const text = await getNativePageText(page);
+    try {
+      const text = await getNativePageText(page);
 
-    if (
-      normalizedCharacterCount(text) >= NATIVE_TEXT_MINIMUM_CHARACTERS ||
-      visualPageNumbers.has(pageNumber)
-    ) {
-      extractedPages.push({ page: pageNumber, text, method: "pdf-text" });
-      continue;
+      if (
+        normalizedCharacterCount(text) >= NATIVE_TEXT_MINIMUM_CHARACTERS ||
+        visualPageNumbers.has(pageNumber)
+      ) {
+        extractedPages.push({ page: pageNumber, text, method: "pdf-text" });
+        continue;
+      }
+
+      if (!ocrPage) {
+        throw new Error(
+          `OCR page function is required for PDF page ${pageNumber} with fewer than ${NATIVE_TEXT_MINIMUM_CHARACTERS} characters`,
+        );
+      }
+
+      extractedPages.push({
+        page: pageNumber,
+        text: normalizePdfText(await ocrPage(page, pageNumber)),
+        method: "ocr",
+      });
+    } finally {
+      page.cleanup();
     }
-
-    if (!ocrPage) {
-      throw new Error(
-        `OCR page function is required for PDF page ${pageNumber} with fewer than ${NATIVE_TEXT_MINIMUM_CHARACTERS} characters`,
-      );
-    }
-
-    extractedPages.push({
-      page: pageNumber,
-      text: normalizePdfText(await ocrPage(page, pageNumber)),
-      method: "ocr",
-    });
   }
 
   return extractedPages;

@@ -1,4 +1,5 @@
 import { createCanvas } from "@napi-rs/canvas";
+import { mkdir } from "node:fs/promises";
 
 import {
   extractPdfPages,
@@ -9,9 +10,28 @@ import {
 import type { ExtractedPage } from "./types";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 
-interface OcrWorker {
+export interface OcrWorker {
   recognize(image: Buffer): Promise<{ readonly data: { readonly text: string } }>;
   terminate(): Promise<unknown>;
+}
+
+interface TesseractModuleBoundary {
+  readonly createWorker: (
+    languages: string[],
+    oem: number,
+    options: { readonly cachePath: string },
+  ) => Promise<OcrWorker>;
+  readonly OEM: { readonly LSTM_ONLY: number };
+}
+
+type MakeDirectory = (
+  path: string,
+  options: { readonly recursive: true },
+) => Promise<unknown>;
+
+export interface DefaultOcrWorkerDependencies {
+  readonly makeDirectory?: MakeDirectory;
+  readonly loadTesseract?: () => Promise<TesseractModuleBoundary>;
 }
 
 export type CreateOcrWorker = () => Promise<OcrWorker>;
@@ -35,12 +55,25 @@ export interface PdfOcrRun {
 }
 
 const OCR_SCALE = 2;
+const TESSERACT_CACHE_PATH = "tmp/tesseract-cache";
 
-async function createTesseractWorker(): Promise<OcrWorker> {
-  const tesseract = await import("tesseract.js");
+export async function createDefaultOcrWorker(
+  dependencies: DefaultOcrWorkerDependencies = {},
+): Promise<OcrWorker> {
+  const makeDirectory =
+    dependencies.makeDirectory ??
+    ((path: string, options: { readonly recursive: true }) =>
+      mkdir(path, options));
+  const loadTesseract =
+    dependencies.loadTesseract ??
+    (async () =>
+      (await import("tesseract.js")) as unknown as TesseractModuleBoundary);
+
+  await makeDirectory(TESSERACT_CACHE_PATH, { recursive: true });
+  const tesseract = await loadTesseract();
 
   return tesseract.createWorker(["chi_sim", "eng"], tesseract.OEM.LSTM_ONLY, {
-    cachePath: "tmp/tesseract-cache",
+    cachePath: TESSERACT_CACHE_PATH,
   });
 }
 
@@ -67,17 +100,37 @@ export async function renderPdfPageToPng(
 export async function createPdfOcrRun(
   dependencies: PdfOcrRunDependencies = {},
 ): Promise<PdfOcrRun> {
-  const worker = await (dependencies.createWorker ?? createTesseractWorker)();
+  const worker = await (dependencies.createWorker ?? createDefaultOcrWorker)();
   const renderPage = dependencies.renderPage ?? renderPdfPageToPng;
   let terminated = false;
+  let terminationPromise: Promise<void> | undefined;
+  let extractionState: "not-started" | "running" | "finished" = "not-started";
 
-  const terminate = async (): Promise<void> => {
-    if (!terminated) {
-      terminated = true;
-      await worker.terminate();
-    }
+  const assertWorkerActive = (): void => {
+    if (terminated) throw new Error("OCR run has already terminated");
+    if (terminationPromise) throw new Error("OCR run is terminating");
+  };
+
+  const terminate = (): Promise<void> => {
+    if (terminated) return Promise.resolve();
+    if (terminationPromise) return terminationPromise;
+
+    terminationPromise = Promise.resolve()
+      .then(() => worker.terminate())
+      .then(() => {
+        terminated = true;
+      })
+      .catch((error: unknown) => {
+        terminationPromise = undefined;
+        throw error;
+      });
+    return terminationPromise;
   };
   const ocrPage: OcrPage = async (page, _pageNumber) => {
+    assertWorkerActive();
+    if (extractionState === "finished") {
+      throw new Error("OCR extraction run has already finished");
+    }
     const image = await renderPage(page, OCR_SCALE);
     const result = await worker.recognize(image);
     return result.data.text;
@@ -86,11 +139,31 @@ export async function createPdfOcrRun(
   return {
     ocrPage,
     async extract(document, options = {}) {
-      try {
-        return await extractPdfPages(document, { ...options, ocrPage });
-      } finally {
-        await terminate();
+      assertWorkerActive();
+      if (extractionState !== "not-started") {
+        throw new Error("OCR extraction run has already started");
       }
+      extractionState = "running";
+
+      let extractionFailed = false;
+      let extractionError: unknown;
+      let extractedPages: readonly ExtractedPage[] | undefined;
+      try {
+        extractedPages = await extractPdfPages(document, { ...options, ocrPage });
+      } catch (error: unknown) {
+        extractionFailed = true;
+        extractionError = error;
+      }
+      extractionState = "finished";
+
+      try {
+        await terminate();
+      } catch (terminationError: unknown) {
+        if (!extractionFailed) throw terminationError;
+      }
+
+      if (extractionFailed) throw extractionError;
+      return extractedPages ?? [];
     },
     terminate,
   };
