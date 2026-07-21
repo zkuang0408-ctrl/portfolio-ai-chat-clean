@@ -2,6 +2,7 @@
 
 import { expect, expectTypeOf, test } from "vitest";
 
+import { profile, projects } from "../../content/portfolio";
 import { knowledgeSources } from "./manifest";
 import type { KnowledgeChunk, KnowledgeSource } from "./types";
 
@@ -29,22 +30,27 @@ test("publishes only the approved portfolio knowledge sources in display order",
     pageCount: 1,
     publicHref: "/documents/zhao-shikuang-resume-public.pdf",
   });
+  expect(knowledgeSources.find(({ id }) => id === "profile")).toMatchObject({
+    publicHref: "#about",
+  });
+
+  const projectSources = knowledgeSources.filter(
+    (source) => source.kind === "project-pdf",
+  );
+  expect(projectSources).toHaveLength(projects.length);
+  for (const project of projects) {
+    expect(projectSources.find(({ id }) => id === project.id)).toMatchObject({
+      filePath: `public${project.pdf.href}`,
+      publicHref: project.pdf.href,
+      pageCount: project.pdf.pageCount,
+    });
+  }
 
   const serializedSources = JSON.stringify(knowledgeSources);
-  const privateExternalResumeFilename = String.fromCharCode(
-    65,
-    52,
-    32,
-    40,
-    50,
-    41,
-    46,
-    112,
-    100,
-    102,
-  );
+  const privateExternalResumeFilename = "A4 (2).pdf";
 
   expect(serializedSources).toContain("赵实旷");
   expect(serializedSources).not.toContain(privateExternalResumeFilename);
+  expect(serializedSources).not.toContain(profile.location);
   expect(serializedSources).not.toMatch(/(?:phone|qq|address|location|@)/i);
 });

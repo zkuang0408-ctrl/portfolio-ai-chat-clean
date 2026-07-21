@@ -46,6 +46,7 @@ export const knowledgeSources: readonly KnowledgeSource[] = [
     aliases: [profile.name, "Zhao Shikuang", "赵实旷", "Industrial Design", "AI+"],
     tags: ["工业设计", "AI 应用", "智能交互", "生成式设计"],
     structuredText: profileStructuredText,
+    publicHref: "#about",
   },
   {
     id: "resume",
