@@ -1,8 +1,16 @@
 // @vitest-environment node
 
-import { expect, test } from "vitest";
+import { expect, expectTypeOf, test } from "vitest";
 
 import { knowledgeSources } from "./manifest";
+import type { KnowledgeChunk, KnowledgeSource } from "./types";
+
+test("keeps the generated-index source and chunk contract exact", () => {
+  expectTypeOf<NonNullable<KnowledgeSource["visualPages"]>>().toEqualTypeOf<
+    readonly number[]
+  >();
+  expectTypeOf<KnowledgeChunk["publicHref"]>().toEqualTypeOf<string>();
+});
 
 test("publishes only the approved portfolio knowledge sources in display order", () => {
   expect(knowledgeSources.map(({ id }) => id)).toEqual([

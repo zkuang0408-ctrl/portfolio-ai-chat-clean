@@ -17,7 +17,7 @@ export interface KnowledgeSource {
   readonly projectId?: string;
   readonly pageCount?: number;
   readonly structuredText?: string;
-  readonly visualPages?: readonly ExtractedPage[];
+  readonly visualPages?: readonly number[];
 }
 
 export interface KnowledgeChunk {
@@ -31,7 +31,7 @@ export interface KnowledgeChunk {
   readonly aliases: readonly string[];
   readonly tags: readonly string[];
   readonly citationLabel: string;
-  readonly publicHref?: string;
+  readonly publicHref: string;
 }
 
 export interface GeneratedKnowledgeIndex {
