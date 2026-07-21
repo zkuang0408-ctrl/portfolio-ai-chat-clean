@@ -27,7 +27,7 @@ async function getNativePageText(page: PDFPageProxy): Promise<string> {
   const content = await page.getTextContent();
   const text = content.items
     .map((item) => ("str" in item && typeof item.str === "string" ? item.str : ""))
-    .join("");
+    .join(" ");
 
   return normalizePdfText(text);
 }

@@ -105,6 +105,28 @@ test("normalizes whitespace and counts Unicode code points deterministically", a
   expect(ocrPage).toHaveBeenCalledOnce();
 });
 
+test("keeps a word boundary between adjacent native PDF text items", async () => {
+  const ocrPage = vi.fn<OcrPage>();
+
+  await expect(
+    extractPdfPages(
+      fakeDocument([
+        fakePage([
+          { str: "Hello" },
+          { str: "world" },
+          { str: 42 },
+          {},
+          { str: "x".repeat(30) },
+        ]),
+      ]),
+      { ocrPage },
+    ),
+  ).resolves.toEqual([
+    { page: 1, text: `Hello world ${"x".repeat(30)}`, method: "pdf-text" },
+  ]);
+  expect(ocrPage).not.toHaveBeenCalled();
+});
+
 test("creates one OCR worker per run, renders at scale two, and terminates it", async () => {
   const recognize = vi.fn().mockResolvedValue({ data: { text: "识别结果" } });
   const terminate = vi.fn().mockResolvedValue(undefined);
