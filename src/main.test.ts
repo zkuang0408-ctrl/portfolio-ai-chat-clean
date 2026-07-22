@@ -10,10 +10,15 @@ const stopReaders = vi.hoisted(() => vi.fn());
 const startProjectReaders = vi.hoisted(() =>
   vi.fn((_root: ParentNode, _dependencies: PdfReaderDependencies) => stopReaders),
 );
+const stopChat = vi.hoisted(() => vi.fn());
+const startPortfolioChat = vi.hoisted(() =>
+  vi.fn((_root: HTMLElement, _dependencies: unknown) => stopChat),
+);
 
 vi.mock("./particles/controller", () => ({ startPortrait }));
 vi.mock("./portfolio/pdf-reader", () => ({ startProjectReaders }));
 vi.mock("./portfolio/pdf-runtime", () => ({ loadPdfDocument }));
+vi.mock("./chat/chat-controller", () => ({ startPortfolioChat }));
 
 beforeEach(() => {
   window.dispatchEvent(
@@ -24,6 +29,8 @@ beforeEach(() => {
   loadPdfDocument.mockClear();
   stopReaders.mockClear();
   startProjectReaders.mockClear();
+  startPortfolioChat.mockClear();
+  stopChat.mockClear();
   document.body.innerHTML = "";
 });
 
@@ -53,6 +60,25 @@ test("renders the editorial homepage in the app root", async () => {
     portraitBase: app?.querySelector(".portrait-base"),
     portraitStage: app?.querySelector(".portrait-stage"),
   });
+  expect(startPortfolioChat).toHaveBeenCalledOnce();
+  expect(startPortfolioChat.mock.calls[0]?.[0]).toBe(
+    app?.querySelector("[data-chat-root]"),
+  );
+});
+
+test.each([
+  ["zh-CN", "zh"],
+  ["en-US", "en"],
+  ["fr-FR", "en"],
+])("selects chat locale from navigator language %s", async (language, locale) => {
+  document.body.innerHTML = '<div id="app"></div>';
+  vi.spyOn(window.navigator, "language", "get").mockReturnValue(language);
+
+  await import("./main");
+
+  expect(startPortfolioChat.mock.calls[0]?.[1]).toEqual(
+    expect.objectContaining({ locale }),
+  );
 });
 
 test("starts project readers after rendering their markup with browser dependencies", async () => {
@@ -113,7 +139,7 @@ test("starts project readers after rendering their markup with browser dependenc
   );
 });
 
-test("preserves project readers in BFCache and cleans them up once on terminal pagehide", async () => {
+test("preserves chat and readers in BFCache and cleans both once on terminal pagehide", async () => {
   document.body.innerHTML = '<div id="app"></div>';
   vi.stubGlobal("requestAnimationFrame", vi.fn());
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
@@ -128,6 +154,7 @@ test("preserves project readers in BFCache and cleans them up once on terminal p
     new PageTransitionEvent("pagehide", { persisted: true }),
   );
   expect(stopReaders).not.toHaveBeenCalled();
+  expect(stopChat).not.toHaveBeenCalled();
 
   window.dispatchEvent(
     new PageTransitionEvent("pagehide", { persisted: false }),
@@ -137,6 +164,7 @@ test("preserves project readers in BFCache and cleans them up once on terminal p
   );
 
   expect(stopReaders).toHaveBeenCalledOnce();
+  expect(stopChat).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledOnce();
 });
 

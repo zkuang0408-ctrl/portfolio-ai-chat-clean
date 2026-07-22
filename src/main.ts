@@ -1,4 +1,6 @@
 import portraitUrl from "./assets/portrait.webp";
+import { startPortfolioChat } from "./chat/chat-controller";
+import type { ChatLocale } from "./chat/content";
 import { renderHero } from "./hero/render-hero";
 import { startPortrait } from "./particles/controller";
 import {
@@ -15,11 +17,23 @@ if (!app) {
   throw new Error("Missing #app root element.");
 }
 
-const portrait = renderHero(app, portraitUrl);
+const locale: ChatLocale = navigator.language.toLowerCase().startsWith("zh")
+  ? "zh"
+  : "en";
+const portrait = renderHero(app, portraitUrl, locale);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
 renderPortfolio(portfolioRoot);
+
+const stopChat = startPortfolioChat(portrait.chatRoot, {
+  fetch: window.fetch.bind(window),
+  storage: window.sessionStorage,
+  locale,
+  navigateToSource: () => {
+    // Exact verified-source routing is connected in the next integration step.
+  },
+});
 
 const stopReaders = startProjectReaders(portfolioRoot, {
   loadDocument:
@@ -35,6 +49,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   if (event.persisted) {
     return;
   }
+  stopChat();
   stopReaders();
   window.removeEventListener("pagehide", handlePageHide);
 }
