@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { KnowledgeChunk } from "../knowledge/types";
 import type { Retriever } from "../retrieval/retriever";
 import type { ChatProvider, ProviderEvent } from "./chat-types";
+import { DeepSeekProviderError } from "./deepseek-provider";
 import type { RateLimitStore } from "./rate-limit";
 import {
   handleChat,
@@ -67,6 +68,15 @@ async function readEvents(response: Response): Promise<ParsedEvent[]> {
       }
       return { event, data: JSON.parse(data.join("\n")) };
     });
+}
+
+async function settlesWithin<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("operation stayed blocked on metrics")), 100),
+    ),
+  ]);
 }
 
 function providerFromAttempts(
@@ -265,6 +275,141 @@ describe("handleChat", () => {
     expect(text).not.toContain("SECRET");
   });
 
+  test.each([
+    ["authentication", new DeepSeekProviderError("authentication", false)],
+    ["balance", new DeepSeekProviderError("balance", false)],
+    ["malformed", new DeepSeekProviderError("malformed_response", false)],
+  ] as const)("does not retry an explicit non-retryable %s failure", async (_name, failure) => {
+    const provider = providerFromAttempts([failure, [
+      { type: "delta", text: "must not run" },
+      { type: "done" },
+    ]]);
+    const response = await handleChat(request(), dependencies({ provider }));
+    const events = await readEvents(response);
+
+    expect(provider.calls).toBe(1);
+    expect(events.map(({ event }) => event)).toEqual(["start", "error"]);
+  });
+
+  test("retries an explicit retryable provider failure before visible output", async () => {
+    const provider = providerFromAttempts([
+      new DeepSeekProviderError("network", true),
+      [{ type: "delta", text: "Recovered [[S1]]" }, { type: "done" }],
+    ]);
+    const response = await handleChat(request(), dependencies({ provider }));
+
+    expect((await readEvents(response)).at(-1)?.event).toBe("done");
+    expect(provider.calls).toBe(2);
+  });
+
+  test("retries done-only, marker-only, and whitespace-only attempts without leaking them", async () => {
+    const attempts: readonly (readonly ProviderEvent[])[] = [
+      [{ type: "done" }],
+      [{ type: "delta", text: "[[S1]]" }, { type: "done" }],
+      [{ type: "delta", text: "  \n" }, { type: "done" }],
+    ];
+    for (const first of attempts) {
+      const provider = providerFromAttempts([
+        first,
+        [{ type: "delta", text: "Meaningful [[S1]]" }, { type: "done" }],
+      ]);
+      const response = await handleChat(request(), dependencies({ provider }));
+      const events = await readEvents(response);
+      expect(provider.calls).toBe(2);
+      expect(events.filter(({ event }) => event === "delta")).toEqual([
+        { event: "delta", data: { text: "Meaningful " } },
+      ]);
+      expect(events.at(-1)?.event).toBe("done");
+    }
+  });
+
+  test("emits a sanitized failure after two marker-only attempts", async () => {
+    const provider = providerFromAttempts([
+      [{ type: "delta", text: "[[S1]]" }, { type: "done" }],
+      [{ type: "delta", text: "[[S1]]" }, { type: "done" }],
+    ]);
+    const response = await handleChat(request(), dependencies({ provider }));
+    const events = await readEvents(response);
+
+    expect(provider.calls).toBe(2);
+    expect(events.map(({ event }) => event)).toEqual(["start", "error"]);
+  });
+
+  test("treats the first provider done event as terminal and closes the iterator", async () => {
+    let afterDoneRan = false;
+    let finalized = false;
+    const provider: ChatProvider = {
+      async *stream() {
+        try {
+          yield { type: "delta", text: "Answer [[S1]]" };
+          yield { type: "done" };
+          afterDoneRan = true;
+          yield { type: "delta", text: "must be ignored" };
+        } finally {
+          finalized = true;
+        }
+      },
+    };
+    const response = await handleChat(request(), dependencies({ provider }));
+    const text = await response.text();
+
+    expect(afterDoneRan).toBe(false);
+    expect(finalized).toBe(true);
+    expect(text).not.toContain("must be ignored");
+  });
+
+  test("aborts upstream work when the response body is cancelled mid-stream", async () => {
+    let providerSignal: AbortSignal | undefined;
+    let providerStarted!: () => void;
+    const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+    let providerFinalized = false;
+    const provider: ChatProvider = {
+      async *stream(_input, signal) {
+        providerSignal = signal;
+        providerStarted();
+        try {
+          yield { type: "delta", text: "Partial answer" };
+          await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+          if (!signal.aborted) yield { type: "delta", text: "continued work" };
+        } finally {
+          providerFinalized = true;
+        }
+      },
+    };
+    const response = await handleChat(request(), dependencies({ provider }));
+    const reader = response.body!.getReader();
+    await reader.read();
+    await started;
+    await reader.cancel();
+    await Promise.resolve();
+
+    expect(providerSignal?.aborted).toBe(true);
+    expect(providerFinalized).toBe(true);
+  });
+
+  test("aborts the provider when the response is cancelled at provider start", async () => {
+    let providerSignal: AbortSignal | undefined;
+    let providerStarted!: () => void;
+    const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+    let workAfterAbort = false;
+    const provider: ChatProvider = {
+      async *stream(_input, signal) {
+        providerSignal = signal;
+        providerStarted();
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+        if (!signal.aborted) workAfterAbort = true;
+      },
+    };
+    const response = await handleChat(request(), dependencies({ provider }));
+    const reader = response.body!.getReader();
+    await reader.read();
+    await started;
+    await reader.cancel();
+
+    expect(providerSignal?.aborted).toBe(true);
+    expect(workAfterAbort).toBe(false);
+  });
+
   test("returns stable failures for method, origin, content type, JSON, and actual byte size", async () => {
     const cases: readonly [Request, number, string][] = [
       [new Request("https://portfolio.test/api/chat", { method: "GET" }), 405, "method_not_allowed"],
@@ -281,6 +426,52 @@ describe("handleChat", () => {
         error: expect.objectContaining({ code, retryable: expect.any(Boolean) }),
       });
     }
+  });
+
+  test.each([
+    ["method", { method: "PUT", headers: {} }, "method_not_allowed"],
+    ["origin", { method: "POST", headers: { origin: "https://evil.test", "content-type": "application/json" } }, "cross_origin_request"],
+    ["content type", { method: "POST", headers: { origin: "https://portfolio.test", "content-type": "text/plain" } }, "unsupported_content_type"],
+  ] as const)("cancels the request upload on early %s rejection", async (_name, init, code) => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(encoder.encode("{}")); },
+      cancel() { cancelled = true; },
+    });
+    const input = new Request("https://portfolio.test/api/chat", {
+      ...init,
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const response = await handleChat(input, dependencies());
+
+    expect((await response.json() as { error: { code: string } }).error.code).toBe(code);
+    expect(cancelled).toBe(true);
+  });
+
+  test("cancels an oversized streaming upload and preserves the public error if cancellation fails", async () => {
+    let cancelCalls = 0;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(20_000));
+        controller.enqueue(new Uint8Array(20_000));
+      },
+      cancel() {
+        cancelCalls += 1;
+        throw new Error("private cleanup failure");
+      },
+    });
+    const input = new Request("https://portfolio.test/api/chat", {
+      method: "POST",
+      headers: { origin: "https://portfolio.test", "content-type": "application/json" },
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const response = await handleChat(input, dependencies());
+
+    expect(response.status).toBe(413);
+    expect((await response.json() as { error: { code: string } }).error.code).toBe("body_too_large");
+    expect(cancelCalls).toBe(1);
   });
 
   test("validates declared size and schema before rate limiting", async () => {
@@ -328,6 +519,28 @@ describe("handleChat", () => {
 
     expect((await readEvents(response)).at(-1)?.event).toBe("done");
   });
+
+  test.each(["success", "no_result", "rejected", "rate_limited"] as const)(
+    "never blocks a %s response on a pending metrics sink",
+    async (outcome) => {
+      const deps = dependencies({
+        ...(outcome === "no_result" ? { results: [] } : {}),
+        ...(outcome === "rate_limited"
+          ? { rateResult: { allowed: false, resetAt: fixedNow + 3_000 } }
+          : {}),
+      });
+      deps.metrics = { record: () => new Promise<void>(() => {}) };
+      const response = await settlesWithin(
+        handleChat(
+          outcome === "rejected"
+            ? new Request("https://portfolio.test/api/chat", { method: "GET" })
+            : request(),
+          deps,
+        ),
+      );
+      await settlesWithin(response.text());
+    },
+  );
 
   test("measures UTF-8 bytes rather than JavaScript code units", async () => {
     const body = JSON.stringify({

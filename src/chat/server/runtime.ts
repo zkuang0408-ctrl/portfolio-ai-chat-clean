@@ -99,6 +99,7 @@ function parseConfig(
 ): RuntimeConfig | undefined {
   if (env.CHAT_ENABLED !== "true") return undefined;
   const apiKey = required(env.DEEPSEEK_API_KEY);
+  const kvUrlValue = required(env.RATE_LIMIT_KV_URL);
   const kvToken = required(env.RATE_LIMIT_KV_TOKEN);
   const salt = required(env.RATE_LIMIT_SALT);
   const model = required(env.DEEPSEEK_MODEL) ?? DEFAULT_MODEL;
@@ -114,7 +115,7 @@ function parseConfig(
   );
   let kvUrl: URL;
   try {
-    kvUrl = new URL(env.RATE_LIMIT_KV_URL ?? "");
+    kvUrl = new URL(kvUrlValue ?? "");
   } catch {
     return undefined;
   }
@@ -126,6 +127,10 @@ function parseConfig(
     kvUrl.protocol !== "https:" ||
     kvUrl.username !== "" ||
     kvUrl.password !== "" ||
+    kvUrl.pathname !== "/" ||
+    kvUrl.search !== "" ||
+    kvUrl.hash !== "" ||
+    kvUrl.href !== `${kvUrl.origin}/` ||
     !timeoutMs ||
     !maxTokens
   ) {
@@ -133,7 +138,7 @@ function parseConfig(
   }
   return {
     apiKey,
-    kvUrl: kvUrl.toString().replace(/\/$/, ""),
+    kvUrl: kvUrl.origin,
     kvToken,
     salt,
     model,

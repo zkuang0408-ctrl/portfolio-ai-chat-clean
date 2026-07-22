@@ -161,4 +161,29 @@ describe("createRuntime", () => {
   ])("fails closed for invalid optional numeric configuration %#", (extra) => {
     expect(createRuntime({ env: { ...validEnv, ...extra } }).enabled).toBe(false);
   });
+
+  test.each([
+    "https://user:password@example.upstash.io",
+    "https://example.upstash.io/custom-path",
+    "https://example.upstash.io/?token=query",
+    "https://example.upstash.io/#fragment",
+    "https://example.upstash.io/?",
+    "https://example.upstash.io/#",
+  ])("rejects a non-origin Upstash URL %s", (url) => {
+    expect(createRuntime({ env: { ...validEnv, RATE_LIMIT_KV_URL: url } }).enabled).toBe(false);
+  });
+
+  test("normalizes a valid Upstash root URL to its origin", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: { ...validEnv, RATE_LIMIT_KV_URL: "https://example.upstash.io/" },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+    expect(captures.rateOptions).toEqual({
+      url: "https://example.upstash.io",
+      token: validEnv.RATE_LIMIT_KV_TOKEN,
+    });
+  });
 });

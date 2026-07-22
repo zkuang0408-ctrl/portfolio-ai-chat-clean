@@ -9,6 +9,7 @@ import type {
   SourceMarker,
 } from "./chat-types";
 import { createCitationParser } from "./citations";
+import { DeepSeekProviderError } from "./deepseek-provider";
 import { buildGroundedPrompt } from "./prompt";
 import type { RateLimitStore } from "./rate-limit";
 import { deriveVisitorKey } from "./rate-limit";
@@ -106,14 +107,35 @@ function elapsed(clock: () => number, startedAt: number): number {
   return Number.isFinite(duration) && duration > 0 ? Math.floor(duration) : 0;
 }
 
-async function recordMetric(
+function recordMetric(
   sink: ChatMetricsSink,
   metric: ChatMetric,
-): Promise<void> {
+): void {
   try {
-    await sink.record(metric);
+    void Promise.resolve(sink.record(metric)).catch(() => {});
   } catch {
     // Observability must never change the public assistant outcome.
+  }
+}
+
+function cancelStreamBestEffort(
+  stream: ReadableStream<Uint8Array> | null,
+): void {
+  if (stream === null) return;
+  try {
+    void stream.cancel().catch(() => {});
+  } catch {
+    // Request cleanup must not replace the stable public outcome.
+  }
+}
+
+function cancelReaderBestEffort(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): void {
+  try {
+    void reader.cancel().catch(() => {});
+  } catch {
+    // Request cleanup must not replace the stable public outcome.
   }
 }
 
@@ -142,6 +164,9 @@ async function readBody(request: Request): Promise<{
       }
       chunks.push(item.value);
     }
+  } catch (error) {
+    cancelReaderBestEffort(reader);
+    throw error;
   } finally {
     try {
       reader.releaseLock();
@@ -221,6 +246,25 @@ function createAnswerStream(input: {
   readonly startedAt: number;
 }): ReadableStream<Uint8Array> {
   let cancelled = false;
+  let lifecycleFinished = false;
+  const upstreamController = new AbortController();
+  const abortUpstream = () => {
+    if (!upstreamController.signal.aborted) {
+      upstreamController.abort(new DOMException("The operation was aborted", "AbortError"));
+    }
+  };
+  const abortFromRequest = () => abortUpstream();
+  if (input.requestSignal.aborted) {
+    abortUpstream();
+  } else {
+    input.requestSignal.addEventListener("abort", abortFromRequest, { once: true });
+  }
+  const finishLifecycle = () => {
+    if (lifecycleFinished) return;
+    lifecycleFinished = true;
+    input.requestSignal.removeEventListener("abort", abortFromRequest);
+  };
+
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: ChatStreamEvent): boolean => {
@@ -230,6 +274,7 @@ function createAnswerStream(input: {
           return true;
         } catch {
           cancelled = true;
+          abortUpstream();
           return false;
         }
       };
@@ -239,6 +284,7 @@ function createAnswerStream(input: {
           controller.close();
         } catch {
           cancelled = true;
+          abortUpstream();
         }
       };
 
@@ -248,12 +294,13 @@ function createAnswerStream(input: {
         send({ type: "delta", data: { text: noResultCopy(input.locale) } });
         send({ type: "sources", data: { sources: [] } });
         send({ type: "done", data: {} });
-        await recordMetric(input.dependencies.metrics, {
+        recordMetric(input.dependencies.metrics, {
           status: "no_result",
           latencyMs: elapsed(input.dependencies.clock, input.startedAt),
           ...EMPTY_METRIC_COUNTS,
         });
         close();
+        finishLifecycle();
         return;
       }
 
@@ -272,6 +319,8 @@ function createAnswerStream(input: {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const parser = createCitationParser(allowedIds);
         let sawDone = false;
+        let attemptHasMeaningfulText = false;
+        let leadingVisible = "";
         let attemptInputTokens = 0;
         let attemptOutputTokens = 0;
         try {
@@ -281,11 +330,19 @@ function createAnswerStream(input: {
               messages: prompt.messages,
               userId: input.visitorKey,
             },
-            input.requestSignal,
+            upstreamController.signal,
           )) {
             if (event.type === "delta") {
               const visible = parser.push(event.text);
-              if (visible.length > 0) {
+              if (!attemptHasMeaningfulText) {
+                leadingVisible += visible;
+                if (hasMeaningfulText(leadingVisible)) {
+                  attemptHasMeaningfulText = true;
+                  visibleDeltaSent = true;
+                  send({ type: "delta", data: { text: leadingVisible } });
+                  leadingVisible = "";
+                }
+              } else if (visible.length > 0) {
                 visibleDeltaSent = true;
                 send({ type: "delta", data: { text: visible } });
               }
@@ -294,15 +351,23 @@ function createAnswerStream(input: {
               attemptOutputTokens = event.outputTokens;
             } else {
               sawDone = true;
+              break;
             }
           }
           if (!sawDone) throw new Error("provider stream ended without done");
 
           const finished = parser.finish();
-          if (finished.text.length > 0) {
-            visibleDeltaSent = true;
+          if (!attemptHasMeaningfulText) {
+            leadingVisible += finished.text;
+            if (hasMeaningfulText(leadingVisible)) {
+              attemptHasMeaningfulText = true;
+              visibleDeltaSent = true;
+              send({ type: "delta", data: { text: leadingVisible } });
+            }
+          } else if (finished.text.length > 0) {
             send({ type: "delta", data: { text: finished.text } });
           }
+          if (!attemptHasMeaningfulText) throw new EmptyProviderAnswerError();
           inputTokens = attemptInputTokens;
           outputTokens = attemptOutputTokens;
           const cited = sourcesForIds(prompt.sources, finished.sourceIds);
@@ -315,7 +380,7 @@ function createAnswerStream(input: {
               ...(outputTokens > 0 ? { outputTokens } : {}),
             },
           });
-          await recordMetric(input.dependencies.metrics, {
+          recordMetric(input.dependencies.metrics, {
             status: "success",
             latencyMs: elapsed(input.dependencies.clock, input.startedAt),
             inputTokens,
@@ -323,24 +388,26 @@ function createAnswerStream(input: {
             retrievalCount: input.results.length,
           });
           close();
+          finishLifecycle();
           return;
-        } catch {
+        } catch (error) {
           if (
             attempt === 0 &&
             !visibleDeltaSent &&
-            !input.requestSignal.aborted &&
+            isRetryableBeforeVisibleOutput(error) &&
+            !upstreamController.signal.aborted &&
             !cancelled
           ) {
             continue;
           }
 
-          if (!cancelled && !input.requestSignal.aborted) {
+          if (!cancelled && !upstreamController.signal.aborted) {
             send({
               type: "error",
               data: errorPayload("upstream_unavailable", true),
             });
           }
-          await recordMetric(input.dependencies.metrics, {
+          recordMetric(input.dependencies.metrics, {
             status: "failure",
             latencyMs: elapsed(input.dependencies.clock, input.startedAt),
             inputTokens: 0,
@@ -348,14 +415,29 @@ function createAnswerStream(input: {
             retrievalCount: input.results.length,
           });
           close();
+          finishLifecycle();
           return;
         }
       }
     },
     cancel() {
       cancelled = true;
+      abortUpstream();
+      finishLifecycle();
     },
   });
+}
+
+class EmptyProviderAnswerError extends Error {}
+
+function hasMeaningfulText(value: string): boolean {
+  return value.replace(/[\s\p{Cf}]/gu, "").length > 0;
+}
+
+function isRetryableBeforeVisibleOutput(error: unknown): boolean {
+  if (error instanceof DeepSeekProviderError) return error.retryable;
+  if (error instanceof DOMException && error.name === "AbortError") return false;
+  return true;
 }
 
 export async function handleChat(
@@ -364,7 +446,8 @@ export async function handleChat(
 ): Promise<Response> {
   const startedAt = dependencies.clock();
   if (request.method !== "POST") {
-    await recordMetric(dependencies.metrics, {
+    cancelStreamBestEffort(request.body);
+    recordMetric(dependencies.metrics, {
       status: "rejected",
       latencyMs: elapsed(dependencies.clock, startedAt),
       ...EMPTY_METRIC_COUNTS,
@@ -401,7 +484,7 @@ export async function handleChat(
       requestId: dependencies.requestId(),
     });
     if (!rate.allowed) {
-      await recordMetric(dependencies.metrics, {
+      recordMetric(dependencies.metrics, {
         status: "rate_limited",
         latencyMs: elapsed(dependencies.clock, startedAt),
         ...EMPTY_METRIC_COUNTS,
@@ -429,7 +512,8 @@ export async function handleChat(
     );
   } catch (error) {
     const validation = error instanceof ChatValidationError ? error : undefined;
-    await recordMetric(dependencies.metrics, {
+    cancelStreamBestEffort(request.body);
+    recordMetric(dependencies.metrics, {
       status: validation ? "rejected" : "failure",
       latencyMs: elapsed(dependencies.clock, startedAt),
       ...EMPTY_METRIC_COUNTS,
