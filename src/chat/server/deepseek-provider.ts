@@ -4,10 +4,19 @@ import type {
   ProviderInput,
 } from "./chat-types";
 
-const DEFAULT_BASE_URL = "https://api.deepseek.com";
+const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
+const MAX_API_KEY_CHARS = 4_096;
+const MAX_MODEL_CHARS = 128;
+const MAX_TIMEOUT_MS = 120_000;
+const MAX_TOKEN_LIMIT = 4_096;
+
+export const MAX_SSE_LINE_CHARS = 4_096;
+export const MAX_SSE_EVENT_CHARS = 8_192;
+export const MAX_OUTPUT_CODE_POINTS = 8_192;
+export const MAX_SSE_STREAM_BYTES = 65_536;
 
 export type DeepSeekProviderErrorCategory =
   | "authentication"
@@ -33,7 +42,6 @@ export class DeepSeekProviderError extends Error {
 
 export interface DeepSeekProviderOptions {
   readonly apiKey: string;
-  readonly baseUrl?: string;
   readonly model?: string;
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
@@ -51,14 +59,39 @@ interface CompletionChunk {
   readonly usage?: UsagePayload | null;
 }
 
+interface ParsedDataEvent {
+  readonly done: boolean;
+  readonly delta?: string;
+  readonly usage?: Extract<ProviderEvent, { readonly type: "usage" }>;
+}
+
+interface CompositeAbort {
+  readonly signal: AbortSignal;
+  readonly didTimeout: () => boolean;
+  readonly cleanup: () => void;
+}
+
 const TIMEOUT_REASON = Symbol("deepseek-timeout");
 
-function safeAbortReason(signal: AbortSignal): unknown {
-  return signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+function sanitizedAbortError(): DOMException {
+  return new DOMException("The operation was aborted", "AbortError");
+}
+
+function abortFailure(
+  externalSignal: AbortSignal,
+  composite: CompositeAbort,
+): DOMException | DeepSeekProviderError | undefined {
+  if (externalSignal.aborted) {
+    return sanitizedAbortError();
+  }
+  if (composite.didTimeout()) {
+    return new DeepSeekProviderError("timeout", true);
+  }
+  return undefined;
 }
 
 function isTokenCount(value: unknown): value is number {
-  return Number.isSafeInteger(value) && typeof value === "number" && value >= 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function readDeltaText(payload: CompletionChunk): string | undefined {
@@ -89,7 +122,9 @@ function readDeltaText(payload: CompletionChunk): string | undefined {
   return delta.content;
 }
 
-function readUsage(payload: CompletionChunk): ProviderEvent | undefined {
+function readUsage(
+  payload: CompletionChunk,
+): Extract<ProviderEvent, { readonly type: "usage" }> | undefined {
   if (payload.usage === undefined || payload.usage === null) {
     return undefined;
   }
@@ -114,11 +149,9 @@ function readUsage(payload: CompletionChunk): ProviderEvent | undefined {
     : { type: "usage", inputTokens, outputTokens, cacheHitTokens };
 }
 
-function parseDataEvent(data: string):
-  | { readonly done: true; readonly events: readonly ProviderEvent[] }
-  | { readonly done: false; readonly events: readonly ProviderEvent[] } {
+function parseDataEvent(data: string): ParsedDataEvent {
   if (data.trim() === "[DONE]") {
-    return { done: true, events: [{ type: "done" }] };
+    return { done: true };
   }
 
   let unknownPayload: unknown;
@@ -132,16 +165,13 @@ function parseDataEvent(data: string):
   }
 
   const payload = unknownPayload as CompletionChunk;
-  const events: ProviderEvent[] = [];
-  const text = readDeltaText(payload);
-  if (text !== undefined && text.length > 0) {
-    events.push({ type: "delta", text });
-  }
+  const delta = readDeltaText(payload);
   const usage = readUsage(payload);
-  if (usage !== undefined) {
-    events.push(usage);
-  }
-  return { done: false, events };
+  return {
+    done: false,
+    ...(delta === undefined || delta.length === 0 ? {} : { delta }),
+    ...(usage === undefined ? {} : { usage }),
+  };
 }
 
 function httpError(status: number): DeepSeekProviderError {
@@ -157,14 +187,13 @@ function httpError(status: number): DeepSeekProviderError {
   return new DeepSeekProviderError("upstream", status >= 500);
 }
 
-function createCompositeSignal(externalSignal: AbortSignal, timeoutMs: number): {
-  readonly signal: AbortSignal;
-  readonly didTimeout: () => boolean;
-  readonly cleanup: () => void;
-} {
+function createCompositeSignal(
+  externalSignal: AbortSignal,
+  timeoutMs: number,
+): CompositeAbort {
   const controller = new AbortController();
   let timedOut = false;
-  const abortFromExternal = () => controller.abort(safeAbortReason(externalSignal));
+  const abortFromExternal = () => controller.abort(sanitizedAbortError());
 
   if (externalSignal.aborted) {
     abortFromExternal();
@@ -192,13 +221,13 @@ function readWithSignal(
   signal: AbortSignal,
 ): Promise<ReadableStreamReadResult<Uint8Array>> {
   if (signal.aborted) {
-    return Promise.reject(safeAbortReason(signal));
+    return Promise.reject(signal.reason);
   }
 
   return new Promise((resolve, reject) => {
     const onAbort = () => {
       cleanup();
-      reject(safeAbortReason(signal));
+      reject(signal.reason);
     };
     const cleanup = () => signal.removeEventListener("abort", onAbort);
     signal.addEventListener("abort", onAbort, { once: true });
@@ -215,34 +244,107 @@ function readWithSignal(
   });
 }
 
+async function cancelBody(body: ReadableStream<Uint8Array> | null): Promise<void> {
+  if (body === null) {
+    return;
+  }
+  try {
+    await body.cancel();
+  } catch {
+    // Cancellation is best-effort and provider errors stay sanitized.
+  }
+}
+
+async function cancelReader(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<void> {
+  try {
+    await reader.cancel();
+  } catch {
+    // Cancellation is best-effort and provider errors stay sanitized.
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // A failed release must not replace the normalized provider outcome.
+    }
+  }
+}
+
+function isEventStream(response: Response): boolean {
+  const contentType = response.headers.get("content-type");
+  if (contentType === null) {
+    return false;
+  }
+  return contentType.split(";", 1)[0]?.trim().toLowerCase() === "text/event-stream";
+}
+
+function extractLine(
+  buffer: string,
+  endOfStream: boolean,
+): { readonly line: string; readonly rest: string } | undefined {
+  for (let index = 0; index < buffer.length; index += 1) {
+    const character = buffer[index];
+    if (character === "\n") {
+      return { line: buffer.slice(0, index), rest: buffer.slice(index + 1) };
+    }
+    if (character === "\r") {
+      if (index + 1 === buffer.length && !endOfStream) {
+        return undefined;
+      }
+      const width = buffer[index + 1] === "\n" ? 2 : 1;
+      return {
+        line: buffer.slice(0, index),
+        rest: buffer.slice(index + width),
+      };
+    }
+  }
+  if (endOfStream && buffer.length > 0) {
+    return { line: buffer, rest: "" };
+  }
+  return undefined;
+}
+
+function assertCurrentLineBound(buffer: string): void {
+  const length = buffer.endsWith("\r") ? buffer.length - 1 : buffer.length;
+  if (length > MAX_SSE_LINE_CHARS) {
+    throw new DeepSeekProviderError("malformed_response", false);
+  }
+}
+
+function codePointLength(value: string): number {
+  return [...value].length;
+}
+
 export class DeepSeekProvider implements ChatProvider {
   readonly #apiKey: string;
-  readonly #endpoint: string;
   readonly #model: string;
   readonly #timeoutMs: number;
   readonly #maxTokens: number;
   readonly #fetch: typeof fetch;
 
   constructor(options: DeepSeekProviderOptions) {
-    if (options.apiKey.trim().length === 0) {
-      throw new Error("DeepSeek API key is required");
-    }
-    const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    const model = options.model ?? DEFAULT_MODEL;
+    const apiKey = options.apiKey.trim();
+    const model = (options.model ?? DEFAULT_MODEL).trim();
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
-    if (baseUrl.length === 0 || model.trim().length === 0) {
+    const valid =
+      apiKey.length > 0 &&
+      apiKey.length <= MAX_API_KEY_CHARS &&
+      model.length > 0 &&
+      model.length <= MAX_MODEL_CHARS &&
+      /^[\x21-\x7e]+$/.test(model) &&
+      Number.isSafeInteger(timeoutMs) &&
+      timeoutMs > 0 &&
+      timeoutMs <= MAX_TIMEOUT_MS &&
+      Number.isSafeInteger(maxTokens) &&
+      maxTokens > 0 &&
+      maxTokens <= MAX_TOKEN_LIMIT;
+    if (!valid) {
       throw new Error("DeepSeek provider configuration is invalid");
     }
-    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-      throw new Error("DeepSeek provider timeout is invalid");
-    }
-    if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0) {
-      throw new Error("DeepSeek provider token limit is invalid");
-    }
 
-    this.#apiKey = options.apiKey;
-    this.#endpoint = `${baseUrl}/chat/completions`;
+    this.#apiKey = apiKey;
     this.#model = model;
     this.#timeoutMs = timeoutMs;
     this.#maxTokens = maxTokens;
@@ -253,10 +355,15 @@ export class DeepSeekProvider implements ChatProvider {
     input: ProviderInput,
     externalSignal: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
+    const userId = input.userId.trim();
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(userId)) {
+      throw new DeepSeekProviderError("malformed_response", false);
+    }
+
     const composite = createCompositeSignal(externalSignal, this.#timeoutMs);
     let response: Response;
     try {
-      response = await this.#fetch(this.#endpoint, {
+      response = await this.#fetch(DEEPSEEK_ENDPOINT, {
         method: "POST",
         headers: {
           authorization: `Bearer ${this.#apiKey}`,
@@ -273,125 +380,215 @@ export class DeepSeekProvider implements ChatProvider {
           max_tokens: this.#maxTokens,
           stream: true,
           stream_options: { include_usage: true },
-          user_id: input.userId,
+          user_id: userId,
         }),
         signal: composite.signal,
       });
     } catch {
       composite.cleanup();
-      if (externalSignal.aborted) {
-        throw safeAbortReason(externalSignal);
-      }
-      if (composite.didTimeout()) {
-        throw new DeepSeekProviderError("timeout", true);
+      const normalizedAbort = abortFailure(externalSignal, composite);
+      if (normalizedAbort !== undefined) {
+        throw normalizedAbort;
       }
       throw new DeepSeekProviderError("network", true);
     }
 
-    if (!response.ok) {
-      composite.cleanup();
-      throw httpError(response.status);
-    }
-    if (response.body === null) {
-      composite.cleanup();
-      throw new DeepSeekProviderError("malformed_response", false);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let dataLines: string[] = [];
-
-    const dispatch = (): ReturnType<typeof parseDataEvent> | undefined => {
-      if (dataLines.length === 0) {
-        return undefined;
-      }
-      const result = parseDataEvent(dataLines.join("\n"));
-      dataLines = [];
-      return result;
-    };
-
-    const consumeLine = (rawLine: string): ReturnType<typeof dispatch> => {
-      const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-      if (line.length === 0) {
-        return dispatch();
-      }
-      if (line.startsWith(":")) {
-        return undefined;
-      }
-      const separator = line.indexOf(":");
-      const field = separator === -1 ? line : line.slice(0, separator);
-      if (field !== "data") {
-        return undefined;
-      }
-      let value = separator === -1 ? "" : line.slice(separator + 1);
-      if (value.startsWith(" ")) {
-        value = value.slice(1);
-      }
-      dataLines.push(value);
-      return undefined;
-    };
-
     try {
-      while (true) {
-        const read = await readWithSignal(reader, composite.signal);
-        if (read.done) {
-          buffer += decoder.decode();
-          break;
-        }
-        buffer += decoder.decode(read.value, { stream: true });
-
-        let newline = buffer.indexOf("\n");
-        while (newline !== -1) {
-          const result = consumeLine(buffer.slice(0, newline));
-          buffer = buffer.slice(newline + 1);
-          if (result !== undefined) {
-            for (const event of result.events) {
-              yield event;
-            }
-            if (result.done) {
-              return;
-            }
-          }
-          newline = buffer.indexOf("\n");
-        }
+      const lateAbort = abortFailure(externalSignal, composite);
+      if (lateAbort !== undefined) {
+        await cancelBody(response.body);
+        throw lateAbort;
+      }
+      if (!response.ok) {
+        await cancelBody(response.body);
+        throw httpError(response.status);
+      }
+      if (!isEventStream(response) || response.body === null) {
+        await cancelBody(response.body);
+        throw new DeepSeekProviderError("malformed_response", false);
       }
 
-      if (buffer.length > 0) {
-        const result = consumeLine(buffer);
-        if (result !== undefined) {
-          for (const event of result.events) {
-            yield event;
+      let reader: ReadableStreamDefaultReader<Uint8Array>;
+      try {
+        reader = response.body.getReader();
+      } catch {
+        await cancelBody(response.body);
+        throw new DeepSeekProviderError("malformed_response", false);
+      }
+
+      try {
+        const decoder = new TextDecoder("utf-8", { fatal: true });
+        let buffer = "";
+        let dataLines: string[] = [];
+        let dataChars = 0;
+        let streamBytes = 0;
+        let outputCodePoints = 0;
+        let pendingUsage: Extract<ProviderEvent, { readonly type: "usage" }> | undefined;
+
+        const dispatch = (): ParsedDataEvent | undefined => {
+          if (dataLines.length === 0) {
+            return undefined;
+          }
+          const result = parseDataEvent(dataLines.join("\n"));
+          dataLines = [];
+          dataChars = 0;
+          return result;
+        };
+
+        const consumeLine = (line: string): ParsedDataEvent | undefined => {
+          if (line.length > MAX_SSE_LINE_CHARS) {
+            throw new DeepSeekProviderError("malformed_response", false);
+          }
+          if (line.length === 0) {
+            return dispatch();
+          }
+          if (line.startsWith(":")) {
+            return undefined;
+          }
+          const separator = line.indexOf(":");
+          const field = separator === -1 ? line : line.slice(0, separator);
+          if (field !== "data") {
+            return undefined;
+          }
+          let value = separator === -1 ? "" : line.slice(separator + 1);
+          if (value.startsWith(" ")) {
+            value = value.slice(1);
+          }
+          dataChars += value.length + (dataLines.length === 0 ? 0 : 1);
+          if (dataChars > MAX_SSE_EVENT_CHARS) {
+            throw new DeepSeekProviderError("malformed_response", false);
+          }
+          dataLines.push(value);
+          return undefined;
+        };
+
+        const emit = function* (result: ParsedDataEvent): Generator<ProviderEvent> {
+          if (result.delta !== undefined) {
+            outputCodePoints += codePointLength(result.delta);
+            if (outputCodePoints > MAX_OUTPUT_CODE_POINTS) {
+              throw new DeepSeekProviderError("malformed_response", false);
+            }
+            yield { type: "delta", text: result.delta };
+          }
+          if (result.usage !== undefined) {
+            pendingUsage = result.usage;
           }
           if (result.done) {
+            if (pendingUsage !== undefined) {
+              yield pendingUsage;
+            }
+            yield { type: "done" };
+          }
+        };
+
+        const processBuffer = function* (
+          endOfStream: boolean,
+        ): Generator<ProviderEvent, boolean> {
+          const nextLine = () =>
+            extractLine(buffer, endOfStream) ??
+            (!endOfStream && buffer === "\r" && dataLines.length > 0
+              ? { line: "", rest: "" }
+              : undefined);
+          let extracted = nextLine();
+          while (extracted !== undefined) {
+            buffer = extracted.rest;
+            const result = consumeLine(extracted.line);
+            if (result !== undefined) {
+              yield* emit(result);
+              if (result.done) {
+                return true;
+              }
+            }
+            extracted = nextLine();
+          }
+          assertCurrentLineBound(buffer);
+          return false;
+        };
+
+        while (true) {
+          const read = await readWithSignal(reader, composite.signal);
+          const midstreamAbort = abortFailure(externalSignal, composite);
+          if (midstreamAbort !== undefined) {
+            throw midstreamAbort;
+          }
+          if (read.done) {
+            try {
+              buffer += decoder.decode();
+            } catch {
+              throw new DeepSeekProviderError("malformed_response", false);
+            }
+            const processed = processBuffer(true);
+            let step = processed.next();
+            while (!step.done) {
+              yield step.value;
+              if (step.value.type !== "done") {
+                const postYieldAbort = abortFailure(externalSignal, composite);
+                if (postYieldAbort !== undefined) {
+                  throw postYieldAbort;
+                }
+              }
+              step = processed.next();
+            }
+            if (step.value) {
+              return;
+            }
+            const trailing = dispatch();
+            if (trailing !== undefined) {
+              for (const event of emit(trailing)) {
+                yield event;
+                if (event.type !== "done") {
+                  const postYieldAbort = abortFailure(externalSignal, composite);
+                  if (postYieldAbort !== undefined) {
+                    throw postYieldAbort;
+                  }
+                }
+              }
+              if (trailing.done) {
+                return;
+              }
+            }
+            throw new DeepSeekProviderError("stream_interrupted", true);
+          }
+
+          streamBytes += read.value.byteLength;
+          if (streamBytes > MAX_SSE_STREAM_BYTES) {
+            throw new DeepSeekProviderError("malformed_response", false);
+          }
+          try {
+            buffer += decoder.decode(read.value, { stream: true });
+          } catch {
+            throw new DeepSeekProviderError("malformed_response", false);
+          }
+          const processed = processBuffer(false);
+          let step = processed.next();
+          while (!step.done) {
+            yield step.value;
+            if (step.value.type !== "done") {
+              const postYieldAbort = abortFailure(externalSignal, composite);
+              if (postYieldAbort !== undefined) {
+                throw postYieldAbort;
+              }
+            }
+            step = processed.next();
+          }
+          if (step.value) {
             return;
           }
         }
-      }
-      const trailing = dispatch();
-      if (trailing !== undefined) {
-        for (const event of trailing.events) {
-          yield event;
+      } catch (error) {
+        const normalizedAbort = abortFailure(externalSignal, composite);
+        if (normalizedAbort !== undefined) {
+          throw normalizedAbort;
         }
-        if (trailing.done) {
-          return;
+        if (error instanceof DeepSeekProviderError) {
+          throw error;
         }
+        throw new DeepSeekProviderError("stream_interrupted", true);
+      } finally {
+        await cancelReader(reader);
       }
-      throw new DeepSeekProviderError("stream_interrupted", true);
-    } catch (error) {
-      if (error instanceof DeepSeekProviderError) {
-        throw error;
-      }
-      if (externalSignal.aborted) {
-        throw safeAbortReason(externalSignal);
-      }
-      if (composite.didTimeout()) {
-        throw new DeepSeekProviderError("timeout", true);
-      }
-      throw new DeepSeekProviderError("stream_interrupted", true);
     } finally {
       composite.cleanup();
-      void reader.cancel().catch(() => undefined);
     }
   }
 }

@@ -6,6 +6,10 @@ import type { ProviderEvent, ProviderInput } from "./chat-types";
 import {
   DeepSeekProvider,
   DeepSeekProviderError,
+  MAX_OUTPUT_CODE_POINTS,
+  MAX_SSE_EVENT_CHARS,
+  MAX_SSE_LINE_CHARS,
+  MAX_SSE_STREAM_BYTES,
 } from "./deepseek-provider";
 
 const TEST_TOKEN = "unit-test-bearer-token";
@@ -52,6 +56,37 @@ function okResponse(...chunks: string[]): Response {
     status: 200,
     headers: { "content-type": "text/event-stream" },
   });
+}
+
+function responseWithCancel(options: {
+  readonly text?: string;
+  readonly status?: number;
+  readonly contentType?: string;
+  readonly close?: boolean;
+} = {}): { readonly response: Response; readonly cancel: ReturnType<typeof vi.fn> } {
+  const cancel = vi.fn();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (options.text !== undefined) {
+        controller.enqueue(new TextEncoder().encode(options.text));
+      }
+      if (options.close ?? true) {
+        controller.close();
+      }
+    },
+    cancel,
+  });
+  const headers = new Headers();
+  if (options.contentType !== undefined) {
+    headers.set("content-type", options.contentType);
+  }
+  return {
+    response: new Response(body, {
+      status: options.status ?? 200,
+      headers,
+    }),
+    cancel,
+  };
 }
 
 afterEach(() => {
@@ -113,6 +148,105 @@ describe("DeepSeekProvider request", () => {
     };
     expect(body.model).toBe("deepseek-v4-flash");
   });
+
+  test("cannot redirect requests away from the fixed DeepSeek HTTPS endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      okResponse("data: [DONE]\n\n"),
+    );
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: fetchMock,
+      baseUrl: "http://attacker.invalid/private-token",
+    } as ConstructorParameters<typeof DeepSeekProvider>[0] & { baseUrl: string });
+
+    await collect(provider);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.deepseek.com/chat/completions",
+    );
+  });
+
+  test("trims bounded configuration and opaque user IDs before sending", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      okResponse("data: [DONE]\n\n"),
+    );
+    const provider = new DeepSeekProvider({
+      apiKey: `  ${TEST_TOKEN}  `,
+      model: "  deepseek-v4-flash-preview  ",
+      fetch: fetchMock,
+    });
+    const paddedInput = { ...input, userId: `  ${input.userId}  ` };
+    const events: ProviderEvent[] = [];
+
+    for await (const event of provider.stream(
+      paddedInput,
+      new AbortController().signal,
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([{ type: "done" }]);
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get("authorization")).toBe(
+      `Bearer ${TEST_TOKEN}`,
+    );
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      model: "deepseek-v4-flash-preview",
+      user_id: input.userId,
+    });
+  });
+
+  test.each([
+    { apiKey: " ", model: "deepseek-v4-flash" },
+    { apiKey: "x".repeat(4_097), model: "deepseek-v4-flash" },
+    { apiKey: TEST_TOKEN, model: " " },
+    { apiKey: TEST_TOKEN, model: "x".repeat(129) },
+  ])("rejects unsafe or unbounded configuration", (config) => {
+    expect(() => new DeepSeekProvider(config)).toThrow(
+      "DeepSeek provider configuration is invalid",
+    );
+  });
+
+  test.each([
+    { timeoutMs: 0 },
+    { timeoutMs: 120_001 },
+    { maxTokens: 0 },
+    { maxTokens: 4_097 },
+  ])("rejects unsafe numeric configuration $timeoutMs $maxTokens", (config) => {
+    expect(
+      () => new DeepSeekProvider({ apiKey: TEST_TOKEN, ...config }),
+    ).toThrow("DeepSeek provider configuration is invalid");
+  });
+
+  test.each(["short", "contains space 123", "非ASCII-opaque-id", "x".repeat(129)])(
+    "rejects unsafe opaque user ID %j without calling fetch",
+    async (userId) => {
+      const fetchMock = vi.fn<typeof fetch>();
+      const provider = new DeepSeekProvider({
+        apiKey: TEST_TOKEN,
+        fetch: fetchMock,
+      });
+      const unsafeInput = { ...input, userId };
+      const events: ProviderEvent[] = [];
+
+      let caught: unknown;
+      try {
+        for await (const event of provider.stream(
+          unsafeInput,
+          new AbortController().signal,
+        )) {
+          events.push(event);
+        }
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toMatchObject({ category: "malformed_response" });
+      expect(String(caught)).not.toContain(userId);
+      expect(events).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("DeepSeekProvider SSE parsing", () => {
@@ -132,7 +266,12 @@ describe("DeepSeekProvider SSE parsing", () => {
     ];
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(new Response(byteStream(chunks), { status: 200 }));
+      .mockResolvedValue(
+        new Response(byteStream(chunks), {
+          status: 200,
+          headers: { "content-type": "Text/Event-Stream; Charset=UTF-8" },
+        }),
+      );
     const provider = new DeepSeekProvider({ apiKey: TEST_TOKEN, fetch: fetchMock });
 
     await expect(collect(provider)).resolves.toEqual([
@@ -183,6 +322,91 @@ describe("DeepSeekProvider SSE parsing", () => {
     ]);
   });
 
+  test("supports CR-only framing split next to CRLF and LF boundaries", async () => {
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(
+        okResponse(
+          'data: {"choices":[{"delta":{"content":"A"}}]}\r',
+          '\rdata: {"choices":[{"delta":{"content":"B"}}]}\r\n\r',
+          '\ndata: [DONE]\n\n',
+        ),
+      ),
+    });
+
+    await expect(collect(provider)).resolves.toEqual([
+      { type: "delta", text: "A" },
+      { type: "delta", text: "B" },
+      { type: "done" },
+    ]);
+  });
+
+  test("dispatches a CR-only event without waiting for the following chunk", async () => {
+    vi.useFakeTimers();
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller;
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"choices":[{"delta":{"content":"ready"}}]}\r\r',
+          ),
+        );
+      },
+    });
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(body, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      ),
+    });
+    const iterator = provider
+      .stream(input, new AbortController().signal)
+      [Symbol.asyncIterator]();
+    let settled = false;
+    const first = iterator.next().then((result) => {
+      settled = true;
+      return result;
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    const settledBeforeAnotherChunk = settled;
+    streamController.close();
+
+    await expect(first).resolves.toEqual({
+      done: false,
+      value: { type: "delta", text: "ready" },
+    });
+    await iterator.return?.();
+    expect(settledBeforeAnotherChunk).toBe(true);
+  });
+
+  test("emits at most one usage event and uses the last provider total", async () => {
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(
+        okResponse(
+          'data: {"usage":{"prompt_tokens":10,"completion_tokens":2}}\n\n',
+          'data: {"usage":{"prompt_tokens":12,"completion_tokens":4,"prompt_cache_hit_tokens":8}}\n\n',
+          "data: [DONE]\n\n",
+        ),
+      ),
+    });
+
+    await expect(collect(provider)).resolves.toEqual([
+      {
+        type: "usage",
+        inputTokens: 12,
+        outputTokens: 4,
+        cacheHitTokens: 8,
+      },
+      { type: "done" },
+    ]);
+  });
+
   test("cancels the upstream reader and removes abort handling after DONE", async () => {
     vi.useFakeTimers();
     const cancel = vi.fn();
@@ -196,7 +420,12 @@ describe("DeepSeekProvider SSE parsing", () => {
       apiKey: TEST_TOKEN,
       fetch: vi
         .fn<typeof fetch>()
-        .mockResolvedValue(new Response(body, { status: 200 })),
+        .mockResolvedValue(
+          new Response(body, {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          }),
+        ),
     });
     const controller = new AbortController();
     const remove = vi.spyOn(controller.signal, "removeEventListener");
@@ -222,11 +451,15 @@ describe("DeepSeekProvider failures", () => {
     "normalizes HTTP %i without exposing secrets or provider bodies",
     async (status, category, retryable) => {
       const secretBody = "private provider diagnostics and prompt body";
+      const { response, cancel } = responseWithCancel({
+        text: secretBody,
+        status,
+        contentType: "application/json",
+        close: false,
+      });
       const provider = new DeepSeekProvider({
         apiKey: TEST_TOKEN,
-        fetch: vi
-          .fn<typeof fetch>()
-          .mockResolvedValue(new Response(secretBody, { status })),
+        fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
       });
 
       let caught: unknown;
@@ -242,6 +475,7 @@ describe("DeepSeekProvider failures", () => {
       expect(message).not.toContain(TEST_TOKEN);
       expect(message).not.toContain(secretBody);
       expect(message).not.toContain(input.system);
+      expect(cancel).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -282,7 +516,7 @@ describe("DeepSeekProvider failures", () => {
     await rejection;
   });
 
-  test("preserves external abort identity instead of normalizing it", async () => {
+  test("sanitizes external abort reasons into a stable AbortError", async () => {
     const fetchMock = vi.fn<typeof fetch>((_url, init) =>
       new Promise((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), {
@@ -292,17 +526,258 @@ describe("DeepSeekProvider failures", () => {
     );
     const provider = new DeepSeekProvider({ apiKey: TEST_TOKEN, fetch: fetchMock });
     const controller = new AbortController();
-    const reason = new DOMException("visitor left", "AbortError");
+    const unsafeReason = new DOMException(
+      `visitor left ${TEST_TOKEN} ${input.system}`,
+      "AbortError",
+    );
     const result = collect(provider, controller.signal);
-    const rejection = expect(result).rejects.toBe(reason);
+    const captured = result.catch((error: unknown) => error);
 
-    controller.abort(reason);
+    controller.abort(unsafeReason);
+
+    const caught = await captured;
+    expect(caught).toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted",
+    });
+    expect(String(caught)).not.toContain(TEST_TOKEN);
+    expect(String(caught)).not.toContain(input.system);
+  });
+
+  test("cancels a response that arrives after an external abort", async () => {
+    let resolveFetch!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>(
+      () => new Promise((resolve) => (resolveFetch = resolve)),
+    );
+    const provider = new DeepSeekProvider({ apiKey: TEST_TOKEN, fetch: fetchMock });
+    const controller = new AbortController();
+    const result = collect(provider, controller.signal);
+    const rejection = expect(result).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted",
+    });
+    const { response, cancel } = responseWithCancel({
+      text: "data: [DONE]\n\n",
+      contentType: "text/event-stream",
+      close: false,
+    });
+
+    controller.abort(new Error(`unsafe ${TEST_TOKEN}`));
+    resolveFetch(response);
 
     await rejection;
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("stops buffered deltas when externally aborted after the first yield", async () => {
+    const { response, cancel } = responseWithCancel({
+      text:
+        'data: {"choices":[{"delta":{"content":"first"}}]}\n\n' +
+        'data: {"choices":[{"delta":{"content":"must-not-escape"}}]}\n\n' +
+        "data: [DONE]\n\n",
+      contentType: "text/event-stream",
+      close: false,
+    });
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+    const controller = new AbortController();
+    const iterator = provider
+      .stream(input, controller.signal)
+      [Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { type: "delta", text: "first" },
+    });
+    controller.abort(new Error(`unsafe ${TEST_TOKEN}`));
+
+    await expect(iterator.next()).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted",
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("finishes cleanly once the terminal done event has been yielded", async () => {
+    const { response, cancel } = responseWithCancel({
+      text: "data: [DONE]\n\n",
+      contentType: "text/event-stream",
+      close: false,
+    });
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+    const controller = new AbortController();
+    const iterator = provider
+      .stream(input, controller.signal)
+      [Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { type: "done" },
+    });
+    controller.abort(new Error(`late unsafe ${TEST_TOKEN}`));
+
+    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("cancels and times out a response that arrives after the deadline", async () => {
+    vi.useFakeTimers();
+    let resolveFetch!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>(
+      () => new Promise((resolve) => (resolveFetch = resolve)),
+    );
+    const provider = new DeepSeekProvider({ apiKey: TEST_TOKEN, fetch: fetchMock });
+    const result = collect(provider);
+    const rejection = expect(result).rejects.toMatchObject({
+      category: "timeout",
+      retryable: true,
+    });
+    const { response, cancel } = responseWithCancel({
+      text: "data: [DONE]\n\n",
+      contentType: "text/event-stream",
+      close: false,
+    });
+
+    await vi.advanceTimersByTimeAsync(45_000);
+    resolveFetch(response);
+
+    await rejection;
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([undefined, "application/json", "text/plain; charset=utf-8"])(
+    "rejects invalid event-stream Content-Type %j and cancels the body",
+    async (contentType) => {
+      const { response, cancel } = responseWithCancel({
+        text: "data: [DONE]\n\n",
+        contentType,
+        close: false,
+      });
+      const provider = new DeepSeekProvider({
+        apiKey: TEST_TOKEN,
+        fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+      });
+
+      await expect(collect(provider)).rejects.toMatchObject({
+        category: "malformed_response",
+        retryable: false,
+      });
+      expect(cancel).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  test.each([
+    [
+      "line",
+      () => `data: ${"x".repeat(MAX_SSE_LINE_CHARS)}\n\n`,
+    ],
+    [
+      "event",
+      () => {
+        const segment = "x".repeat(Math.floor(MAX_SSE_EVENT_CHARS / 3));
+        return `data: ${segment}\ndata: ${segment}\ndata: ${segment}x\n\n`;
+      },
+    ],
+    [
+      "stream",
+      () => ": ping\n".repeat(Math.ceil((MAX_SSE_STREAM_BYTES + 1) / 7)),
+    ],
+  ] as const)("rejects an oversized SSE %s and cancels the body", async (_name, makeText) => {
+    const { response, cancel } = responseWithCancel({
+      text: makeText(),
+      contentType: "text/event-stream",
+      close: false,
+    });
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+
+    await expect(collect(provider)).rejects.toMatchObject({
+      category: "malformed_response",
+      retryable: false,
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("accepts the exact output limit and rejects one code point more", async () => {
+    const makeOutput = (count: number): string => {
+      const parts: string[] = [];
+      let remaining = count;
+      while (remaining > 0) {
+        const length = Math.min(2_000, remaining);
+        parts.push(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "好".repeat(length) } }],
+          })}\n\n`,
+        );
+        remaining -= length;
+      }
+      parts.push("data: [DONE]\n\n");
+      return parts.join("");
+    };
+    const accepted = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(okResponse(makeOutput(MAX_OUTPUT_CODE_POINTS))),
+    });
+    const { response, cancel } = responseWithCancel({
+      text: makeOutput(MAX_OUTPUT_CODE_POINTS + 1),
+      contentType: "text/event-stream",
+      close: false,
+    });
+    const rejected = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+
+    const acceptedEvents = await collect(accepted);
+    expect(
+      acceptedEvents
+        .filter((event) => event.type === "delta")
+        .reduce((sum, event) => sum + [...event.text].length, 0),
+    ).toBe(MAX_OUTPUT_CODE_POINTS);
+    await expect(collect(rejected)).rejects.toMatchObject({
+      category: "malformed_response",
+      retryable: false,
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test("cleans up the timeout when acquiring a reader fails", async () => {
+    vi.useFakeTimers();
+    const response = okResponse("data: [DONE]\n\n");
+    const heldReader = response.body?.getReader();
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+
+    await expect(collect(provider)).rejects.toMatchObject({
+      category: "malformed_response",
+      retryable: false,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+
+    heldReader?.releaseLock();
+    await response.body?.cancel();
   });
 
   test.each([
-    ["missing body", new Response(null, { status: 200 }), "malformed_response"],
+    [
+      "missing body",
+      new Response(null, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+      "malformed_response",
+    ],
     [
       "malformed JSON",
       okResponse("data: private invalid response body\n\n"),
@@ -342,7 +817,12 @@ describe("DeepSeekProvider failures", () => {
       apiKey: TEST_TOKEN,
       fetch: vi
         .fn<typeof fetch>()
-        .mockResolvedValue(new Response(body, { status: 200 })),
+        .mockResolvedValue(
+          new Response(body, {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          }),
+        ),
     });
 
     let caught: unknown;
