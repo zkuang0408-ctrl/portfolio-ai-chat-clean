@@ -676,17 +676,32 @@ export function startProjectReaders(
     return initialization;
   }
 
-  const handleOpenProjectPage = (event: Event) => {
-    if (destroyed || !(event instanceof CustomEvent)) return;
-    const detail = event.detail as Partial<OpenProjectPageDetail> | null;
+  function readOpenProjectPageDetail(
+    event: Event,
+  ): OpenProjectPageDetail | undefined {
+    const detail = (event as Event & { readonly detail?: unknown }).detail;
     if (
-      !detail ||
-      typeof detail.projectId !== "string" ||
-      !Number.isInteger(detail.page) ||
-      (detail.page ?? 0) <= 0
+      typeof detail !== "object" ||
+      detail === null ||
+      Array.isArray(detail)
     ) {
-      return;
+      return undefined;
     }
+    const record = detail as Record<string, unknown>;
+    if (
+      typeof record.projectId !== "string" ||
+      !Number.isSafeInteger(record.page) ||
+      (record.page as number) <= 0
+    ) {
+      return undefined;
+    }
+    return { projectId: record.projectId, page: record.page as number };
+  }
+
+  const handleOpenProjectPage = (event: Event) => {
+    if (destroyed) return;
+    const detail = readOpenProjectPageDetail(event);
+    if (!detail) return;
     const readerRoot = readerRoots.find(
       (candidate) => candidate.dataset.projectId === detail.projectId,
     );
@@ -695,7 +710,7 @@ export function startProjectReaders(
     intersectionObserver?.unobserve(readerRoot);
     void initialize(readerRoot)
       .then(() => {
-        if (!destroyed) return controller.goTo(detail.page!);
+        if (!destroyed) return controller.goTo(detail.page);
       })
       .catch(() => undefined);
   };

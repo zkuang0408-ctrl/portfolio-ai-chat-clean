@@ -15,7 +15,7 @@ Do not reuse, display, or record the revoked value.
 
 Create a new least-privilege key in the DeepSeek console. Enter it directly into the Vercel project’s **Settings → Environment Variables** as `DEEPSEEK_API_KEY`; enable Preview and Production only. Do not first place it in a local `.env`, clipboard manager, shell history, or this document.
 
-Set the non-secret variables from `.env.example` in the same Vercel screen. Keep `DEEPSEEK_BASE_URL=https://api.deepseek.com`, use the reviewed `DEEPSEEK_MODEL`, and leave `CHAT_ENABLED=true` only after the preview gate passes. If the Vercel CLI is preferred, `npx vercel env add DEEPSEEK_API_KEY preview` uses an interactive secure prompt; type the new value only at that prompt.
+Set the non-secret variables from `.env.example` in the same Vercel screen. Keep `DEEPSEEK_BASE_URL=https://api.deepseek.com`, use the reviewed `DEEPSEEK_MODEL`, set `CHAT_ENABLED=true` for **Preview only**, and keep the Production-scoped value `false` until the Preview gate passes. If the Vercel CLI is preferred, `npx vercel env add DEEPSEEK_API_KEY preview` uses an interactive secure prompt; type the new value only at that prompt.
 
 ## 3. Provision Upstash and the anonymous limits
 
@@ -54,7 +54,8 @@ Portable shell:
 
 ```sh
 python -m pip install -r tools/requirements.txt
-read -r -p "Absolute path to the private resume PDF: " RESUME_SOURCE
+printf '%s' "Absolute path to the private resume PDF: "
+IFS= read -r RESUME_SOURCE
 python tools/sanitize_resume.py --input "$RESUME_SOURCE" --output public/documents/zhao-shikuang-resume-public.pdf --public-email zkuang0408@gmail.com
 python tools/sanitize_resume.py --audit --input public/documents/zhao-shikuang-resume-public.pdf
 pdftoppm -f 1 -l 1 -singlefile -png public/documents/zhao-shikuang-resume-public.pdf "${TMPDIR:-/tmp}/zhao-resume-review"
@@ -73,7 +74,7 @@ PowerShell / Windows:
 npm.cmd test
 npm.cmd run test:e2e
 npm.cmd run build
-git grep -n -E 'sk-[A-Za-z0-9]{10,}' -- ':!docs/superpowers/specs/2026-07-20-portfolio-ai-chat-design.md'
+git grep -n -E 'sk-[A-Za-z0-9_-]{10,}' -- .
 git status --short
 ```
 
@@ -83,11 +84,11 @@ Portable shell:
 npm test
 npm run test:e2e
 npm run build
-git grep -n -E 'sk-[A-Za-z0-9]{10,}' -- ':!docs/superpowers/specs/2026-07-20-portfolio-ai-chat-design.md'
+git grep -n -E 'sk-[A-Za-z0-9_-]{10,}' -- .
 git status --short
 ```
 
-The expected result is zero unit/E2E/build failures, no secret-scan match, and only reviewed files in `git status`. The build’s client-bundle boundary check must also pass; this proves server-only knowledge and credentials were not emitted into `dist`.
+The scan covers every tracked file without path exclusions. The expected result is zero unit/E2E/build failures, no secret-scan match, and only reviewed files in `git status`. The build’s client-bundle boundary check must also pass; this proves server-only knowledge and credentials were not emitted into `dist`.
 
 ## 6. Deploy Preview, smoke-test, then promote
 
@@ -102,7 +103,7 @@ After Preview variables exist, deploy with `npx vercel` or the Vercel Git integr
 7. Repeated requests exercise the 3-second cooldown, 6/minute, and visitor/day friendly limit states.
 8. Vercel function logs contain status/latency metadata only—never messages, prompts, answers, source passages, raw IPs, or secrets.
 
-Promote that exact reviewed Preview deployment to Production from Vercel only after all checks pass. Re-run a Chinese answer, an English answer, and one exact citation on Production.
+Only after all Preview checks pass, set the Production-scoped `CHAT_ENABLED=true`, then promote that exact reviewed Preview deployment to Production from Vercel. Re-run a Chinese answer, an English answer, and one exact citation on Production. If the Production smoke check fails, immediately restore `CHAT_ENABLED=false` or roll back.
 
 ## 7. Disable or roll back safely
 

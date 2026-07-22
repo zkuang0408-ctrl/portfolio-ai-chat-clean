@@ -31,7 +31,7 @@ const PUBLIC_RESUME_URL =
 function scrollTo(root: ParentNode, selector: string): boolean {
   const target = root.querySelector<HTMLElement>(selector);
   if (!target) return false;
-  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.scrollIntoView({ block: "start" });
   return true;
 }
 
@@ -67,7 +67,7 @@ export function navigateToSource(
   if (
     source.sourceId === "profile" &&
     source.projectId === undefined &&
-    source.page === undefined
+    (source.page === undefined || source.page === 1)
   ) {
     scrollTo(portfolioRoot, "#about");
     return;

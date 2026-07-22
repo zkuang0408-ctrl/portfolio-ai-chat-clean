@@ -1063,6 +1063,31 @@ test("source navigation ignores unknown projects and lets reader logic bound pag
   cleanup();
 });
 
+test("source navigation accepts realm-safe events by validated structural detail", async () => {
+  const portfolio = document.createElement("main");
+  const root = createRoot(2);
+  portfolio.append(root);
+  const getPage = vi.fn(async () => createPage());
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(vi.fn(async () => ({ numPages: 2, getPage }))),
+    IntersectionObserver: undefined,
+    ResizeObserver: undefined,
+  });
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+  const crossRealmShape = new Event("portfolio:open-project-page");
+  Object.defineProperty(crossRealmShape, "detail", {
+    value: { projectId: "inkseat", page: 2 },
+  });
+
+  portfolio.dispatchEvent(crossRealmShape);
+
+  await vi.waitFor(() =>
+    expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"),
+  );
+  expect(getPage).toHaveBeenCalledWith(2);
+  cleanup();
+});
+
 test("lazy manager cleanup removes source navigation and blocks pending navigation", async () => {
   const portfolio = document.createElement("main");
   const root = createRoot(18);

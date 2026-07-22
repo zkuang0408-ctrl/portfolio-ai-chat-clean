@@ -128,6 +128,62 @@ async function ask(page: Page, question: string): Promise<void> {
   await page.locator("[data-chat-send]").click();
 }
 
+function installBrowserErrorGuards(page: Page): void {
+  const errors: string[] = [];
+  browserErrors.set(page, errors);
+  expectedRequestFailures.set(page, new Map());
+  expectedConsoleErrors.set(page, new Map());
+  expectedHttpErrors.set(page, new Map());
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      !consumeExpectedConsoleError(page, message.text())
+    ) {
+      errors.push(`console: ${message.text()}`);
+    }
+  });
+  page.on("response", (response) => {
+    if (
+      response.status() >= 400 &&
+      !consumeExpectedHttpError(page, response.status(), response.url())
+    ) {
+      errors.push(`response: ${response.status()} ${response.url()}`);
+    }
+  });
+  page.on("requestfailed", (request) => {
+    if (consumeExpectedFailedRequest(page, request.url())) return;
+    errors.push(
+      `requestfailed: ${request.failure()?.errorText ?? "unknown error"} ${request.url()}`,
+    );
+  });
+}
+
+function assertNoBrowserErrors(page: Page): void {
+  expect(browserErrors.get(page) ?? [], "browser errors").toEqual([]);
+  const unobservedExpectedFailures = [
+    ...(expectedRequestFailures.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedFailures,
+    "every narrowly exempted request failure should occur",
+  ).toEqual([]);
+  const unobservedExpectedConsoleErrors = [
+    ...(expectedConsoleErrors.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedConsoleErrors,
+    "every narrowly exempted console error should occur",
+  ).toEqual([]);
+  const unobservedExpectedHttpErrors = [
+    ...(expectedHttpErrors.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedHttpErrors,
+    "every narrowly exempted HTTP error should occur",
+  ).toEqual([]);
+}
+
 function consumeExpectedConsoleError(page: Page, text: string): boolean {
   const errors = expectedConsoleErrors.get(page);
   if (!errors) return false;
@@ -437,59 +493,11 @@ async function expectCriticalLayoutInsideViewport(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
-  const errors: string[] = [];
-  browserErrors.set(page, errors);
-  expectedRequestFailures.set(page, new Map());
-  expectedConsoleErrors.set(page, new Map());
-  expectedHttpErrors.set(page, new Map());
-  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
-  page.on("console", (message) => {
-    if (
-      message.type() === "error" &&
-      !consumeExpectedConsoleError(page, message.text())
-    ) {
-      errors.push(`console: ${message.text()}`);
-    }
-  });
-  page.on("response", (response) => {
-    if (
-      response.status() >= 400 &&
-      !consumeExpectedHttpError(page, response.status(), response.url())
-    ) {
-      errors.push(`response: ${response.status()} ${response.url()}`);
-    }
-  });
-  page.on("requestfailed", (request) => {
-    if (consumeExpectedFailedRequest(page, request.url())) return;
-    errors.push(
-      `requestfailed: ${request.failure()?.errorText ?? "unknown error"} ${request.url()}`,
-    );
-  });
+  installBrowserErrorGuards(page);
 });
 
 test.afterEach(async ({ page }) => {
-  expect(browserErrors.get(page) ?? [], "browser errors").toEqual([]);
-  const unobservedExpectedFailures = [
-    ...(expectedRequestFailures.get(page)?.entries() ?? []),
-  ].filter(([, remaining]) => remaining > 0);
-  expect(
-    unobservedExpectedFailures,
-    "every narrowly exempted request failure should occur",
-  ).toEqual([]);
-  const unobservedExpectedConsoleErrors = [
-    ...(expectedConsoleErrors.get(page)?.entries() ?? []),
-  ].filter(([, remaining]) => remaining > 0);
-  expect(
-    unobservedExpectedConsoleErrors,
-    "every narrowly exempted console error should occur",
-  ).toEqual([]);
-  const unobservedExpectedHttpErrors = [
-    ...(expectedHttpErrors.get(page)?.entries() ?? []),
-  ].filter(([, remaining]) => remaining > 0);
-  expect(
-    unobservedExpectedHttpErrors,
-    "every narrowly exempted HTTP error should occur",
-  ).toEqual([]);
+  assertNoBrowserErrors(page);
 });
 
 test.describe("canonical grounded portfolio chat", () => {
@@ -552,6 +560,7 @@ test.describe("canonical grounded portfolio chat", () => {
       viewport: { width: 1_440, height: 900 },
     });
     const englishPage = await englishContext.newPage();
+    installBrowserErrorGuards(englishPage);
     await englishPage.route("**/api/chat", async (route) =>
       fulfillChat(route, { locale: "en", text: "This answer is grounded in the portfolio." }),
     );
@@ -560,6 +569,7 @@ test.describe("canonical grounded portfolio chat", () => {
     await expect(englishPage.locator('[data-chat-message="assistant"]').last()).toHaveText(
       "This answer is grounded in the portfolio.",
     );
+    assertNoBrowserErrors(englishPage);
     await englishContext.close();
   });
 
@@ -583,8 +593,10 @@ test.describe("canonical grounded portfolio chat", () => {
       viewport: { width: 1_440, height: 900 },
     });
     const freshPage = await freshContext.newPage();
+    installBrowserErrorGuards(freshPage);
     await freshPage.goto("/");
     await expect(freshPage.locator("[data-chat-message]")).toHaveCount(0);
+    assertNoBrowserErrors(freshPage);
     await freshContext.close();
   });
 
@@ -647,7 +659,7 @@ test.describe("canonical grounded portfolio chat", () => {
       }
       if (message === "profile") {
         return {
-          id: "S1", sourceId: "profile", title: "Profile",
+          id: "S1", sourceId: "profile", page: 1, title: "Profile",
           citationLabel: "PROFILE", publicHref: "#contact",
         };
       }
@@ -690,9 +702,30 @@ test.describe("canonical grounded portfolio chat", () => {
   });
 
   test("keyboard submission and reduced motion remain accessible", async ({ page }) => {
+    await page.addInitScript(() => {
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function (options?: boolean | ScrollIntoViewOptions) {
+        Object.defineProperty(window, "__portfolioScrollOptions", {
+          configurable: true,
+          value: options,
+        });
+        return original.call(this, options);
+      };
+    });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.route("**/api/chat", async (route) =>
-      fulfillChat(route, { locale: "en", text: "Keyboard response." }),
+      fulfillChat(route, {
+        locale: "en",
+        text: "Keyboard response.",
+        sources: [{
+          id: "S1",
+          sourceId: "profile",
+          page: 1,
+          title: "Profile",
+          citationLabel: "PROFILE · P.01",
+          publicHref: "#about",
+        }],
+      }),
     );
     await page.goto("/");
     const input = page.locator("[data-chat-input]");
@@ -706,6 +739,13 @@ test.describe("canonical grounded portfolio chat", () => {
       "transition-duration",
       "0s",
     );
+    await page.getByRole("button", { name: "PROFILE · P.01" }).click();
+    const scrollOptions = await page.evaluate(() =>
+      (window as unknown as { __portfolioScrollOptions: ScrollIntoViewOptions })
+        .__portfolioScrollOptions,
+    );
+    expect(scrollOptions).toEqual({ block: "start" });
+    expect(scrollOptions).not.toHaveProperty("behavior");
   });
 
   test("an API failure leaves navigation, portrait, and all six PDF readers usable", async ({ page }) => {
@@ -724,7 +764,7 @@ test.describe("canonical grounded portfolio chat", () => {
     await page.getByRole("link", { name: "Projects" }).click();
     await expect(page.locator("#projects")).toBeInViewport();
     await waitForCompleteCanvas(page);
-    await expect(page.locator("[data-project-reader]")).toHaveCount(6);
+    await loadAllFirstPagesSequentially(page);
     const first = page.locator('[data-project-reader][data-project-id="inkseat"]');
     await first.scrollIntoViewIfNeeded();
     await waitForReaderReady(first);

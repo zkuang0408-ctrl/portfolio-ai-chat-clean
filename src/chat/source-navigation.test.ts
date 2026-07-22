@@ -54,7 +54,8 @@ test("scrolls to a trusted project and dispatches its exact PDF page", () => {
 
   navigateToSource(portfolioRoot, source(), browser);
 
-  expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  expect(scrollIntoView.mock.calls[0]?.[0]).not.toHaveProperty("behavior");
   expect(received).toEqual([{ projectId: "inkseat", page: 8 }]);
 });
 
@@ -91,21 +92,30 @@ test("allows an oversized trusted page for the reader to bound", () => {
   });
 });
 
-test("scrolls the trusted profile source to About and ignores its publicHref", () => {
-  const { browser, portfolioRoot } = setup();
-  const about = portfolioRoot.querySelector<HTMLElement>("#about")!;
-  const scrollIntoView = vi.fn();
-  about.scrollIntoView = scrollIntoView;
+test.each([undefined, 1])(
+  "scrolls the trusted profile source page %s to About without forcing motion",
+  (page) => {
+    const { browser, portfolioRoot } = setup();
+    const about = portfolioRoot.querySelector<HTMLElement>("#about")!;
+    const scrollIntoView = vi.fn();
+    about.scrollIntoView = scrollIntoView;
 
-  navigateToSource(
-    portfolioRoot,
-    source({ sourceId: "profile", projectId: undefined, page: undefined, publicHref: "https://evil.test" }),
-    browser,
-  );
+    navigateToSource(
+      portfolioRoot,
+      source({
+        sourceId: "profile",
+        projectId: undefined,
+        page,
+        publicHref: "https://evil.test",
+      }),
+      browser,
+    );
 
-  expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
-  expect(browser.open).not.toHaveBeenCalled();
-});
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    expect(scrollIntoView.mock.calls[0]?.[0]).not.toHaveProperty("behavior");
+    expect(browser.open).not.toHaveBeenCalled();
+  },
+);
 
 test("opens only the fixed sanitized resume with noopener semantics", () => {
   const { browser, open, portfolioRoot } = setup();
