@@ -1,6 +1,6 @@
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 
 interface CanvasSignature {
   alphaCoverage: number;
@@ -26,6 +26,7 @@ const canvasCompleteness = {
 const browserErrors = new WeakMap<Page, string[]>();
 const expectedRequestFailures = new WeakMap<Page, Map<string, number>>();
 const expectedConsoleErrors = new WeakMap<Page, Map<string, number>>();
+const expectedHttpErrors = new WeakMap<Page, Map<string, number>>();
 
 const projectPdfFiles = [
   "inkseat.pdf",
@@ -71,6 +72,60 @@ function expectOneConsoleError(page: Page, text: string): void {
   const errors = expectedConsoleErrors.get(page);
   if (!errors) throw new Error("Browser error guards are not installed.");
   errors.set(text, (errors.get(text) ?? 0) + 1);
+}
+
+function expectHttpError(page: Page, status: number, pathname = "/api/chat"): void {
+  const responses = expectedHttpErrors.get(page);
+  if (!responses) throw new Error("Browser error guards are not installed.");
+  const key = `${status} ${pathname}`;
+  responses.set(key, (responses.get(key) ?? 0) + 1);
+}
+
+function consumeExpectedHttpError(page: Page, status: number, url: string): boolean {
+  const responses = expectedHttpErrors.get(page);
+  if (!responses) return false;
+  const key = `${status} ${new URL(url).pathname}`;
+  const remaining = responses.get(key) ?? 0;
+  if (remaining === 0) return false;
+  responses.set(key, remaining - 1);
+  return true;
+}
+
+interface MockSource {
+  readonly id: "S1";
+  readonly sourceId: string;
+  readonly projectId?: string;
+  readonly page?: number;
+  readonly title: string;
+  readonly citationLabel: string;
+  readonly publicHref: string;
+}
+
+function eventWire(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+async function fulfillChat(
+  route: Route,
+  options: { locale?: "zh" | "en"; text: string; sources?: readonly MockSource[] },
+): Promise<void> {
+  await route.fulfill({
+    status: 200,
+    contentType: "text/event-stream; charset=utf-8",
+    headers: { "cache-control": "no-store" },
+    body: [
+      eventWire("start", { locale: options.locale ?? "zh" }),
+      eventWire("delta", { text: options.text.slice(0, Math.ceil(options.text.length / 2)) }),
+      eventWire("delta", { text: options.text.slice(Math.ceil(options.text.length / 2)) }),
+      eventWire("sources", { sources: options.sources ?? [] }),
+      eventWire("done", {}),
+    ].join(""),
+  });
+}
+
+async function ask(page: Page, question: string): Promise<void> {
+  await page.locator("[data-chat-input]").fill(question);
+  await page.locator("[data-chat-send]").click();
 }
 
 function consumeExpectedConsoleError(page: Page, text: string): boolean {
@@ -386,6 +441,7 @@ test.beforeEach(async ({ page }) => {
   browserErrors.set(page, errors);
   expectedRequestFailures.set(page, new Map());
   expectedConsoleErrors.set(page, new Map());
+  expectedHttpErrors.set(page, new Map());
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
     if (
@@ -396,7 +452,10 @@ test.beforeEach(async ({ page }) => {
     }
   });
   page.on("response", (response) => {
-    if (response.status() >= 400) {
+    if (
+      response.status() >= 400 &&
+      !consumeExpectedHttpError(page, response.status(), response.url())
+    ) {
       errors.push(`response: ${response.status()} ${response.url()}`);
     }
   });
@@ -424,6 +483,279 @@ test.afterEach(async ({ page }) => {
     unobservedExpectedConsoleErrors,
     "every narrowly exempted console error should occur",
   ).toEqual([]);
+  const unobservedExpectedHttpErrors = [
+    ...(expectedHttpErrors.get(page)?.entries() ?? []),
+  ].filter(([, remaining]) => remaining > 0);
+  expect(
+    unobservedExpectedHttpErrors,
+    "every narrowly exempted HTTP error should occur",
+  ).toEqual([]);
+});
+
+test.describe("canonical grounded portfolio chat", () => {
+  test.skip(
+    ({ viewport }) => viewport?.width !== 1_440,
+    "The canonical desktop project owns deterministic chat coverage.",
+  );
+
+  test("keeps the assistant frameless in the approved position with identity and four prompts", async ({ page }) => {
+    await page.goto("/");
+
+    const chat = page.locator("[data-chat-root]");
+    await expect(page.getByText("赵实旷.", { exact: true })).toBeVisible();
+    await expect(chat.locator("[data-chat-recommendation]")).toHaveCount(4);
+    await expect(chat.locator('button[aria-label*="close" i], [data-chat-close]')).toHaveCount(0);
+    const style = await chat.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const computed = getComputedStyle(element);
+      return {
+        background: computed.backgroundColor,
+        borderBottom: computed.borderBottomWidth,
+        borderLeft: computed.borderLeftWidth,
+        borderRight: computed.borderRightWidth,
+        borderTop: computed.borderTopWidth,
+        boxShadow: computed.boxShadow,
+        left: rect.left,
+        top: rect.top,
+      };
+    });
+    expect(style.left).toBeGreaterThanOrEqual(85);
+    expect(style.left).toBeLessThanOrEqual(105);
+    expect(style.top).toBeGreaterThanOrEqual(335);
+    expect(style.top).toBeLessThanOrEqual(370);
+    expect(style).toMatchObject({
+      background: "rgba(0, 0, 0, 0)",
+      borderBottom: "0px",
+      borderLeft: "0px",
+      borderRight: "0px",
+      borderTop: "0px",
+      boxShadow: "none",
+    });
+  });
+
+  test("streams Chinese and English deltas using the visitor language", async ({ browser, page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "language", { configurable: true, get: () => "zh-CN" });
+    });
+    await page.route("**/api/chat", async (route) =>
+      fulfillChat(route, { locale: "zh", text: "这是依据作品资料生成的中文回答。" }),
+    );
+    await page.goto("/");
+    await ask(page, "请介绍赵实旷");
+    await expect(page.locator('[data-chat-message="assistant"]').last()).toHaveText(
+      "这是依据作品资料生成的中文回答。",
+    );
+
+    const englishContext = await browser.newContext({
+      baseURL: new URL(page.url()).origin,
+      locale: "en-US",
+      viewport: { width: 1_440, height: 900 },
+    });
+    const englishPage = await englishContext.newPage();
+    await englishPage.route("**/api/chat", async (route) =>
+      fulfillChat(route, { locale: "en", text: "This answer is grounded in the portfolio." }),
+    );
+    await englishPage.goto("/");
+    await ask(englishPage, "Introduce Shikuang");
+    await expect(englishPage.locator('[data-chat-message="assistant"]').last()).toHaveText(
+      "This answer is grounded in the portfolio.",
+    );
+    await englishContext.close();
+  });
+
+  test("keeps completed turns on same-tab reload but not in a new context", async ({ browser, page }) => {
+    await page.route("**/api/chat", async (route) =>
+      fulfillChat(route, { locale: "en", text: "Stored only for this browser tab." }),
+    );
+    await page.goto("/");
+    await ask(page, "Remember this turn");
+    await expect(page.locator('[data-chat-message="assistant"]')).toHaveText(
+      "Stored only for this browser tab.",
+    );
+    await page.reload();
+    await expect(page.locator('[data-chat-message="user"]')).toHaveText("Remember this turn");
+    await expect(page.locator('[data-chat-message="assistant"]')).toHaveText(
+      "Stored only for this browser tab.",
+    );
+
+    const freshContext = await browser.newContext({
+      baseURL: new URL(page.url()).origin,
+      viewport: { width: 1_440, height: 900 },
+    });
+    const freshPage = await freshContext.newPage();
+    await freshPage.goto("/");
+    await expect(freshPage.locator("[data-chat-message]")).toHaveCount(0);
+    await freshContext.close();
+  });
+
+  test("renders JSON limits, provider errors, and an incomplete SSE failure without breaking the composer", async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      const body = route.request().postDataJSON() as { message: string };
+      if (body.message === "limit") {
+        await route.fulfill({
+          status: 429,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "rate_limited", message: "limited" } }),
+        });
+      } else if (body.message === "provider") {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "upstream_unavailable", message: "offline" } }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: eventWire("start", { locale: "en" }) + eventWire("delta", { text: "Partial evidence" }),
+        });
+      }
+    });
+    await page.goto("/");
+
+    expectOneConsoleError(page, "Failed to load resource: the server responded with a status of 429 (Too Many Requests)");
+    expectHttpError(page, 429);
+    await ask(page, "limit");
+    await expect(page.locator("[data-chat-status]")).toContainText("request limit");
+    expectOneConsoleError(page, "Failed to load resource: the server responded with a status of 503 (Service Unavailable)");
+    expectHttpError(page, 503);
+    await ask(page, "provider");
+    await expect(page.locator("[data-chat-status]")).toContainText("couldn’t complete");
+    await ask(page, "partial");
+    await expect(page.locator('[data-chat-message="assistant"]').last()).toHaveText("Partial evidence");
+    await expect(page.locator("[data-chat-status]")).toContainText("Something went wrong");
+    await expect(page.locator("[data-chat-input]")).toBeEnabled();
+  });
+
+  test("opens exact project pages and handles profile and sanitized resume sources", async ({ page }) => {
+    await page.addInitScript(() => {
+      const originalOpen = window.open.bind(window);
+      window.open = ((...args: Parameters<typeof window.open>) => {
+        Object.defineProperty(window, "__portfolioOpenArgs", {
+          configurable: true,
+          value: args,
+        });
+        return originalOpen(...args);
+      }) as typeof window.open;
+    });
+    const sourceFor = (message: string): MockSource => {
+      if (message === "project") {
+        return {
+          id: "S1", sourceId: "inkseat", projectId: "inkseat", page: 8,
+          title: "INKSeat", citationLabel: "INKSEAT · P.08", publicHref: "/projects/pdfs/emovue.pdf#page=99",
+        };
+      }
+      if (message === "profile") {
+        return {
+          id: "S1", sourceId: "profile", title: "Profile",
+          citationLabel: "PROFILE", publicHref: "#contact",
+        };
+      }
+      return {
+        id: "S1", sourceId: "resume", page: 1, title: "Resume",
+        citationLabel: "RESUME · P.01", publicHref: "/documents/zhao-shikuang-portfolio.pdf",
+      };
+    };
+    await page.route("**/api/chat", async (route) => {
+      const { message } = route.request().postDataJSON() as { message: string };
+      await fulfillChat(route, { locale: "en", text: "Grounded answer.", sources: [sourceFor(message)] });
+    });
+    await page.goto("/");
+
+    await ask(page, "project");
+    await page.getByRole("button", { name: "INKSEAT · P.08" }).click();
+    const inkseat = page.locator('[data-project-reader][data-project-id="inkseat"]');
+    await expect(page.locator("#project-inkseat")).toBeInViewport();
+    await expect(inkseat.locator("[data-current-page]")).toHaveText("08", { timeout: 30_000 });
+
+    await ask(page, "profile");
+    await page.getByRole("button", { name: "PROFILE" }).click();
+    await expect(page.locator("#about")).toBeInViewport();
+
+    await ask(page, "resume");
+    const popupPromise = page.waitForEvent("popup");
+    await page.getByRole("button", { name: "RESUME · P.01" }).click();
+    const popup = await popupPromise;
+    expect(
+      await page.evaluate(() =>
+        (window as unknown as { __portfolioOpenArgs: unknown[] }).__portfolioOpenArgs,
+      ),
+    ).toEqual([
+      "/documents/zhao-shikuang-resume-public.pdf#page=1",
+      "_blank",
+      "noopener,noreferrer",
+    ]);
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    await popup.close();
+  });
+
+  test("keyboard submission and reduced motion remain accessible", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.route("**/api/chat", async (route) =>
+      fulfillChat(route, { locale: "en", text: "Keyboard response." }),
+    );
+    await page.goto("/");
+    const input = page.locator("[data-chat-input]");
+    await input.focus();
+    await expect(input).toBeFocused();
+    await input.fill("Keyboard question");
+    await page.keyboard.press("Enter");
+    await expect(page.locator('[data-chat-message="assistant"]')).toHaveText("Keyboard response.");
+    await expect(input).toBeEnabled();
+    await expect(page.locator("[data-chat-recommendation]").first()).toHaveCSS(
+      "transition-duration",
+      "0s",
+    );
+  });
+
+  test("an API failure leaves navigation, portrait, and all six PDF readers usable", async ({ page }) => {
+    expectOneConsoleError(page, "Failed to load resource: the server responded with a status of 503 (Service Unavailable)");
+    expectHttpError(page, 503);
+    await page.route("**/api/chat", async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "upstream_unavailable", message: "offline" } }),
+      });
+    });
+    await page.goto("/");
+    await ask(page, "fail safely");
+    await expect(page.locator("[data-chat-status]")).toContainText("couldn’t complete");
+    await page.getByRole("link", { name: "Projects" }).click();
+    await expect(page.locator("#projects")).toBeInViewport();
+    await waitForCompleteCanvas(page);
+    await expect(page.locator("[data-project-reader]")).toHaveCount(6);
+    const first = page.locator('[data-project-reader][data-project-id="inkseat"]');
+    await first.scrollIntoViewIfNeeded();
+    await waitForReaderReady(first);
+    await first.getByRole("button", { name: "Next page of INKSeat" }).click();
+    await expect(first.locator("[data-current-page]")).toHaveText("02", { timeout: 30_000 });
+  });
+});
+
+test("keeps the mobile assistant in normal flow without overlapping the hero scene or projects", async ({ page }, testInfo) => {
+  test.skip(
+    !["mobile-390", "mobile-430"].includes(testInfo.project.name),
+    "Only the approved 390px and 430px mobile layouts are in scope.",
+  );
+  await page.goto("/");
+  const layout = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const value = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      if (!value) throw new Error(`Missing ${selector}`);
+      return { bottom: value.bottom, left: value.left, right: value.right, top: value.top };
+    };
+    return {
+      chat: rect("[data-chat-root]"),
+      heroScene: rect(".hero-scene"),
+      projects: rect("#projects"),
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(layout.chat.top).toBeGreaterThanOrEqual(layout.heroScene.bottom - 1);
+  expect(layout.projects.top).toBeGreaterThanOrEqual(layout.chat.bottom - 1);
+  expect(layout.chat.left).toBeGreaterThanOrEqual(0);
+  expect(layout.chat.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
 });
 
 test("renders a responsive, complete portrait and becomes still", async ({

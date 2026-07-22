@@ -4,6 +4,10 @@ import {
   pageCounter,
   swipeDirection,
 } from "./pdf-reader-state";
+import {
+  OPEN_PROJECT_PAGE_EVENT,
+  type OpenProjectPageDetail,
+} from "../chat/source-navigation";
 
 export interface PdfRenderTaskLike {
   cancel(): void;
@@ -609,7 +613,7 @@ export function startProjectReaders(
   const cancelFrame = resolveCancelFrame(dependencies);
   const controllers = new Map<HTMLElement, PdfReader>();
   const stages = new Map<Element, PdfReader>();
-  const initializedRoots = new Set<HTMLElement>();
+  const initializationPromises = new Map<HTMLElement, Promise<void>>();
   let destroyed = false;
   let resizeFrame: number | null = null;
   const pendingResize = new Set<PdfReader>();
@@ -649,12 +653,15 @@ export function startProjectReaders(
       })
     : null;
 
-  function initialize(readerRoot: HTMLElement): void {
+  function initialize(readerRoot: HTMLElement): Promise<void> {
     const controller = controllers.get(readerRoot);
-    if (!controller || destroyed || initializedRoots.has(readerRoot)) {
-      return;
+    if (!controller || destroyed) {
+      return Promise.resolve();
     }
-    initializedRoots.add(readerRoot);
+    const existing = initializationPromises.get(readerRoot);
+    if (existing) {
+      return existing;
+    }
     if (resizeObserver) {
       const stage = readerRoot.querySelector<HTMLElement>(
         "[data-reader-stage]",
@@ -664,8 +671,34 @@ export function startProjectReaders(
         resizeObserver.observe(stage);
       }
     }
-    void controller.initialize().catch(() => undefined);
+    const initialization = controller.initialize().catch(() => undefined);
+    initializationPromises.set(readerRoot, initialization);
+    return initialization;
   }
+
+  const handleOpenProjectPage = (event: Event) => {
+    if (destroyed || !(event instanceof CustomEvent)) return;
+    const detail = event.detail as Partial<OpenProjectPageDetail> | null;
+    if (
+      !detail ||
+      typeof detail.projectId !== "string" ||
+      !Number.isInteger(detail.page) ||
+      (detail.page ?? 0) <= 0
+    ) {
+      return;
+    }
+    const readerRoot = readerRoots.find(
+      (candidate) => candidate.dataset.projectId === detail.projectId,
+    );
+    const controller = readerRoot ? controllers.get(readerRoot) : undefined;
+    if (!readerRoot || !controller) return;
+    intersectionObserver?.unobserve(readerRoot);
+    void initialize(readerRoot)
+      .then(() => {
+        if (!destroyed) return controller.goTo(detail.page!);
+      })
+      .catch(() => undefined);
+  };
 
   const IntersectionObserverValue =
     dependencies.IntersectionObserver ?? globalThis.IntersectionObserver;
@@ -676,11 +709,11 @@ export function startProjectReaders(
             if (!entry.isIntersecting || !(entry.target instanceof HTMLElement)) {
               return;
             }
-            if (initializedRoots.has(entry.target)) {
+            if (initializationPromises.has(entry.target)) {
               return;
             }
             intersectionObserver?.unobserve(entry.target);
-            initialize(entry.target);
+            void initialize(entry.target).catch(() => undefined);
           });
         },
         { rootMargin: "600px 0px" },
@@ -690,14 +723,18 @@ export function startProjectReaders(
   if (intersectionObserver) {
     readerRoots.forEach((readerRoot) => intersectionObserver.observe(readerRoot));
   } else {
-    readerRoots.forEach(initialize);
+    readerRoots.forEach((readerRoot) => {
+      void initialize(readerRoot).catch(() => undefined);
+    });
   }
+  root.addEventListener(OPEN_PROJECT_PAGE_EVENT, handleOpenProjectPage);
 
   return () => {
     if (destroyed) {
       return;
     }
     destroyed = true;
+    root.removeEventListener(OPEN_PROJECT_PAGE_EVENT, handleOpenProjectPage);
     intersectionObserver?.disconnect();
     resizeObserver?.disconnect();
     if (resizeFrame !== null) {
@@ -708,6 +745,6 @@ export function startProjectReaders(
     controllers.forEach((controller) => controller.destroy());
     controllers.clear();
     stages.clear();
-    initializedRoots.clear();
+    initializationPromises.clear();
   };
 }

@@ -14,11 +14,13 @@ const stopChat = vi.hoisted(() => vi.fn());
 const startPortfolioChat = vi.hoisted(() =>
   vi.fn((_root: HTMLElement, _dependencies: unknown) => stopChat),
 );
+const navigateToSource = vi.hoisted(() => vi.fn());
 
 vi.mock("./particles/controller", () => ({ startPortrait }));
 vi.mock("./portfolio/pdf-reader", () => ({ startProjectReaders }));
 vi.mock("./portfolio/pdf-runtime", () => ({ loadPdfDocument }));
 vi.mock("./chat/chat-controller", () => ({ startPortfolioChat }));
+vi.mock("./chat/source-navigation", () => ({ navigateToSource }));
 
 beforeEach(() => {
   window.dispatchEvent(
@@ -31,6 +33,7 @@ beforeEach(() => {
   startProjectReaders.mockClear();
   startPortfolioChat.mockClear();
   stopChat.mockClear();
+  navigateToSource.mockClear();
   document.body.innerHTML = "";
 });
 
@@ -63,6 +66,16 @@ test("renders the editorial homepage in the app root", async () => {
   expect(startPortfolioChat).toHaveBeenCalledOnce();
   expect(startPortfolioChat.mock.calls[0]?.[0]).toBe(
     app?.querySelector("[data-chat-root]"),
+  );
+  const chatDependencies = startPortfolioChat.mock.calls[0]?.[1] as {
+    navigateToSource(source: unknown): void;
+  };
+  const source = { sourceId: "inkseat" };
+  chatDependencies.navigateToSource(source);
+  expect(navigateToSource).toHaveBeenCalledWith(
+    app?.querySelector(".portfolio-content"),
+    source,
+    expect.objectContaining({ document, open: expect.any(Function) }),
   );
 });
 

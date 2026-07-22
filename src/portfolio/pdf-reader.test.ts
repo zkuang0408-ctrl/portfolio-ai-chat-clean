@@ -14,6 +14,7 @@ function createRoot(expectedPages = 18): HTMLElement {
   root.dataset.projectReader = "";
   root.dataset.pdfUrl = "/projects/pdfs/inkseat.pdf";
   root.dataset.expectedPages = String(expectedPages);
+  root.dataset.projectId = "inkseat";
   root.tabIndex = 0;
   root.innerHTML = `
     <div data-reader-stage>
@@ -30,6 +31,15 @@ function createRoot(expectedPages = 18): HTMLElement {
     <span data-total-pages>${expectedPages}</span>
   `;
   return root;
+}
+
+function openProjectPage(
+  root: ParentNode,
+  detail: { projectId: string; page: number },
+): void {
+  root.dispatchEvent(
+    new CustomEvent("portfolio:open-project-page", { detail }),
+  );
 }
 
 function createPage(
@@ -1001,6 +1011,85 @@ test("lazy manager independently initializes six readers and coalesces resize no
   expect(resizeDisconnect).toHaveBeenCalledTimes(1);
 });
 
+test("source navigation initializes a lazy reader once and goes to the requested page", async () => {
+  const portfolio = document.createElement("main");
+  const root = createRoot(18);
+  portfolio.append(root);
+  const initialization = deferred<PdfDocumentLike>();
+  const getPage = vi.fn(async () => createPage());
+  const loadDocument = vi.fn(() => initialization.promise);
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument),
+    IntersectionObserver: class {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+      constructor(_callback: IntersectionObserverCallback) {}
+    },
+    ResizeObserver: undefined,
+  });
+
+  openProjectPage(portfolio, { projectId: "inkseat", page: 8 });
+  openProjectPage(portfolio, { projectId: "inkseat", page: 8 });
+  expect(loadDocument).toHaveBeenCalledTimes(1);
+
+  initialization.resolve({ numPages: 18, getPage });
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("08"));
+  expect(loadDocument).toHaveBeenCalledTimes(1);
+  expect(getPage).toHaveBeenCalledWith(1);
+  expect(getPage).toHaveBeenCalledWith(8);
+  cleanup();
+});
+
+test("source navigation ignores unknown projects and lets reader logic bound pages", async () => {
+  const portfolio = document.createElement("main");
+  const root = createRoot(18);
+  portfolio.append(root);
+  const getPage = vi.fn(async () => createPage());
+  const loadDocument = vi.fn(async () => ({ numPages: 18, getPage }));
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument),
+    IntersectionObserver: undefined,
+    ResizeObserver: undefined,
+  });
+  await vi.waitFor(() => expect(root.dataset.readerState).toBe("ready"));
+
+  openProjectPage(portfolio, { projectId: "unknown", page: 5 });
+  openProjectPage(portfolio, { projectId: "inkseat", page: 99 });
+
+  await vi.waitFor(() => expect(root.querySelector("[data-current-page]")?.textContent).toBe("18"));
+  expect(getPage).not.toHaveBeenCalledWith(5);
+  expect(getPage).toHaveBeenCalledWith(18);
+  cleanup();
+});
+
+test("lazy manager cleanup removes source navigation and blocks pending navigation", async () => {
+  const portfolio = document.createElement("main");
+  const root = createRoot(18);
+  portfolio.append(root);
+  const loadDocument = vi.fn(async () => ({
+    numPages: 18,
+    getPage: vi.fn(async () => createPage()),
+  }));
+  const cleanup = startProjectReaders(portfolio, {
+    ...createDependencies(loadDocument),
+    IntersectionObserver: class {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+      constructor(_callback: IntersectionObserverCallback) {}
+    },
+    ResizeObserver: undefined,
+  });
+
+  cleanup();
+  openProjectPage(portfolio, { projectId: "inkseat", page: 8 });
+  await flushPromises();
+
+  expect(loadDocument).not.toHaveBeenCalled();
+  expect(root.querySelector("[data-current-page]")?.textContent).toBe("01");
+});
+
 test("lazy manager fallback starts every reader and isolates a rejected load", async () => {
   const portfolio = document.createElement("main");
   const roots = Array.from({ length: 2 }, () => createRoot(1));
@@ -1069,7 +1158,7 @@ test("lazy manager cleanup cancels a queued resize frame with the browser fallba
 
 test("lazy manager keeps retry-successful readers registered for resize", async () => {
   const portfolio = document.createElement("main");
-  const root = createRoot(1);
+  const root = createRoot(2);
   portfolio.append(root);
   let intersectionCallback!: IntersectionObserverCallback;
   class FakeIntersectionObserver {
@@ -1090,7 +1179,7 @@ test("lazy manager keeps retry-successful readers registered for resize", async 
     .fn<PdfReaderDependencies["loadDocument"]>()
     .mockRejectedValueOnce(new Error("initial load failed"))
     .mockResolvedValueOnce({
-      numPages: 1,
+      numPages: 2,
       getPage: vi.fn(async () => createPage()),
     });
   const cleanup = startProjectReaders(portfolio, {
@@ -1115,6 +1204,10 @@ test("lazy manager keeps retry-successful readers registered for resize", async 
   expect(resizeObserve).toHaveBeenCalledTimes(1);
   expect(resizeObserve).toHaveBeenCalledWith(
     root.querySelector("[data-reader-stage]"),
+  );
+  openProjectPage(portfolio, { projectId: "inkseat", page: 2 });
+  await vi.waitFor(() =>
+    expect(root.querySelector("[data-current-page]")?.textContent).toBe("02"),
   );
   cleanup();
 });

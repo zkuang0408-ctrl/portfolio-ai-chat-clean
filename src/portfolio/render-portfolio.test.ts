@@ -58,6 +58,7 @@ test("renders accessible controls and matching metadata for every project reader
     );
 
     expect(reader?.dataset.pdfUrl).toBe(project.pdf.href);
+    expect(reader?.dataset.projectId).toBe(project.id);
     expect(reader?.dataset.expectedPages).toBe(String(project.pdf.pageCount));
     expect(reader?.dataset.projectTitle).toBe(project.title);
     expect(reader?.getAttribute("tabindex")).toBe("0");

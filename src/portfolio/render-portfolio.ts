@@ -67,6 +67,7 @@ function renderProjectReader(project: Project): string {
     <figure
       class="project-media project-reader"
       data-project-reader
+      data-project-id="${escapeHtml(project.id)}"
       data-pdf-url="${pdfUrl}"
       data-expected-pages="${expectedPages}"
       data-project-title="${projectTitle}"
