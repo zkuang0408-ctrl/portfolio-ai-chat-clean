@@ -184,41 +184,98 @@ describe("local hybrid retriever", () => {
     ).resolves.toEqual([]);
   });
 
-  test("filters natural-language question words before retrieval scoring", async () => {
+  test("keeps a career topic after an English question wrapper", async () => {
     const retriever = createLocalHybridRetriever(
       index([
         chunk({
           id: "career:p1:c0",
           sourceId: "career",
           title: "Career opportunities",
-          aliases: ["opportunities"],
+          aliases: ["career opportunities"],
           text: "A portfolio overview.",
+        }),
+      ]),
+    );
+
+    const results = await retriever.search(
+      "Can you tell me about career opportunities?",
+      { locale: "en" },
+    );
+
+    expect(results.map(({ chunk: resultChunk }) => resultChunk.id)).toEqual([
+      "career:p1:c0",
+    ]);
+  });
+
+  test("filters pure English function-word wrappers", async () => {
+    const retriever = createLocalHybridRetriever(
+      index([
+        chunk({
+          id: "about:p1:c0",
+          sourceId: "about",
+          title: "About the portfolio",
+          text: "Portfolio overview.",
         }),
       ]),
       { minimumScore: 0 },
     );
 
     await expect(
-      retriever.search("What opportunities are you looking for?", { locale: "en" }),
+      retriever.search("Can you tell me about it?", { locale: "en" }),
     ).resolves.toEqual([]);
   });
 
-  test("filters Chinese question terms before retrieval scoring", async () => {
+  test("returns no result for an unrelated natural-language question", async () => {
+    const retriever = createLocalHybridRetriever(
+      index([
+        chunk({
+          id: "career:p1:c0",
+          sourceId: "career",
+          title: "Career opportunities",
+          aliases: ["career opportunities"],
+          text: "A portfolio overview.",
+        }),
+      ]),
+    );
+
+    await expect(
+      retriever.search("Are you free on weekends?", { locale: "en" }),
+    ).resolves.toEqual([]);
+  });
+
+  test("keeps Chinese semantic CJK bigrams after a polite wrapper", async () => {
+    expect(buildTerms("我想寻找机会")).toEqual([
+      "我想",
+      "想寻",
+      "寻找",
+      "找机",
+      "机会",
+    ]);
     const retriever = createLocalHybridRetriever(
       index([
         chunk({
           id: "career-zh:p1:c0",
           sourceId: "career-zh",
+          title: "寻找",
+          aliases: ["寻找"],
+          text: "作品集概览。",
+        }),
+        chunk({
+          id: "opportunity-zh:p1:c0",
+          sourceId: "opportunity-zh",
           title: "机会",
+          aliases: ["机会"],
           text: "作品集概览。",
         }),
       ]),
-      { minimumScore: 0 },
     );
 
-    await expect(
-      retriever.search("请问你在寻找什么机会？", { locale: "zh" }),
-    ).resolves.toEqual([]);
+    const results = await retriever.search("我想寻找机会", { locale: "zh" });
+
+    expect(results.map(({ chunk: resultChunk }) => resultChunk.id)).toEqual([
+      "career-zh:p1:c0",
+      "opportunity-zh:p1:c0",
+    ]);
   });
 
   test.each([
