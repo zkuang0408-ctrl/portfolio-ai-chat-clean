@@ -47,6 +47,11 @@ a:focus-visible {
     radial-gradient(circle at 51% 34%, #1a1a1a 0%, #0a0a0a 42%, var(--ink) 76%);
 }
 
+.hero-scene {
+  position: absolute;
+  inset: 0;
+}
+
 .identity {
   position: absolute;
   z-index: 3;
@@ -158,6 +163,178 @@ a:focus-visible {
 .portrait-stage--error .portrait-error,
 .portrait-stage.is-error .portrait-error {
   opacity: 1;
+}
+
+.hero-chat {
+  position: absolute;
+  z-index: 3;
+  top: 39%;
+  left: 6.5%;
+  width: min(330px, 24vw);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.chat-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.chat-accent {
+  width: 36px;
+  height: 1px;
+  flex: 0 0 auto;
+  background: var(--accent);
+}
+
+.chat-label {
+  margin: 0;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.chat-intro {
+  margin: 15px 0 0;
+  color: #aaa;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.chat-recommendations {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+
+.chat-recommendation {
+  min-height: 44px;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid #303030;
+  background: transparent;
+  color: #999;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms ease, padding-left 160ms ease;
+}
+
+.chat-recommendation:hover {
+  padding-left: 5px;
+  color: var(--paper);
+}
+
+.chat-recommendation:focus-visible,
+.chat-input:focus-visible,
+.chat-send:focus-visible,
+.chat-sources :is(button, a):focus-visible {
+  outline: 1px solid var(--paper);
+  outline-offset: 3px;
+}
+
+.chat-transcript {
+  max-height: min(24vh, 210px);
+  margin-top: 14px;
+  overflow: auto;
+  color: #d3d3d3;
+  font-size: 12px;
+  line-height: 1.65;
+  scrollbar-width: thin;
+  transition: opacity 160ms ease;
+}
+
+.chat-transcript:empty,
+.chat-sources:empty {
+  display: none;
+}
+
+.chat-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.chat-sources :is(button, a) {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 7px 10px;
+  align-items: center;
+  border: 1px solid #343434;
+  background: transparent;
+  color: #999;
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.chat-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 14px;
+  border-bottom: 1px solid #4a4a4a;
+}
+
+.chat-input {
+  width: 100%;
+  min-height: 44px;
+  max-height: 112px;
+  padding: 11px 0 8px;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chat-input::placeholder {
+  color: #696969;
+}
+
+.chat-send {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.chat-status {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  color: #606060;
+  font-size: 9px;
+  line-height: 1.5;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.chat-cursor {
+  animation: chat-cursor 800ms steps(2, jump-none) infinite;
+}
+
+@keyframes chat-cursor {
+  50% {
+    opacity: 0;
+  }
 }
 
 .headline-wrap {
@@ -778,6 +955,13 @@ a:focus-visible {
 @media (max-width: 760px) {
   .hero {
     min-height: 100svh;
+    padding-bottom: 64px;
+  }
+
+  .hero-scene {
+    position: relative;
+    inset: auto;
+    height: 100svh;
   }
 
   .identity {
@@ -832,6 +1016,19 @@ a:focus-visible {
 
   .hero-index {
     display: none;
+  }
+
+  .hero-chat {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    margin: 0;
+    padding: 0 22px;
+  }
+
+  .chat-transcript {
+    max-height: 240px;
   }
 
   .portfolio-section {
@@ -985,6 +1182,20 @@ a:focus-visible {
   .project-reader [data-reader-status],
   .project-reader-chevron {
     transition: none;
+  }
+
+  .chat-transcript,
+  .chat-status {
+    transition: none;
+  }
+
+  .chat-recommendation,
+  .chat-send {
+    transition: none;
+  }
+
+  .chat-cursor {
+    animation: none;
   }
 }
 

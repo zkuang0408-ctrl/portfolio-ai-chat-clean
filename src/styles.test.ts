@@ -185,3 +185,48 @@ test("removes reader fades when reduced motion is requested", () => {
     /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.project-reader canvas\s*\{[\s\S]*?transition:\s*none;/,
   );
 });
+
+test("positions the frameless assistant at the approved desktop coordinates", () => {
+  const heroChat = rule(".hero-chat");
+
+  expect(heroChat).toMatch(/position:\s*absolute/);
+  expect(heroChat).toMatch(/z-index:\s*3/);
+  expect(heroChat).toMatch(/top:\s*39%/);
+  expect(heroChat).toMatch(/left:\s*6\.5%/);
+  expect(heroChat).toMatch(/width:\s*min\(330px,\s*24vw\)/);
+  expect(heroChat).toMatch(/border:\s*0/);
+  expect(heroChat).toMatch(/border-radius:\s*0/);
+  expect(heroChat).toMatch(/background:\s*transparent/);
+  expect(heroChat).toMatch(/box-shadow:\s*none/);
+});
+
+test("uses quiet underlined recommendations with accessible pointer targets", () => {
+  const recommendations = rule(".chat-recommendation");
+
+  expect(recommendations).toMatch(/min-height:\s*44px/);
+  expect(recommendations).toMatch(/border:\s*0/);
+  expect(recommendations).toMatch(/border-bottom:\s*1px\s+solid/);
+  expect(recommendations).toMatch(/background:\s*transparent/);
+  expect(recommendations).not.toMatch(/border-radius|box-shadow/);
+});
+
+test("moves the assistant into normal flow at the mobile breakpoint", () => {
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\s*\{[\s\S]*?position:\s*relative;[\s\S]*?top:\s*auto;[\s\S]*?left:\s*auto;[\s\S]*?width:\s*100%;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{[\s\S]*?padding-bottom:/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-scene\s*\{[\s\S]*?position:\s*relative;[\s\S]*?height:\s*100svh;/,
+  );
+});
+
+test("removes assistant cursor and crossfade motion when requested", () => {
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.chat-transcript,[\s\S]*?\.chat-status\s*\{[\s\S]*?transition:\s*none;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.chat-cursor\s*\{[\s\S]*?animation:\s*none;/,
+  );
+});
