@@ -10,17 +10,6 @@ export const MAX_CHAT_HISTORY_PAIRS = 10;
 export const MAX_CHAT_BODY_BYTES = 32 * 1024;
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
-const SUPPORTED_LOCALES = new Map<string, ChatLocale>([
-  ["zh", "zh"],
-  ["zh-cn", "zh"],
-  ["zh-hans", "zh"],
-  ["zh-hant", "zh"],
-  ["zh-tw", "zh"],
-  ["zh-hk", "zh"],
-  ["en", "en"],
-  ["en-us", "en"],
-  ["en-gb", "en"],
-]);
 
 export class ChatValidationError extends Error {
   readonly code: PublicChatErrorCode;
@@ -62,7 +51,29 @@ function parseLocale(value: unknown): ChatLocale {
   if (typeof value !== "string") {
     return fail("invalid_locale");
   }
-  return SUPPORTED_LOCALES.get(value.toLowerCase()) ?? fail("invalid_locale");
+
+  let locale: Intl.Locale;
+  try {
+    locale = new Intl.Locale(value);
+  } catch {
+    return fail("invalid_locale");
+  }
+
+  if (locale.language !== "zh" && locale.language !== "en") {
+    return fail("invalid_locale");
+  }
+
+  const canonicalBaseName = [locale.language, locale.script, locale.region]
+    .filter((part): part is string => part !== undefined)
+    .join("-");
+  if (
+    locale.baseName !== canonicalBaseName ||
+    locale.toString() !== locale.baseName
+  ) {
+    return fail("invalid_locale");
+  }
+
+  return locale.language;
 }
 
 function parseHistory(value: unknown): readonly ChatHistoryMessage[] {

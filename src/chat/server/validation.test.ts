@@ -28,6 +28,16 @@ describe("parseChatBody", () => {
     ["en", "en"],
     ["en-US", "en"],
     ["en-GB", "en"],
+    ["en-AU", "en"],
+    ["en-CA", "en"],
+    ["en-IN", "en"],
+    ["en-SG", "en"],
+    ["en-Latn", "en"],
+    ["en-Latn-US", "en"],
+    ["zh-SG", "zh"],
+    ["zh-MO", "zh"],
+    ["zh-Hans-CN", "zh"],
+    ["zh-Hant-TW", "zh"],
     ["ZH-hAnT", "zh"],
     ["EN-gb", "en"],
   ] as const)("maps %s to the supported %s locale", (locale, expected) => {
@@ -36,7 +46,21 @@ describe("parseChatBody", () => {
     ).toMatchObject({ locale: expected });
   });
 
-  test.each(["", "   ", "fr-FR", "zh-invalid", "en-AU", "Chinese"])(
+  test.each([
+    "",
+    "   ",
+    "fr-FR",
+    "zh-invalid",
+    "zh-1901",
+    "en-oxendict",
+    "en-US-u-ca-gregory",
+    "en-x-private",
+    "zh-CN-x-test",
+    "zh-Hans-CN-u-nu-hanidec",
+    "en--US",
+    "en_US",
+    "Chinese",
+  ])(
     "rejects unsupported locale tag %j",
     (locale) => {
       expect(() =>
