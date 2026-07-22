@@ -12,6 +12,12 @@ export interface ClientChatMessage {
   readonly content: string;
 }
 
+export interface ChatStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
 type UuidFactory = () => string;
 
 function hasVisibleContent(value: string): boolean {
@@ -22,7 +28,7 @@ function capCodePoints(value: string): string {
   return Array.from(value).slice(0, MAX_MESSAGE_CODE_POINTS).join("");
 }
 
-function removeBestEffort(storage: Storage, key: string): void {
+function removeBestEffort(storage: ChatStorage, key: string): void {
   try {
     storage.removeItem(key);
   } catch {
@@ -30,7 +36,7 @@ function removeBestEffort(storage: Storage, key: string): void {
   }
 }
 
-function readBestEffort(storage: Storage, key: string): string | null {
+function readBestEffort(storage: ChatStorage, key: string): string | null {
   try {
     return storage.getItem(key);
   } catch {
@@ -38,12 +44,61 @@ function readBestEffort(storage: Storage, key: string): string | null {
   }
 }
 
-function writeBestEffort(storage: Storage, key: string, value: string): void {
+function writeBestEffort(storage: ChatStorage, key: string, value: string): void {
   try {
     storage.setItem(key, value);
   } catch {
     // A failed write leaves the current in-memory turn usable.
   }
+}
+
+export function createSafeSessionStorage(
+  getBacking: () => ChatStorage,
+): ChatStorage {
+  const memory = new Map<string, string>();
+  let backing: ChatStorage | undefined;
+  try {
+    backing = getBacking();
+  } catch {
+    backing = undefined;
+  }
+
+  const disableBacking = () => {
+    backing = undefined;
+  };
+
+  return {
+    getItem(key) {
+      if (memory.has(key)) return memory.get(key) ?? null;
+      if (!backing) return null;
+      try {
+        const value = backing.getItem(key);
+        if (value !== null) memory.set(key, value);
+        return value;
+      } catch {
+        disableBacking();
+        return null;
+      }
+    },
+    setItem(key, value) {
+      memory.set(key, value);
+      if (!backing) return;
+      try {
+        backing.setItem(key, value);
+      } catch {
+        disableBacking();
+      }
+    },
+    removeItem(key) {
+      memory.delete(key);
+      if (!backing) return;
+      try {
+        backing.removeItem(key);
+      } catch {
+        disableBacking();
+      }
+    },
+  };
 }
 
 function isMessage(value: unknown, index: number): value is ClientChatMessage {
@@ -63,7 +118,7 @@ function isMessage(value: unknown, index: number): value is ClientChatMessage {
 }
 
 export function getOrCreateSessionId(
-  storage: Storage,
+  storage: ChatStorage,
   createUuid: UuidFactory = () => crypto.randomUUID(),
 ): string {
   const stored = readBestEffort(storage, CHAT_SESSION_ID_KEY);
@@ -77,7 +132,7 @@ export function getOrCreateSessionId(
   return created;
 }
 
-export function loadChatHistory(storage: Storage): readonly ClientChatMessage[] {
+export function loadChatHistory(storage: ChatStorage): readonly ClientChatMessage[] {
   const stored = readBestEffort(storage, CHAT_HISTORY_KEY);
   if (stored === null) return [];
 
@@ -101,7 +156,7 @@ export function loadChatHistory(storage: Storage): readonly ClientChatMessage[] 
 }
 
 export function appendCompletedTurn(
-  storage: Storage,
+  storage: ChatStorage,
   userContent: string,
   assistantContent: string,
 ): readonly ClientChatMessage[] {

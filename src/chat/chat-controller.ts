@@ -4,9 +4,11 @@ import {
   appendCompletedTurn,
   getOrCreateSessionId,
   loadChatHistory,
+  type ChatStorage,
   type ClientChatMessage,
 } from "./session";
 import {
+  isClientPublicErrorCode,
   parseSse,
   SseProtocolError,
   type ClientChatSource,
@@ -15,7 +17,7 @@ import {
 
 export interface PortfolioChatDependencies {
   readonly fetch: typeof globalThis.fetch;
-  readonly storage: Storage;
+  readonly storage: ChatStorage;
   readonly locale: ChatLocale;
   readonly navigateToSource: (source: ClientChatSource) => void;
   readonly createSessionId?: () => string;
@@ -96,7 +98,7 @@ async function publicCodeFromResponse(response: Response): Promise<ClientPublicE
     const error = (value as Record<string, unknown>).error;
     if (typeof error !== "object" || error === null || Array.isArray(error)) return undefined;
     const code = (error as Record<string, unknown>).code;
-    return typeof code === "string" ? code as ClientPublicErrorCode : undefined;
+    return isClientPublicErrorCode(code) ? code : undefined;
   } catch {
     return undefined;
   }
@@ -169,12 +171,11 @@ export function startPortfolioChat(
     activeController = controller;
     let answer = "";
     let renderedLength = 0;
-    let completed = false;
 
     const flush = (all = false) => {
       const boundary = all ? answer.length : sentenceBoundary(answer);
       if (boundary > renderedLength) {
-        answerElement.textContent = answer.slice(0, boundary);
+        answerElement.append(document.createTextNode(answer.slice(renderedLength, boundary)));
         renderedLength = boundary;
         elements.transcript.scrollTop = elements.transcript.scrollHeight;
       }
@@ -207,27 +208,32 @@ export function startPortfolioChat(
         );
       }
 
-      let started = false;
+      let phase: "awaiting-start" | "streaming" | "sources-seen" | "done" =
+        "awaiting-start";
       for await (const streamEvent of parseSse(response.body)) {
-        if (completed) throw new SseProtocolError();
         if (streamEvent.type === "start") {
-          if (started || streamEvent.data.locale !== dependencies.locale) throw new SseProtocolError();
-          started = true;
+          if (
+            phase !== "awaiting-start" ||
+            streamEvent.data.locale !== dependencies.locale
+          ) throw new SseProtocolError();
+          phase = "streaming";
+        } else if (streamEvent.type === "delta") {
+          if (phase !== "streaming") throw new SseProtocolError();
+          answer += streamEvent.data.text;
+          flush();
+        } else if (streamEvent.type === "sources") {
+          if (phase !== "streaming") throw new SseProtocolError();
+          renderSources(streamEvent.data.sources);
+          phase = "sources-seen";
+        } else if (streamEvent.type === "done") {
+          if (phase !== "sources-seen") throw new SseProtocolError();
+          phase = "done";
         } else {
-          if (!started) throw new SseProtocolError();
-          if (streamEvent.type === "delta") {
-            answer += streamEvent.data.text;
-            flush();
-          } else if (streamEvent.type === "sources") {
-            renderSources(streamEvent.data.sources);
-          } else if (streamEvent.type === "done") {
-            completed = true;
-          } else {
-            throw new PublicStreamError(streamEvent.data.code);
-          }
+          if (phase !== "streaming") throw new SseProtocolError();
+          throw new PublicStreamError(streamEvent.data.code);
         }
       }
-      if (!completed || answer.replace(/[\s\p{Cf}]/gu, "").length === 0) {
+      if (phase !== "done" || answer.replace(/[\s\p{Cf}]/gu, "").length === 0) {
         throw new SseProtocolError();
       }
       flush(true);
@@ -238,6 +244,10 @@ export function startPortfolioChat(
       controller.abort();
       if (destroyed) return;
       flush(true);
+      elements.sources.replaceChildren();
+      if (answer.replace(/[\s\p{Cf}]/gu, "").length === 0) {
+        answerElement.remove();
+      }
       const code = error instanceof PublicStreamError ? error.code : undefined;
       showError(code, retry);
     } finally {

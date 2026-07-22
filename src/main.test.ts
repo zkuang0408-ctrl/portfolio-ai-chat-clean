@@ -173,3 +173,17 @@ test("throws a clear error when the app root is missing", async () => {
   expect(startPortrait).not.toHaveBeenCalled();
   expect(startProjectReaders).not.toHaveBeenCalled();
 });
+
+test("does not dereference a throwing sessionStorage getter directly", async () => {
+  document.body.innerHTML = '<div id="app"></div>';
+  vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
+    throw new DOMException("blocked", "SecurityError");
+  });
+
+  await expect(import("./main")).resolves.toBeDefined();
+
+  const dependencies = startPortfolioChat.mock.calls[0]?.[1] as {
+    storage: { getItem(key: string): string | null };
+  };
+  expect(() => dependencies.storage.getItem("test")).not.toThrow();
+});

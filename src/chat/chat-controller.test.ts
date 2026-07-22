@@ -275,3 +275,80 @@ test("aborts the request after rejecting a malformed stream", async () => {
   expect(root.querySelector("[data-chat-retry]")).not.toBeNull();
   cleanup();
 });
+
+test.each([
+  [
+    "duplicate sources",
+    [event("start", { locale: "zh" }), event("sources", { sources: [] }), event("sources", { sources: [] }), event("done", {})],
+  ],
+  [
+    "delta after sources",
+    [event("start", { locale: "zh" }), event("sources", { sources: [] }), event("delta", { text: "late" }), event("done", {})],
+  ],
+  [
+    "done without sources",
+    [event("start", { locale: "zh" }), event("delta", { text: "answer" }), event("done", {})],
+  ],
+  [
+    "duplicate start",
+    [event("start", { locale: "zh" }), event("start", { locale: "zh" })],
+  ],
+] as const)("rejects %s event ordering and clears streamed sources", async (_name, events) => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(responseFromEvents(events));
+  const { root, cleanup } = setup({ fetch });
+
+  root.querySelector<HTMLButtonElement>("[data-chat-recommendation]")?.click();
+  await settle();
+
+  expect(root.querySelector("[data-chat-retry]")).not.toBeNull();
+  expect(root.querySelectorAll("[data-chat-source]")).toHaveLength(0);
+  expect(sessionStorage.getItem("portfolio-chat-history-v1")).toBeNull();
+  cleanup();
+});
+
+test("appends sentence batches as new text nodes without replacing prior nodes", async () => {
+  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const response = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+      controller.enqueue(encoder.encode(event("start", { locale: "en" })));
+      controller.enqueue(encoder.encode(event("delta", { text: "First sentence. Next" })));
+    },
+  }));
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(response);
+  const { root, cleanup } = setup({ fetch, locale: "en" }, "en");
+
+  root.querySelector<HTMLButtonElement>("[data-chat-recommendation]")?.click();
+  await settle();
+  const answer = root.querySelector<HTMLElement>(".chat-message--assistant")!;
+  const firstNode = answer.firstChild;
+  expect(firstNode?.textContent).toBe("First sentence. ");
+
+  streamController?.enqueue(encoder.encode(event("delta", { text: "sentence!" })));
+  streamController?.enqueue(encoder.encode(event("sources", { sources: [] })));
+  streamController?.enqueue(encoder.encode(event("done", {})));
+  streamController?.close();
+  await settle();
+
+  expect(answer.childNodes).toHaveLength(2);
+  expect(answer.firstChild).toBe(firstNode);
+  expect(Array.from(answer.childNodes, (node) => node.textContent)).toEqual([
+    "First sentence. ",
+    "Nextsentence!",
+  ]);
+  cleanup();
+});
+
+test("removes an empty assistant placeholder when failure occurs before visible text", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+    new Response("unavailable", { status: 503 }),
+  );
+  const { root, cleanup } = setup({ fetch });
+
+  root.querySelector<HTMLButtonElement>("[data-chat-recommendation]")?.click();
+  await settle();
+
+  expect(root.querySelectorAll(".chat-message--assistant")).toHaveLength(0);
+  expect(root.querySelector("[data-chat-retry]")).not.toBeNull();
+  cleanup();
+});
