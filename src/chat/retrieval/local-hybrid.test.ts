@@ -153,6 +153,20 @@ describe("local hybrid retriever", () => {
     await expect(retriever.search("alpha", { locale: "en", limit: 2 })).resolves.toHaveLength(2);
   });
 
+  test("rejects an invalid requested result limit instead of silently changing it", async () => {
+    const retriever = createLocalHybridRetriever(index([chunk({ aliases: ["alpha"] })]));
+
+    await expect(
+      retriever.search("alpha", { locale: "en", limit: -1 }),
+    ).rejects.toThrow("limit must be a finite non-negative integer");
+    await expect(
+      retriever.search("alpha", { locale: "en", limit: 1.5 }),
+    ).rejects.toThrow("limit must be a finite non-negative integer");
+    await expect(
+      retriever.search("alpha", { locale: "en", limit: Number.POSITIVE_INFINITY }),
+    ).rejects.toThrow("limit must be a finite non-negative integer");
+  });
+
   test("rejects unrelated noise at the default minimum score", async () => {
     const retriever = createLocalHybridRetriever(
       index([
@@ -170,6 +184,66 @@ describe("local hybrid retriever", () => {
     ).resolves.toEqual([]);
   });
 
+  test("filters natural-language question words before retrieval scoring", async () => {
+    const retriever = createLocalHybridRetriever(
+      index([
+        chunk({
+          id: "career:p1:c0",
+          sourceId: "career",
+          title: "Career opportunities",
+          aliases: ["opportunities"],
+          text: "A portfolio overview.",
+        }),
+      ]),
+      { minimumScore: 0 },
+    );
+
+    await expect(
+      retriever.search("What opportunities are you looking for?", { locale: "en" }),
+    ).resolves.toEqual([]);
+  });
+
+  test("filters Chinese question terms before retrieval scoring", async () => {
+    const retriever = createLocalHybridRetriever(
+      index([
+        chunk({
+          id: "career-zh:p1:c0",
+          sourceId: "career-zh",
+          title: "机会",
+          text: "作品集概览。",
+        }),
+      ]),
+      { minimumScore: 0 },
+    );
+
+    await expect(
+      retriever.search("请问你在寻找什么机会？", { locale: "zh" }),
+    ).resolves.toEqual([]);
+  });
+
+  test.each([
+    { id: "question-title:p1:c0", sourceId: "question-title", title: "What opportunities are you looking for?" },
+    { id: "question-alias:p1:c0", sourceId: "question-alias", aliases: ["What opportunities are you looking for?"] },
+    { id: "question-source:p1:c0", sourceId: "What opportunities are you looking for?" },
+  ])("keeps the unfiltered full phrase for exact $id matching", async (overrides) => {
+    const retriever = createLocalHybridRetriever(
+      index([
+        chunk({
+          ...overrides,
+          text: "A portfolio overview.",
+        }),
+      ]),
+    );
+
+    const results = await retriever.search("What opportunities are you looking for?", {
+      locale: "en",
+    });
+
+    expect(results.map(({ chunk: resultChunk }) => resultChunk.id)).toEqual([
+      overrides.id,
+    ]);
+  });
+
   test("breaks equal scores by stable chunk ID", async () => {
     const retriever = createLocalHybridRetriever(
       index([
@@ -185,6 +259,52 @@ describe("local hybrid retriever", () => {
       "a:p1:c0",
       "z:p1:c0",
     ]);
+  });
+
+  test("does not return zero-score chunks when minimumScore is zero", async () => {
+    const retriever = createLocalHybridRetriever(index([chunk()]), {
+      minimumScore: 0,
+    });
+
+    await expect(retriever.search("alpha", { locale: "en" })).resolves.toEqual([]);
+  });
+
+  test("keeps a body-only BM25 score unchanged by metadata-only terms", async () => {
+    const target = chunk({
+      id: "target:p1:c0",
+      sourceId: "target",
+      title: "Target",
+      text: "alpha",
+    });
+    const withoutMetadata = createLocalHybridRetriever(
+      index([
+        target,
+        chunk({ id: "plain:p1:c0", sourceId: "plain", title: "Plain", text: "beta" }),
+      ]),
+      { minimumScore: 0 },
+    );
+    const withMetadata = createLocalHybridRetriever(
+      index([
+        target,
+        chunk({
+          id: "metadata:p1:c0",
+          sourceId: "metadata",
+          title: "Metadata",
+          aliases: ["alpha"],
+          text: "beta",
+        }),
+      ]),
+      { minimumScore: 0 },
+    );
+
+    const scoreWithoutMetadata = (await withoutMetadata.search("alpha", { locale: "en" })).find(
+      ({ chunk: resultChunk }) => resultChunk.id === "target:p1:c0",
+    )?.score;
+    const scoreWithMetadata = (await withMetadata.search("alpha", { locale: "en" })).find(
+      ({ chunk: resultChunk }) => resultChunk.id === "target:p1:c0",
+    )?.score;
+
+    expect(scoreWithMetadata).toBe(scoreWithoutMetadata);
   });
 
   test("returns no results for an empty or whitespace-only query", async () => {

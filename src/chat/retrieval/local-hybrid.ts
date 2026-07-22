@@ -11,6 +11,55 @@ const DEFAULT_MAX_PER_SOURCE = 3;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
 
+const ENGLISH_QUERY_STOP_TERMS = new Set([
+  "a",
+  "an",
+  "are",
+  "do",
+  "does",
+  "for",
+  "how",
+  "i",
+  "is",
+  "looking",
+  "look",
+  "of",
+  "opportunities",
+  "opportunity",
+  "please",
+  "the",
+  "what",
+  "where",
+  "which",
+  "who",
+  "why",
+  "you",
+  "your",
+]);
+const CHINESE_QUERY_STOP_TERMS = new Set([
+  "你在",
+  "在寻",
+  "寻找",
+  "找什",
+  "什么",
+  "么机",
+  "机会",
+  "如何",
+  "怎么",
+  "怎样",
+  "哪些",
+  "是否",
+  "可以",
+  "请问",
+  "能否",
+  "吗",
+  "呢",
+  "帮我",
+  "给我",
+  "我想",
+  "想要",
+]);
+
 export interface LocalHybridRetrieverConfig {
   readonly minimumScore?: number;
   readonly maxResults?: number;
@@ -47,14 +96,6 @@ function termsAsSet(value: string): ReadonlySet<string> {
   return new Set(buildTerms(value));
 }
 
-function unionTerms(...groups: readonly ReadonlySet<string>[]): ReadonlySet<string> {
-  const result = new Set<string>();
-  for (const group of groups) {
-    for (const term of group) result.add(term);
-  }
-  return result;
-}
-
 function positiveInteger(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`${name} must be a positive integer`);
@@ -87,8 +128,25 @@ function containsAllTerms(
 
 function requestedLimit(options: SearchOptions, maximum: number): number {
   if (options.limit === undefined) return maximum;
-  if (!Number.isFinite(options.limit)) return maximum;
-  return Math.min(maximum, Math.max(0, Math.floor(options.limit)));
+  if (
+    !Number.isFinite(options.limit) ||
+    !Number.isInteger(options.limit) ||
+    options.limit < 0
+  ) {
+    throw new Error("limit must be a finite non-negative integer");
+  }
+  // A valid caller limit is capped only by the retriever's configured ceiling.
+  return Math.min(maximum, options.limit);
+}
+
+function searchTerms(queryTerms: ReadonlySet<string>): ReadonlySet<string> {
+  return new Set(
+    [...queryTerms].filter(
+      (term) =>
+        !ENGLISH_QUERY_STOP_TERMS.has(term) &&
+        !CHINESE_QUERY_STOP_TERMS.has(term),
+    ),
+  );
 }
 
 /**
@@ -125,14 +183,7 @@ export function createLocalHybridRetriever(
   });
   const documentFrequency = new Map<string, number>();
   for (const indexed of indexedChunks) {
-    const documentTerms = unionTerms(
-      indexed.bodyTerms,
-      indexed.titleTerms,
-      indexed.aliasTerms,
-      indexed.tagTerms,
-      indexed.sourceTerms,
-    );
-    for (const term of documentTerms) {
+    for (const term of indexed.bodyTerms) {
       documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1);
     }
   }
@@ -146,7 +197,8 @@ export function createLocalHybridRetriever(
             documentCount,
         );
 
-  const bm25 = (term: string, indexed: IndexedChunk): number => {
+  // Binary body terms intentionally suppress repeated OCR tokens from inflating BM25.
+  const binaryBodyTermBm25 = (term: string, indexed: IndexedChunk): number => {
     if (!indexed.bodyTerms.has(term) || documentCount === 0) return 0;
     const frequency = documentFrequency.get(term) ?? 0;
     const inverseDocumentFrequency = Math.log(
@@ -162,15 +214,16 @@ export function createLocalHybridRetriever(
       // Keep the locale in the replaceable public boundary; aliases already bridge
       // languages, so the local scorer intentionally uses one deterministic path.
       void options.locale;
-      const queryTerms = termsAsSet(query);
-      if (queryTerms.size === 0) return [];
+      const unfilteredQueryTerms = termsAsSet(query);
       const normalizedQuery = normalizePhrase(query);
+      if (!normalizedQuery) return [];
+      const queryTerms = searchTerms(unfilteredQueryTerms);
       const scored: SearchResult[] = [];
 
       for (const indexed of indexedChunks) {
         let score = 0;
         for (const term of queryTerms) {
-          score += bm25(term, indexed);
+          score += binaryBodyTermBm25(term, indexed);
           if (indexed.titleTerms.has(term)) score += 1.5;
           if (indexed.aliasTerms.has(term)) score += 1.75;
           if (indexed.tagTerms.has(term)) score += 1.25;
@@ -183,7 +236,13 @@ export function createLocalHybridRetriever(
         // A complete multi-word alias is a stronger bilingual bridge than isolated
         // body terms, but must not rescue a query with no matching token at all.
         if (containsAllTerms(queryTerms, indexed.aliasTerms)) score += 1;
-        if (!Number.isFinite(score) || score < resolved.minimumScore) continue;
+        if (
+          !Number.isFinite(score) ||
+          score <= 0 ||
+          score < resolved.minimumScore
+        ) {
+          continue;
+        }
         scored.push({ chunk: indexed.chunk, score: Math.max(0, score) });
       }
 
