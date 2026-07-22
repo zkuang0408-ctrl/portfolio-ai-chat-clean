@@ -10,6 +10,17 @@ export const MAX_CHAT_HISTORY_PAIRS = 10;
 export const MAX_CHAT_BODY_BYTES = 32 * 1024;
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const SUPPORTED_LOCALES = new Map<string, ChatLocale>([
+  ["zh", "zh"],
+  ["zh-cn", "zh"],
+  ["zh-hans", "zh"],
+  ["zh-hant", "zh"],
+  ["zh-tw", "zh"],
+  ["zh-hk", "zh"],
+  ["en", "en"],
+  ["en-us", "en"],
+  ["en-gb", "en"],
+]);
 
 export class ChatValidationError extends Error {
   readonly code: PublicChatErrorCode;
@@ -28,7 +39,7 @@ export interface ChatRequestContext {
   readonly origin: string | null;
   readonly contentType: string | null;
   readonly contentLength?: number | null;
-  readonly bodyBytes?: number;
+  readonly bodyBytes: number;
 }
 
 function fail(code: PublicChatErrorCode, status = 400): never {
@@ -43,14 +54,15 @@ function codePointLength(value: string): number {
   return Array.from(value).length;
 }
 
+function hasVisibleContent(value: string): boolean {
+  return value.replace(/[\s\p{Cf}]/gu, "").length > 0;
+}
+
 function parseLocale(value: unknown): ChatLocale {
-  if (value === undefined) {
-    return "en";
-  }
   if (typeof value !== "string") {
     return fail("invalid_locale");
   }
-  return value.trim().toLowerCase().startsWith("zh") ? "zh" : "en";
+  return SUPPORTED_LOCALES.get(value.toLowerCase()) ?? fail("invalid_locale");
 }
 
 function parseHistory(value: unknown): readonly ChatHistoryMessage[] {
@@ -70,10 +82,10 @@ function parseHistory(value: unknown): readonly ChatHistoryMessage[] {
     if (item.role !== expectedRole || typeof item.content !== "string") {
       return fail("invalid_history");
     }
-    if (
-      item.content.trim().length === 0 ||
-      codePointLength(item.content) > MAX_CHAT_MESSAGE_CODE_POINTS
-    ) {
+    if (!hasVisibleContent(item.content)) {
+      return fail("invalid_history");
+    }
+    if (codePointLength(item.content) > MAX_CHAT_MESSAGE_CODE_POINTS) {
       return fail("history_message_too_long");
     }
     history.push({ role: item.role, content: item.content });
@@ -93,7 +105,7 @@ export function parseChatBody(value: unknown): ParsedChatBody {
   if (typeof value.message !== "string") {
     return fail("invalid_body");
   }
-  if (value.message.trim().length === 0) {
+  if (!hasVisibleContent(value.message)) {
     return fail("empty_message");
   }
   if (codePointLength(value.message) > MAX_CHAT_MESSAGE_CODE_POINTS) {
@@ -114,10 +126,11 @@ export function parseChatBody(value: unknown): ParsedChatBody {
   };
 }
 
-function isOversized(value: number | null | undefined): boolean {
+function isValidByteCount(value: unknown): value is number {
   return typeof value === "number" &&
     Number.isFinite(value) &&
-    value > MAX_CHAT_BODY_BYTES;
+    Number.isInteger(value) &&
+    value >= 0;
 }
 
 export function validateChatRequestContext(
@@ -128,7 +141,22 @@ export function validateChatRequestContext(
     fail("unsupported_content_type", 415);
   }
 
-  if (isOversized(context.contentLength) || isOversized(context.bodyBytes)) {
+  if (!isValidByteCount(context.bodyBytes)) {
+    fail("invalid_body");
+  }
+  if (
+    context.contentLength !== undefined &&
+    context.contentLength !== null &&
+    !isValidByteCount(context.contentLength)
+  ) {
+    fail("invalid_body");
+  }
+  if (
+    context.bodyBytes > MAX_CHAT_BODY_BYTES ||
+    (context.contentLength !== undefined &&
+      context.contentLength !== null &&
+      context.contentLength > MAX_CHAT_BODY_BYTES)
+  ) {
     fail("body_too_large", 413);
   }
 
@@ -139,15 +167,7 @@ export function validateChatRequestContext(
     return fail("invalid_body");
   }
 
-  if (context.origin !== null) {
-    let requestOrigin: string;
-    try {
-      requestOrigin = new URL(context.origin).origin;
-    } catch {
-      return fail("cross_origin_request", 403);
-    }
-    if (requestOrigin !== expectedOrigin) {
-      fail("cross_origin_request", 403);
-    }
+  if (typeof context.origin !== "string" || context.origin !== expectedOrigin) {
+    fail("cross_origin_request", 403);
   }
 }
