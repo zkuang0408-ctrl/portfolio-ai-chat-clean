@@ -16,7 +16,7 @@ const MAX_TOKEN_LIMIT = 4_096;
 export const MAX_SSE_LINE_CHARS = 4_096;
 export const MAX_SSE_EVENT_CHARS = 8_192;
 export const MAX_OUTPUT_CODE_POINTS = 8_192;
-export const MAX_SSE_STREAM_BYTES = 65_536;
+export const MAX_SSE_STREAM_BYTES = 1_048_576;
 
 export type DeepSeekProviderErrorCategory =
   | "authentication"
@@ -355,6 +355,9 @@ export class DeepSeekProvider implements ChatProvider {
     input: ProviderInput,
     externalSignal: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
+    if (externalSignal.aborted) {
+      throw sanitizedAbortError();
+    }
     const userId = input.userId.trim();
     if (!/^[A-Za-z0-9_-]{16,128}$/.test(userId)) {
       throw new DeepSeekProviderError("malformed_response", false);

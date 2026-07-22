@@ -407,6 +407,36 @@ describe("DeepSeekProvider SSE parsing", () => {
     ]);
   });
 
+  test("accepts realistic one-character delta streams larger than 64 KiB", async () => {
+    const events = Array.from({ length: 700 }, (_, index) =>
+      `data: ${JSON.stringify({
+        id: `chatcmpl-${String(index).padStart(4, "0")}-${"a".repeat(96)}`,
+        object: "chat.completion.chunk",
+        created: 1_784_688_400,
+        model: "deepseek-v4-flash",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "a" },
+            logprobs: null,
+            finish_reason: null,
+          },
+        ],
+      })}\n\n`,
+    ).join("");
+    const payload = `${events}data: [DONE]\n\n`;
+    expect(new TextEncoder().encode(payload).byteLength).toBeGreaterThan(65_536);
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(okResponse(payload)),
+    });
+
+    const result = await collect(provider);
+
+    expect(result.filter((event) => event.type === "delta")).toHaveLength(700);
+    expect(result.at(-1)).toEqual({ type: "done" });
+  });
+
   test("cancels the upstream reader and removes abort handling after DONE", async () => {
     vi.useFakeTimers();
     const cancel = vi.fn();
@@ -542,6 +572,30 @@ describe("DeepSeekProvider failures", () => {
     });
     expect(String(caught)).not.toContain(TEST_TOKEN);
     expect(String(caught)).not.toContain(input.system);
+  });
+
+  test("does not invoke fetch when the external signal is already aborted", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      okResponse("data: [DONE]\n\n"),
+    );
+    const provider = new DeepSeekProvider({ apiKey: TEST_TOKEN, fetch: fetchMock });
+    const controller = new AbortController();
+    controller.abort(new Error(`unsafe preflight ${TEST_TOKEN} ${input.system}`));
+
+    let caught: unknown;
+    try {
+      await collect(provider, controller.signal);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted",
+    });
+    expect(String(caught)).not.toContain(TEST_TOKEN);
+    expect(String(caught)).not.toContain(input.system);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("cancels a response that arrives after an external abort", async () => {
