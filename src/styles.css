@@ -184,7 +184,7 @@ a:focus-visible {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-color: #454545 transparent;
+  scrollbar-color: #606060 transparent;
   scrollbar-width: thin;
 }
 
@@ -198,12 +198,12 @@ a:focus-visible {
   width: 36px;
   height: 1px;
   flex: 0 0 auto;
-  background: #b95a52;
+  background: #bd5b52;
 }
 
 .chat-label {
   margin: 0;
-  color: #b95a52;
+  color: #bd5b52;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -311,7 +311,7 @@ a:focus-visible {
 }
 
 .chat-input::placeholder {
-  color: #767676;
+  color: #7a7a7a;
 }
 
 .chat-send {
@@ -320,7 +320,7 @@ a:focus-visible {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #b95a52;
+  color: #bd5b52;
   font: inherit;
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -331,7 +331,7 @@ a:focus-visible {
 .chat-status {
   min-height: 1.5em;
   margin: 8px 0 0;
-  color: #767676;
+  color: #7a7a7a;
   font-size: 10px;
   line-height: 1.5;
   transition: opacity 160ms ease, color 160ms ease;

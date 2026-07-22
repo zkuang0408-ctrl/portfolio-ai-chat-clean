@@ -212,14 +212,18 @@ test("keeps the full desktop assistant reachable through bounded fallback scroll
 });
 
 test("uses readable high-contrast colors and sizes for critical chat UI", () => {
-  expect(rule(".chat-label")).toMatch(/color:\s*#b95a52/i);
+  expect(rule(".chat-label")).toMatch(/color:\s*#bd5b52/i);
   expect(rule(".chat-label")).toMatch(/font-size:\s*10px/);
-  expect(rule(".chat-send")).toMatch(/color:\s*#b95a52/i);
+  expect(rule(".chat-send")).toMatch(/color:\s*#bd5b52/i);
   expect(rule(".chat-send")).toMatch(/font-size:\s*11px/);
-  expect(rule(".chat-input::placeholder")).toMatch(/color:\s*#767676/i);
-  expect(rule(".chat-status")).toMatch(/color:\s*#767676/i);
+  expect(rule(".chat-input::placeholder")).toMatch(/color:\s*#7a7a7a/i);
+  expect(rule(".chat-status")).toMatch(/color:\s*#7a7a7a/i);
   expect(rule(".chat-status")).toMatch(/font-size:\s*10px/);
   expect(rule(".chat-sources :is(button, a)")).toMatch(/font-size:\s*10px/);
+  expect(rule(".chat-accent")).toMatch(/background:\s*#bd5b52/i);
+  expect(rule(".chat-scroll-region")).toMatch(
+    /scrollbar-color:\s*#606060\s+transparent/i,
+  );
 });
 
 test("uses quiet underlined recommendations with accessible pointer targets", () => {
