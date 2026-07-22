@@ -1,11 +1,50 @@
 // @vitest-environment node
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { describe, expect, it, vi } from 'vitest';
+
+const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+
+const expectedEnvironmentExample = [
+  'DEEPSEEK_API_KEY=',
+  'DEEPSEEK_BASE_URL=https://api.deepseek.com',
+  'DEEPSEEK_MODEL=deepseek-v4-flash',
+  'RATE_LIMIT_KV_URL=',
+  'RATE_LIMIT_KV_TOKEN=',
+  'RATE_LIMIT_SALT=',
+  'CHAT_ENABLED=true',
+  'CHAT_SITE_DAILY_LIMIT=300',
+  'CHAT_VISITOR_DAILY_LIMIT=30',
+  'CHAT_VISITOR_MINUTE_LIMIT=6',
+  'CHAT_COOLDOWN_SECONDS=3',
+  'CHAT_MAX_OUTPUT_TOKENS=700',
+  'CHAT_UPSTREAM_TIMEOUT_MS=45000',
+].join('\n') + '\n';
+
+function trackedTextFiles(): readonly string[] {
+  const tracked = execFileSync('git', ['ls-files', '-z'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  const excludedDirectory = /(?:^|\/)(?:\.git|node_modules|dist|coverage|private|private-sources)(?:\/|$)/u;
+  const textExtension = /(?:^\.env\.example$|\.(?:css|html|js|json|md|mjs|ts|tsx|txt|ya?ml))$/u;
+  return tracked
+    .split('\0')
+    .filter(Boolean)
+    .filter((path) => !excludedDirectory.test(path) && textExtension.test(path))
+    .map((path) => resolve(projectRoot, path));
+}
 
 function importedModules(filePath: string): readonly string[] {
   const source = readFileSync(filePath, 'utf8');
@@ -89,6 +128,45 @@ function sourceFiles(rootPath: string): readonly string[] {
 }
 
 describe('production document assets', () => {
+  it('exposes a lazy Vercel Web Handler for portfolio chat', async () => {
+    const handle = vi.fn(async () => new Response(null, { status: 204 }));
+    const createRuntime = vi.fn(() => ({ enabled: true, handle }));
+    vi.doMock('./chat/server/runtime', () => ({ createRuntime }));
+
+    const route = await import('../api/chat');
+
+    expect(route.default).toEqual({ fetch: expect.any(Function) });
+    expect(createRuntime).not.toHaveBeenCalled();
+
+    const request = new Request('https://portfolio.example/api/chat');
+    await route.default.fetch(request);
+    await route.default.fetch(request);
+
+    expect(createRuntime).toHaveBeenCalledTimes(1);
+    expect(handle).toHaveBeenNthCalledWith(1, request);
+    expect(handle).toHaveBeenNthCalledWith(2, request);
+  });
+
+  it('documents only the approved server configuration names and safe defaults', () => {
+    const environmentExample = readFileSync(
+      resolve(projectRoot, '.env.example'),
+      'utf8',
+    );
+
+    expect(environmentExample).toBe(expectedEnvironmentExample);
+  });
+
+  it('keeps DeepSeek-style secret values out of tracked text files', () => {
+    const secretPrefix = ['s', 'k', '-'].join('');
+    const secretPattern = new RegExp(`${secretPrefix}[A-Za-z0-9]{20,}`, 'u');
+    const matchingPaths = trackedTextFiles()
+      .filter((path) => secretPattern.test(readFileSync(path, 'utf8')))
+      .map((path) => path.slice(projectRoot.length + 1).replaceAll('\\', '/'));
+
+    // Report paths only so a failed check never prints the matched credential.
+    expect(matchingPaths).toEqual([]);
+  });
+
   it('declares the server and OCR tooling required for portfolio chat delivery', () => {
     const packageJson = JSON.parse(
       readFileSync(new URL('../package.json', import.meta.url), 'utf8'),

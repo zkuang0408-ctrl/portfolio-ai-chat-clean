@@ -17,6 +17,9 @@ describe('Vercel deployment configuration', () => {
       cleanUrls: true,
     });
     expect(config).not.toHaveProperty('routes');
+    expect(config.functions).toEqual({
+      'api/chat.ts': { maxDuration: 60 },
+    });
 
     const securityHeaders = config.headers?.find(
       (rule: { source?: string }) => rule.source === '/(.*)',
