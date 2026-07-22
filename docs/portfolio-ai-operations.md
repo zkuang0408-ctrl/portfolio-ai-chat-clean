@@ -74,7 +74,7 @@ PowerShell / Windows:
 npm.cmd test
 npm.cmd run test:e2e
 npm.cmd run build
-git grep -n -E 'sk-[A-Za-z0-9_-]{10,}' -- .
+git grep -l -E 'sk-[A-Za-z0-9_-]{10,}' -- .
 git status --short
 ```
 
@@ -84,11 +84,11 @@ Portable shell:
 npm test
 npm run test:e2e
 npm run build
-git grep -n -E 'sk-[A-Za-z0-9_-]{10,}' -- .
+git grep -l -E 'sk-[A-Za-z0-9_-]{10,}' -- .
 git status --short
 ```
 
-The scan covers every tracked file without path exclusions. The expected result is zero unit/E2E/build failures, no secret-scan match, and only reviewed files in `git status`. The build’s client-bundle boundary check must also pass; this proves server-only knowledge and credentials were not emitted into `dist`.
+The scan covers every tracked file without path exclusions and prints file paths only, never matching secret text. The expected result is zero unit/E2E/build failures, zero path matches from the secret scan, and only reviewed files in `git status`. The build’s client-bundle boundary check must also pass; this proves server-only knowledge and credentials were not emitted into `dist`.
 
 ## 6. Deploy Preview, smoke-test, then promote
 
