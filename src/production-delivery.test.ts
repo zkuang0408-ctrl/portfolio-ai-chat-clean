@@ -10,7 +10,7 @@ import {
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -32,17 +32,16 @@ const expectedEnvironmentExample = [
   'CHAT_UPSTREAM_TIMEOUT_MS=45000',
 ].join('\n') + '\n';
 
-function trackedTextFiles(): readonly string[] {
+function pathsFromGitLsFiles(output: string): readonly string[] {
+  return output.split('\0').filter((path) => path.length > 0);
+}
+
+function trackedFiles(): readonly string[] {
   const tracked = execFileSync('git', ['ls-files', '-z'], {
     cwd: projectRoot,
     encoding: 'utf8',
   });
-  const excludedDirectory = /(?:^|\/)(?:\.git|node_modules|dist|coverage|private|private-sources)(?:\/|$)/u;
-  const textExtension = /(?:^\.env\.example$|\.(?:css|html|js|json|md|mjs|ts|tsx|txt|ya?ml))$/u;
-  return tracked
-    .split('\0')
-    .filter(Boolean)
-    .filter((path) => !excludedDirectory.test(path) && textExtension.test(path))
+  return pathsFromGitLsFiles(tracked)
     .map((path) => resolve(projectRoot, path));
 }
 
@@ -128,6 +127,19 @@ function sourceFiles(rootPath: string): readonly string[] {
 }
 
 describe('production document assets', () => {
+  it('keeps every git-tracked path in secret-scan scope', () => {
+    const listedPaths = [
+      'src/main.ts',
+      'private/resume.pdf',
+      'scripts/audit.py',
+      'dist/tracked-output.bin',
+    ];
+
+    expect(pathsFromGitLsFiles(`${listedPaths.join('\0')}\0`)).toEqual(
+      listedPaths,
+    );
+  });
+
   it('exposes a lazy Vercel Web Handler for portfolio chat', async () => {
     const handle = vi.fn(async () => new Response(null, { status: 204 }));
     const createRuntime = vi.fn(() => ({ enabled: true, handle }));
@@ -156,12 +168,14 @@ describe('production document assets', () => {
     expect(environmentExample).toBe(expectedEnvironmentExample);
   });
 
-  it('keeps DeepSeek-style secret values out of tracked text files', () => {
+  it('keeps DeepSeek-style secret values out of every tracked file', () => {
     const secretPrefix = ['s', 'k', '-'].join('');
     const secretPattern = new RegExp(`${secretPrefix}[A-Za-z0-9]{20,}`, 'u');
-    const matchingPaths = trackedTextFiles()
-      .filter((path) => secretPattern.test(readFileSync(path, 'utf8')))
-      .map((path) => path.slice(projectRoot.length + 1).replaceAll('\\', '/'));
+    const matchingPaths = trackedFiles()
+      .filter((path) =>
+        secretPattern.test(readFileSync(path).toString('latin1')),
+      )
+      .map((path) => relative(projectRoot, path).replaceAll('\\', '/'));
 
     // Report paths only so a failed check never prints the matched credential.
     expect(matchingPaths).toEqual([]);
