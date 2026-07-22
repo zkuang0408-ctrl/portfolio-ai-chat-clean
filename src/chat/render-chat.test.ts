@@ -36,6 +36,15 @@ test("localizes the assistant content and recommendation prompts in English", ()
     Array.from(elements.recommendations, (button) => button.textContent),
   ).toEqual(CHAT_CONTENT.en.recommendations);
   expect(elements.input.placeholder).toBe(CHAT_CONTENT.en.placeholder);
+  expect(root.lang).toBe("en");
+});
+
+test("marks Chinese content with a specific document language", () => {
+  const root = document.createElement("aside");
+
+  renderChat(root, "zh");
+
+  expect(root.lang).toBe("zh-CN");
 });
 
 test("returns scoped typed controls for the future browser controller", () => {
@@ -78,6 +87,7 @@ test("stays frameless and permanent without modal or close affordances", () => {
 
   renderChat(root, "zh");
 
+  expect(root.classList.contains("chat-scroll-region")).toBe(true);
   expect(root.querySelector('[role="dialog"]')).toBeNull();
   expect(root.querySelector("dialog")).toBeNull();
   expect(root.querySelector("[data-chat-close]")).toBeNull();

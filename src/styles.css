@@ -169,13 +169,23 @@ a:focus-visible {
   position: absolute;
   z-index: 3;
   top: 39%;
+  bottom: clamp(24px, 3vh, 34px);
   left: 6.5%;
   width: min(330px, 24vw);
+  max-height: calc(61% - 24px);
   margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.chat-scroll-region {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #454545 transparent;
+  scrollbar-width: thin;
 }
 
 .chat-heading {
@@ -188,13 +198,13 @@ a:focus-visible {
   width: 36px;
   height: 1px;
   flex: 0 0 auto;
-  background: var(--accent);
+  background: #b95a52;
 }
 
 .chat-label {
   margin: 0;
-  color: var(--accent);
-  font-size: 9px;
+  color: #b95a52;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
 }
@@ -272,7 +282,7 @@ a:focus-visible {
   background: transparent;
   color: #999;
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   cursor: pointer;
 }
@@ -301,7 +311,7 @@ a:focus-visible {
 }
 
 .chat-input::placeholder {
-  color: #696969;
+  color: #767676;
 }
 
 .chat-send {
@@ -310,9 +320,9 @@ a:focus-visible {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: #b95a52;
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   cursor: pointer;
   transition: color 160ms ease;
@@ -321,8 +331,8 @@ a:focus-visible {
 .chat-status {
   min-height: 1.5em;
   margin: 8px 0 0;
-  color: #606060;
-  font-size: 9px;
+  color: #767676;
+  font-size: 10px;
   line-height: 1.5;
   transition: opacity 160ms ease, color 160ms ease;
 }
@@ -1021,10 +1031,16 @@ a:focus-visible {
   .hero-chat {
     position: relative;
     top: auto;
+    bottom: auto;
     left: auto;
     width: 100%;
+    max-height: none;
     margin: 0;
     padding: 0 22px;
+  }
+
+  .chat-scroll-region {
+    overflow-y: visible;
   }
 
   .chat-transcript {

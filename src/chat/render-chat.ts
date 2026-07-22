@@ -27,7 +27,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements {
   const content = CHAT_CONTENT[locale];
   root.replaceChildren();
-  root.classList.add("hero-chat");
+  root.classList.add("hero-chat", "chat-scroll-region");
+  root.lang = locale === "zh" ? "zh-CN" : "en";
   root.setAttribute("aria-label", content.transcriptLabel);
 
   const heading = createElement("div", "chat-heading");

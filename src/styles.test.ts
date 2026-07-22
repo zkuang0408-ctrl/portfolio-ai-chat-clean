@@ -192,12 +192,34 @@ test("positions the frameless assistant at the approved desktop coordinates", ()
   expect(heroChat).toMatch(/position:\s*absolute/);
   expect(heroChat).toMatch(/z-index:\s*3/);
   expect(heroChat).toMatch(/top:\s*39%/);
+  expect(heroChat).toMatch(/bottom:\s*clamp\(/);
   expect(heroChat).toMatch(/left:\s*6\.5%/);
   expect(heroChat).toMatch(/width:\s*min\(330px,\s*24vw\)/);
+  expect(heroChat).toMatch(/max-height:\s*calc\(61%\s*-/);
   expect(heroChat).toMatch(/border:\s*0/);
   expect(heroChat).toMatch(/border-radius:\s*0/);
   expect(heroChat).toMatch(/background:\s*transparent/);
   expect(heroChat).toMatch(/box-shadow:\s*none/);
+});
+
+test("keeps the full desktop assistant reachable through bounded fallback scrolling", () => {
+  const scrollRegion = rule(".chat-scroll-region");
+
+  expect(scrollRegion).toMatch(/min-height:\s*0/);
+  expect(scrollRegion).toMatch(/overflow-y:\s*auto/);
+  expect(scrollRegion).toMatch(/overscroll-behavior:\s*contain/);
+  expect(rule(".chat-transcript")).toMatch(/overflow:\s*auto/);
+});
+
+test("uses readable high-contrast colors and sizes for critical chat UI", () => {
+  expect(rule(".chat-label")).toMatch(/color:\s*#b95a52/i);
+  expect(rule(".chat-label")).toMatch(/font-size:\s*10px/);
+  expect(rule(".chat-send")).toMatch(/color:\s*#b95a52/i);
+  expect(rule(".chat-send")).toMatch(/font-size:\s*11px/);
+  expect(rule(".chat-input::placeholder")).toMatch(/color:\s*#767676/i);
+  expect(rule(".chat-status")).toMatch(/color:\s*#767676/i);
+  expect(rule(".chat-status")).toMatch(/font-size:\s*10px/);
+  expect(rule(".chat-sources :is(button, a)")).toMatch(/font-size:\s*10px/);
 });
 
 test("uses quiet underlined recommendations with accessible pointer targets", () => {
@@ -213,6 +235,12 @@ test("uses quiet underlined recommendations with accessible pointer targets", ()
 test("moves the assistant into normal flow at the mobile breakpoint", () => {
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\s*\{[\s\S]*?position:\s*relative;[\s\S]*?top:\s*auto;[\s\S]*?left:\s*auto;[\s\S]*?width:\s*100%;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\s*\{[\s\S]*?bottom:\s*auto;[\s\S]*?max-height:\s*none;/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-scroll-region\s*\{[\s\S]*?overflow-y:\s*visible;/,
   );
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{[\s\S]*?padding-bottom:/,
