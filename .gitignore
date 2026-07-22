@@ -9,6 +9,9 @@ output/playwright/
 .superpowers/
 .worktrees/
 *.local
+.env
+.env.*
+!.env.example
 tmp/pdfs/
 tmp/tesseract-cache/
 knowledge/private-sources/

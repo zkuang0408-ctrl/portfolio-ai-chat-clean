@@ -122,9 +122,14 @@ describe("createRuntime", () => {
       timeoutMs: 45_000,
       maxTokens: 700,
     });
+    expect(captures.providerOptions).not.toHaveProperty("baseUrl");
     expect(captures.rateOptions).toEqual({
       url: validEnv.RATE_LIMIT_KV_URL,
       token: validEnv.RATE_LIMIT_KV_TOKEN,
+      cooldownMs: 3_000,
+      minuteLimit: 6,
+      visitorDayLimit: 30,
+      siteDayLimit: 300,
     });
 
     const response = await runtime.handle(validRequest());
@@ -139,8 +144,13 @@ describe("createRuntime", () => {
       env: {
         ...validEnv,
         DEEPSEEK_MODEL: "deepseek-custom",
+        DEEPSEEK_BASE_URL: "https://api.deepseek.com",
         CHAT_MAX_OUTPUT_TOKENS: "512",
         CHAT_UPSTREAM_TIMEOUT_MS: "30000",
+        CHAT_SITE_DAILY_LIMIT: "900",
+        CHAT_VISITOR_DAILY_LIMIT: "45",
+        CHAT_VISITOR_MINUTE_LIMIT: "9",
+        CHAT_COOLDOWN_SECONDS: "5",
       },
       factories: factories(captures),
     });
@@ -151,6 +161,28 @@ describe("createRuntime", () => {
       maxTokens: 512,
       timeoutMs: 30_000,
     });
+    expect(captures.providerOptions).not.toHaveProperty("baseUrl");
+    expect(captures.rateOptions).toEqual({
+      url: validEnv.RATE_LIMIT_KV_URL,
+      token: validEnv.RATE_LIMIT_KV_TOKEN,
+      cooldownMs: 5_000,
+      minuteLimit: 9,
+      visitorDayLimit: 45,
+      siteDayLimit: 900,
+    });
+  });
+
+  test.each([
+    "https://api.deepseek.com/",
+    " https://api.deepseek.com",
+    "https://proxy.example.com",
+    "http://api.deepseek.com",
+  ])("rejects a non-canonical DeepSeek endpoint pin %s", (baseUrl) => {
+    expect(
+      createRuntime({
+        env: { ...validEnv, DEEPSEEK_BASE_URL: baseUrl },
+      }).enabled,
+    ).toBe(false);
   });
 
   test.each([
@@ -158,6 +190,26 @@ describe("createRuntime", () => {
     { CHAT_MAX_OUTPUT_TOKENS: "12.5" },
     { CHAT_UPSTREAM_TIMEOUT_MS: "NaN" },
     { CHAT_UPSTREAM_TIMEOUT_MS: "120001" },
+    { CHAT_SITE_DAILY_LIMIT: "0" },
+    { CHAT_SITE_DAILY_LIMIT: "1.5" },
+    { CHAT_SITE_DAILY_LIMIT: "100001" },
+    { CHAT_VISITOR_DAILY_LIMIT: "0" },
+    { CHAT_VISITOR_DAILY_LIMIT: "1.5" },
+    { CHAT_VISITOR_DAILY_LIMIT: "10001" },
+    { CHAT_VISITOR_MINUTE_LIMIT: "0" },
+    { CHAT_VISITOR_MINUTE_LIMIT: "2.5" },
+    { CHAT_VISITOR_MINUTE_LIMIT: "1001" },
+    { CHAT_COOLDOWN_SECONDS: "0" },
+    { CHAT_COOLDOWN_SECONDS: "1.5" },
+    { CHAT_COOLDOWN_SECONDS: "3601" },
+    {
+      CHAT_SITE_DAILY_LIMIT: "20",
+      CHAT_VISITOR_DAILY_LIMIT: "21",
+    },
+    {
+      CHAT_VISITOR_DAILY_LIMIT: "5",
+      CHAT_VISITOR_MINUTE_LIMIT: "6",
+    },
   ])("fails closed for invalid optional numeric configuration %#", (extra) => {
     expect(createRuntime({ env: { ...validEnv, ...extra } }).enabled).toBe(false);
   });
@@ -184,6 +236,10 @@ describe("createRuntime", () => {
     expect(captures.rateOptions).toEqual({
       url: "https://example.upstash.io",
       token: validEnv.RATE_LIMIT_KV_TOKEN,
+      cooldownMs: 3_000,
+      minuteLimit: 6,
+      visitorDayLimit: 30,
+      siteDayLimit: 300,
     });
   });
 });

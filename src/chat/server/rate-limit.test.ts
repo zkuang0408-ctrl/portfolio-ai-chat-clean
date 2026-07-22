@@ -430,6 +430,40 @@ describe("createUpstashRateLimitStore", () => {
     ]);
   });
 
+  test("passes explicit policy overrides to the atomic Lua eval", async () => {
+    const now = atShanghai("2026-07-15T12:00:00.000");
+    const resetAt = atShanghai("2026-07-16T00:00:00.000");
+    const evalMock = vi.fn().mockResolvedValue([1, "", now + 7 * SECOND]);
+    const store = createUpstashRateLimitStore({
+      url: "unused",
+      token: "unused",
+      cooldownMs: 7_000,
+      minuteLimit: 4,
+      visitorDayLimit: 20,
+      siteDayLimit: 200,
+      redisFactory: () => ({ eval: evalMock }),
+    });
+
+    await store.consume({
+      visitorKey: visitor("override"),
+      now,
+      requestId: "override-request",
+    });
+
+    const args = evalMock.mock.calls[0]?.[2] as string[];
+    expect(args).toEqual([
+      String(now),
+      "override-request",
+      "7000",
+      "60000",
+      "4",
+      "20",
+      "200",
+      String(resetAt),
+      String(DAY_KEY_TTL_SECONDS),
+    ]);
+  });
+
   test("maps Lua rejections to the public result contract", async () => {
     const resetAt = atShanghai("2026-07-16T00:00:00.000");
     const evalMock = vi.fn().mockResolvedValue([0, "site_day", resetAt]);

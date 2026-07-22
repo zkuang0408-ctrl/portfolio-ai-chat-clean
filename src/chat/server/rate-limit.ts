@@ -355,6 +355,10 @@ export interface CreateUpstashRateLimitStoreOptions {
   readonly url: string;
   readonly token: string;
   readonly prefix?: string;
+  readonly cooldownMs?: number;
+  readonly minuteLimit?: number;
+  readonly visitorDayLimit?: number;
+  readonly siteDayLimit?: number;
   readonly redisFactory?: (
     options: UpstashRedisFactoryOptions,
   ) => RedisEvalSurface;
@@ -466,5 +470,12 @@ export function createUpstashRateLimitStore(
   return new UpstashRateLimitStore(
     factory(redisOptions),
     options.prefix ?? "portfolio-chat",
+    {
+      cooldownMs: options.cooldownMs ?? DEFAULT_COOLDOWN_MS,
+      minuteLimit: options.minuteLimit ?? DEFAULT_MINUTE_LIMIT,
+      visitorDayLimit:
+        options.visitorDayLimit ?? DEFAULT_VISITOR_DAY_LIMIT,
+      siteDayLimit: options.siteDayLimit ?? DEFAULT_SITE_DAY_LIMIT,
+    },
   );
 }

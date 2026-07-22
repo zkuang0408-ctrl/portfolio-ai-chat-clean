@@ -11,7 +11,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -43,6 +43,28 @@ function trackedFiles(): readonly string[] {
   });
   return pathsFromGitLsFiles(tracked)
     .map((path) => resolve(projectRoot, path));
+}
+
+const deepSeekSecretPatternSource = `${['s', 'k', '-'].join('')}[A-Za-z0-9_-]{20,}`;
+
+function findSecretBearingPaths(
+  files: readonly string[],
+  root: string,
+  readBytes: (path: string) => Uint8Array,
+): readonly string[] {
+  const secretPattern = new RegExp(deepSeekSecretPatternSource, 'u');
+  const redactionPattern = new RegExp(deepSeekSecretPatternSource, 'gu');
+  const matches: string[] = [];
+  for (const path of files) {
+    const normalizedPath = relative(root, path).replaceAll('\\', '/');
+    const content = Buffer.from(readBytes(path)).toString('latin1');
+    if (secretPattern.test(normalizedPath) || secretPattern.test(content)) {
+      matches.push(
+        normalizedPath.replace(redactionPattern, '[redacted-secret]'),
+      );
+    }
+  }
+  return matches;
 }
 
 function importedModules(filePath: string): readonly string[] {
@@ -127,6 +149,24 @@ function sourceFiles(rootPath: string): readonly string[] {
 }
 
 describe('production document assets', () => {
+  it('ignores local environment files while keeping the safe example tracked', () => {
+    const isIgnored = (path: string): boolean => {
+      const result = spawnSync(
+        'git',
+        ['check-ignore', '--no-index', '--quiet', path],
+        { cwd: projectRoot, encoding: 'utf8' },
+      );
+      if (result.status !== 0 && result.status !== 1) {
+        throw new Error('git check-ignore failed');
+      }
+      return result.status === 0;
+    };
+
+    expect(isIgnored('.env')).toBe(true);
+    expect(isIgnored('.env.production')).toBe(true);
+    expect(isIgnored('.env.example')).toBe(false);
+  });
+
   it('keeps every git-tracked path in secret-scan scope', () => {
     const listedPaths = [
       'src/main.ts',
@@ -140,23 +180,54 @@ describe('production document assets', () => {
     );
   });
 
+  it('detects extended DeepSeek secret shapes in paths and bytes without exposing them', () => {
+    const fixtureRoot = resolve(projectRoot, 'secret-scan-fixture');
+    const secret = ['s', 'k', '-', 'a'.repeat(20), '_-'].join('');
+    const pathMatch = resolve(
+      fixtureRoot,
+      'private',
+      `credential-${secret}.txt`,
+    );
+    const contentMatch = resolve(fixtureRoot, 'archive.pdf');
+    const safePath = resolve(fixtureRoot, 'safe.py');
+
+    const matches = findSecretBearingPaths(
+      [pathMatch, contentMatch, safePath],
+      fixtureRoot,
+      (path) =>
+        Buffer.from(path === contentMatch ? `payload:${secret}` : 'safe'),
+    );
+
+    expect(matches).toEqual([
+      'private/credential-[redacted-secret].txt',
+      'archive.pdf',
+    ]);
+    expect(matches.some((path) => path.includes(secret))).toBe(false);
+  });
+
   it('exposes a lazy Vercel Web Handler for portfolio chat', async () => {
     const handle = vi.fn(async () => new Response(null, { status: 204 }));
     const createRuntime = vi.fn(() => ({ enabled: true, handle }));
+    vi.resetModules();
     vi.doMock('./chat/server/runtime', () => ({ createRuntime }));
 
-    const route = await import('../api/chat');
+    try {
+      const route = await import('../api/chat');
 
-    expect(route.default).toEqual({ fetch: expect.any(Function) });
-    expect(createRuntime).not.toHaveBeenCalled();
+      expect(route.default).toEqual({ fetch: expect.any(Function) });
+      expect(createRuntime).not.toHaveBeenCalled();
 
-    const request = new Request('https://portfolio.example/api/chat');
-    await route.default.fetch(request);
-    await route.default.fetch(request);
+      const request = new Request('https://portfolio.example/api/chat');
+      await route.default.fetch(request);
+      await route.default.fetch(request);
 
-    expect(createRuntime).toHaveBeenCalledTimes(1);
-    expect(handle).toHaveBeenNthCalledWith(1, request);
-    expect(handle).toHaveBeenNthCalledWith(2, request);
+      expect(createRuntime).toHaveBeenCalledTimes(1);
+      expect(handle).toHaveBeenNthCalledWith(1, request);
+      expect(handle).toHaveBeenNthCalledWith(2, request);
+    } finally {
+      vi.doUnmock('./chat/server/runtime');
+      vi.resetModules();
+    }
   });
 
   it('documents only the approved server configuration names and safe defaults', () => {
@@ -169,13 +240,11 @@ describe('production document assets', () => {
   });
 
   it('keeps DeepSeek-style secret values out of every tracked file', () => {
-    const secretPrefix = ['s', 'k', '-'].join('');
-    const secretPattern = new RegExp(`${secretPrefix}[A-Za-z0-9]{20,}`, 'u');
-    const matchingPaths = trackedFiles()
-      .filter((path) =>
-        secretPattern.test(readFileSync(path).toString('latin1')),
-      )
-      .map((path) => relative(projectRoot, path).replaceAll('\\', '/'));
+    const matchingPaths = findSecretBearingPaths(
+      trackedFiles(),
+      projectRoot,
+      (path) => readFileSync(path),
+    );
 
     // Report paths only so a failed check never prints the matched credential.
     expect(matchingPaths).toEqual([]);

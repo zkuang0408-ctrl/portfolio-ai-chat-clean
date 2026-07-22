@@ -23,9 +23,18 @@ import {
 } from "./rate-limit";
 
 const generatedIndex = generatedIndexJson as GeneratedKnowledgeIndex;
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
+const DEFAULT_SITE_DAY_LIMIT = 300;
+const DEFAULT_VISITOR_DAY_LIMIT = 30;
+const DEFAULT_VISITOR_MINUTE_LIMIT = 6;
+const DEFAULT_COOLDOWN_SECONDS = 3;
+const MAX_SITE_DAY_LIMIT = 100_000;
+const MAX_VISITOR_DAY_LIMIT = 10_000;
+const MAX_VISITOR_MINUTE_LIMIT = 1_000;
+const MAX_COOLDOWN_SECONDS = 3_600;
 const noopMetrics: ChatMetricsSink = { record() {} };
 
 export interface RuntimeFactories {
@@ -58,6 +67,10 @@ interface RuntimeConfig {
   readonly model: string;
   readonly timeoutMs: number;
   readonly maxTokens: number;
+  readonly siteDayLimit: number;
+  readonly visitorDayLimit: number;
+  readonly visitorMinuteLimit: number;
+  readonly cooldownMs: number;
 }
 
 function disabledResponse(): Response {
@@ -102,6 +115,10 @@ function parseConfig(
   const kvUrlValue = required(env.RATE_LIMIT_KV_URL);
   const kvToken = required(env.RATE_LIMIT_KV_TOKEN);
   const salt = required(env.RATE_LIMIT_SALT);
+  const baseUrl =
+    env.DEEPSEEK_BASE_URL === undefined || env.DEEPSEEK_BASE_URL === ""
+      ? DEEPSEEK_BASE_URL
+      : env.DEEPSEEK_BASE_URL;
   const model = required(env.DEEPSEEK_MODEL) ?? DEFAULT_MODEL;
   const timeoutMs = positiveInteger(
     env.CHAT_UPSTREAM_TIMEOUT_MS,
@@ -113,6 +130,26 @@ function parseConfig(
     DEFAULT_MAX_TOKENS,
     4_096,
   );
+  const siteDayLimit = positiveInteger(
+    env.CHAT_SITE_DAILY_LIMIT,
+    DEFAULT_SITE_DAY_LIMIT,
+    MAX_SITE_DAY_LIMIT,
+  );
+  const visitorDayLimit = positiveInteger(
+    env.CHAT_VISITOR_DAILY_LIMIT,
+    DEFAULT_VISITOR_DAY_LIMIT,
+    MAX_VISITOR_DAY_LIMIT,
+  );
+  const visitorMinuteLimit = positiveInteger(
+    env.CHAT_VISITOR_MINUTE_LIMIT,
+    DEFAULT_VISITOR_MINUTE_LIMIT,
+    MAX_VISITOR_MINUTE_LIMIT,
+  );
+  const cooldownSeconds = positiveInteger(
+    env.CHAT_COOLDOWN_SECONDS,
+    DEFAULT_COOLDOWN_SECONDS,
+    MAX_COOLDOWN_SECONDS,
+  );
   let kvUrl: URL;
   try {
     kvUrl = new URL(kvUrlValue ?? "");
@@ -121,6 +158,7 @@ function parseConfig(
   }
   if (
     !apiKey ||
+    baseUrl !== DEEPSEEK_BASE_URL ||
     !kvToken ||
     !salt ||
     Buffer.byteLength(salt, "utf8") < 32 ||
@@ -132,7 +170,13 @@ function parseConfig(
     kvUrl.hash !== "" ||
     kvUrl.href !== `${kvUrl.origin}/` ||
     !timeoutMs ||
-    !maxTokens
+    !maxTokens ||
+    !siteDayLimit ||
+    !visitorDayLimit ||
+    !visitorMinuteLimit ||
+    !cooldownSeconds ||
+    visitorMinuteLimit > visitorDayLimit ||
+    visitorDayLimit > siteDayLimit
   ) {
     return undefined;
   }
@@ -144,6 +188,10 @@ function parseConfig(
     model,
     timeoutMs,
     maxTokens,
+    siteDayLimit,
+    visitorDayLimit,
+    visitorMinuteLimit,
+    cooldownMs: cooldownSeconds * 1_000,
   };
 }
 
@@ -181,6 +229,10 @@ export function createRuntime(options: RuntimeOptions = {}): ChatRuntime {
       rateLimit: factories.createRateLimitStore({
         url: config.kvUrl,
         token: config.kvToken,
+        cooldownMs: config.cooldownMs,
+        minuteLimit: config.visitorMinuteLimit,
+        visitorDayLimit: config.visitorDayLimit,
+        siteDayLimit: config.siteDayLimit,
       }),
       rateLimitSalt: config.salt,
       profileFacts: structuredProfileFacts(generatedIndex),
