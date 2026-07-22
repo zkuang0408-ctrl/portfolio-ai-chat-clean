@@ -15,7 +15,7 @@ import {
 
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
-const TEST_SALT = "rate-limit-test-salt";
+const TEST_SALT = "rate-limit-test-salt-with-32-bytes";
 
 function visitor(identity: string): string {
   return deriveVisitorKey(identity, TEST_SALT);
@@ -28,7 +28,7 @@ function atShanghai(isoLocal: string): number {
 describe("deriveVisitorKey", () => {
   test("uses HMAC-SHA256 with RATE_LIMIT_SALT and never returns the raw IP", () => {
     const ip = "203.0.113.42";
-    const salt = "a-high-entropy-test-salt";
+    const salt = "a-high-entropy-test-salt-32-bytes";
 
     const key = deriveVisitorKey(ip, salt);
 
@@ -37,9 +37,18 @@ describe("deriveVisitorKey", () => {
     expect(key).not.toContain(ip);
   });
 
-  test("rejects an empty salt", () => {
-    expect(() => deriveVisitorKey("203.0.113.42", "")).toThrow(
-      "RATE_LIMIT_SALT",
+  test.each(["", "a".repeat(31), `${"界".repeat(10)}a`])(
+    "rejects RATE_LIMIT_SALT values shorter than 32 UTF-8 bytes",
+    (salt) => {
+      expect(() => deriveVisitorKey("203.0.113.42", salt)).toThrow(
+        "RATE_LIMIT_SALT",
+      );
+    },
+  );
+
+  test("accepts a multibyte RATE_LIMIT_SALT at the exact 32-byte boundary", () => {
+    expect(deriveVisitorKey("203.0.113.42", `${"界".repeat(10)}ab`)).toMatch(
+      /^[a-f0-9]{64}$/,
     );
   });
 });
@@ -255,6 +264,107 @@ describe("InMemoryRateLimitStore", () => {
       results.filter((result) => result.reason === "minute"),
     ).toHaveLength(14);
   });
+
+  test.each([
+    "",
+    "contains space",
+    "control\ncharacter",
+    "非ASCII",
+    "a".repeat(129),
+  ])("rejects unsafe request IDs without mutating state: %j", async (requestId) => {
+    const store = new InMemoryRateLimitStore();
+
+    await expect(
+      store.consume({
+        visitorKey: visitor("a"),
+        now: atShanghai("2026-07-15T12:00:00.000"),
+        requestId,
+      }),
+    ).rejects.toThrow("requestId");
+
+    expect(store.getStateSizeSnapshot()).toEqual({
+      cooldowns: 0,
+      minuteVisitors: 0,
+      minuteEntries: 0,
+      visitorDayBuckets: 0,
+      siteDayBuckets: 0,
+    });
+  });
+
+  test("accepts a 128-character printable ASCII request ID", async () => {
+    const store = new InMemoryRateLimitStore();
+
+    await expect(
+      store.consume({
+        visitorKey: visitor("a"),
+        now: atShanghai("2026-07-15T12:00:00.000"),
+        requestId: "a".repeat(128),
+      }),
+    ).resolves.toMatchObject({ allowed: true });
+  });
+
+  test("sweeps expired state for many distinct visitors on a bounded cadence", async () => {
+    const store = new InMemoryRateLimitStore();
+    const start = atShanghai("2026-07-15T00:00:00.000");
+
+    for (let index = 0; index < 300; index += 1) {
+      await store.consume({
+        visitorKey: visitor(`old-${index}`),
+        now: start,
+        requestId: `old-${index}`,
+      });
+    }
+    expect(store.getStateSizeSnapshot()).toEqual({
+      cooldowns: 300,
+      minuteVisitors: 300,
+      minuteEntries: 300,
+      visitorDayBuckets: 300,
+      siteDayBuckets: 1,
+    });
+
+    await store.consume({
+      visitorKey: visitor("new"),
+      now: start + DAY_KEY_TTL_SECONDS * SECOND + 1,
+      requestId: "new-request",
+    });
+
+    expect(store.getStateSizeSnapshot()).toEqual({
+      cooldowns: 1,
+      minuteVisitors: 1,
+      minuteEntries: 1,
+      visitorDayBuckets: 1,
+      siteDayBuckets: 1,
+    });
+  });
+
+  test("refreshes in-memory day retention only after an allowed write", async () => {
+    const store = new InMemoryRateLimitStore();
+    const start = atShanghai("2026-07-15T00:00:00.000");
+    await store.consume({
+      visitorKey: visitor("retained"),
+      now: start,
+      requestId: "first",
+    });
+    await store.consume({
+      visitorKey: visitor("retained"),
+      now: start + MINUTE + 1,
+      requestId: "refresh",
+    });
+
+    await store.consume({
+      visitorKey: visitor("trigger-before-refreshed-expiry"),
+      now: start + DAY_KEY_TTL_SECONDS * SECOND + 1,
+      requestId: "trigger-before",
+    });
+    expect(store.getStateSizeSnapshot().visitorDayBuckets).toBe(2);
+
+    await store.consume({
+      visitorKey: visitor("trigger-after-refreshed-expiry"),
+      now: start + DAY_KEY_TTL_SECONDS * SECOND + MINUTE + 2,
+      requestId: "trigger-after",
+    });
+    expect(store.getStateSizeSnapshot().visitorDayBuckets).toBe(2);
+  });
 });
 
 describe("createUpstashRateLimitStore", () => {
@@ -278,7 +388,7 @@ describe("createUpstashRateLimitStore", () => {
 
   test("passes four anonymized keys and all policy values to one atomic Lua eval", async () => {
     const rawIp = "203.0.113.42";
-    const visitorKey = deriveVisitorKey(rawIp, "test-salt");
+    const visitorKey = deriveVisitorKey(rawIp, TEST_SALT);
     const now = atShanghai("2026-07-15T12:00:00.000");
     const resetAt = atShanghai("2026-07-16T00:00:00.000");
     const evalMock = vi.fn().mockResolvedValue([1, "", now + 3 * SECOND]);
@@ -336,6 +446,99 @@ describe("createUpstashRateLimitStore", () => {
       reason: "site_day",
       resetAt,
     });
+  });
+
+  test.each([true, false, 2, -1, "true", null])(
+    "rejects malformed Lua allowed flag %j",
+    async (allowedFlag) => {
+      const evalMock = vi
+        .fn()
+        .mockResolvedValue([allowedFlag, "", atShanghai("2026-07-16T00:00:00.000")]);
+      const store = createUpstashRateLimitStore({
+        url: "unused",
+        token: "unused",
+        redisFactory: () => ({ eval: evalMock }),
+      });
+
+      await expect(
+        store.consume({
+          visitorKey: visitor("a"),
+          now: 1,
+          requestId: "request",
+        }),
+      ).rejects.toThrow("invalid rate-limit response");
+    },
+  );
+
+  test.each([
+    { rawResult: [1, ""] },
+    { rawResult: [1, "", true] },
+    { rawResult: [0, "unknown", 123] },
+    { rawResult: [0, "cooldown", 1.5] },
+  ])("rejects malformed Lua result $rawResult", async ({ rawResult }) => {
+    const store = createUpstashRateLimitStore({
+      url: "unused",
+      token: "unused",
+      redisFactory: () => ({
+        eval: vi.fn().mockResolvedValue(rawResult),
+      }),
+    });
+
+    await expect(
+      store.consume({
+        visitorKey: visitor("a"),
+        now: 1,
+        requestId: "request",
+      }),
+    ).rejects.toThrow("invalid rate-limit response");
+  });
+
+  test.each([
+    [1, true],
+    ["1", true],
+    [0, false],
+    ["0", false],
+  ] as const)("accepts the exact Lua flag %j", async (allowedFlag, allowed) => {
+    const resetAt = atShanghai("2026-07-16T00:00:00.000");
+    const evalMock = vi
+      .fn()
+      .mockResolvedValue([
+        allowedFlag,
+        allowed ? "" : "site_day",
+        String(resetAt),
+      ]);
+    const store = createUpstashRateLimitStore({
+      url: "unused",
+      token: "unused",
+      redisFactory: () => ({ eval: evalMock }),
+    });
+
+    await expect(
+      store.consume({
+        visitorKey: visitor("a"),
+        now: 1,
+        requestId: "request",
+      }),
+    ).resolves.toMatchObject({ allowed });
+  });
+
+  test("propagates Redis failures instead of allowing the request", async () => {
+    const upstreamError = new Error("redis unavailable");
+    const store = createUpstashRateLimitStore({
+      url: "unused",
+      token: "unused",
+      redisFactory: () => ({
+        eval: vi.fn().mockRejectedValue(upstreamError),
+      }),
+    });
+
+    await expect(
+      store.consume({
+        visitorKey: visitor("a"),
+        now: 1,
+        requestId: "request",
+      }),
+    ).rejects.toBe(upstreamError);
   });
 
   test("Lua checks limits before mutating and sets the required TTLs only on allow", () => {

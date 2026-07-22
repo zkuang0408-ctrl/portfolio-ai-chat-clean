@@ -29,6 +29,9 @@ const DEFAULT_VISITOR_DAY_LIMIT = 30;
 const DEFAULT_SITE_DAY_LIMIT = 300;
 const SHANGHAI_UTC_OFFSET_MS = 8 * 60 * 60 * 1_000;
 const VISITOR_KEY_PATTERN = /^[a-f0-9]{64}$/;
+const REQUEST_ID_PATTERN = /^[!-~]{1,128}$/;
+const MINIMUM_SALT_BYTES = 32;
+const GLOBAL_SWEEP_INTERVAL_MS = 60_000;
 
 export const DAY_KEY_TTL_SECONDS = 48 * 60 * 60;
 
@@ -52,8 +55,8 @@ export function deriveVisitorKey(ip: string, rateLimitSalt: string): string {
   if (ip.length === 0) {
     throw new Error("visitor IP is required");
   }
-  if (rateLimitSalt.length === 0) {
-    throw new Error("RATE_LIMIT_SALT is required");
+  if (Buffer.byteLength(rateLimitSalt, "utf8") < MINIMUM_SALT_BYTES) {
+    throw new Error("RATE_LIMIT_SALT must contain at least 32 UTF-8 bytes");
   }
 
   return createHmac("sha256", rateLimitSalt).update(ip).digest("hex");
@@ -90,8 +93,8 @@ function assertConsumeInput(input: {
     throw new Error("visitorKey must be an HMAC-SHA256 digest");
   }
   assertTimestamp(input.now);
-  if (input.requestId.length === 0) {
-    throw new Error("requestId is required");
+  if (!REQUEST_ID_PATTERN.test(input.requestId)) {
+    throw new Error("requestId must be 1..128 printable ASCII characters");
   }
 }
 
@@ -123,15 +126,43 @@ export interface InMemoryRateLimitStoreOptions {
   readonly siteDayLimit?: number;
 }
 
+interface ExpiringCounter {
+  readonly count: number;
+  readonly expiresAt: number;
+}
+
+export interface InMemoryRateLimitStateSizeSnapshot {
+  readonly cooldowns: number;
+  readonly minuteVisitors: number;
+  readonly minuteEntries: number;
+  readonly visitorDayBuckets: number;
+  readonly siteDayBuckets: number;
+}
+
 export class InMemoryRateLimitStore implements RateLimitStore {
   readonly #policy: RateLimitPolicy;
   readonly #cooldowns = new Map<string, number>();
   readonly #minutes = new Map<string, Map<string, number>>();
-  readonly #visitorDays = new Map<string, number>();
-  readonly #siteDays = new Map<string, number>();
+  readonly #visitorDays = new Map<string, ExpiringCounter>();
+  readonly #siteDays = new Map<string, ExpiringCounter>();
+  #nextGlobalSweepAt = 0;
 
   constructor(options: InMemoryRateLimitStoreOptions = {}) {
     this.#policy = withPolicy(options);
+  }
+
+  getStateSizeSnapshot(): InMemoryRateLimitStateSizeSnapshot {
+    let minuteEntries = 0;
+    for (const entries of this.#minutes.values()) {
+      minuteEntries += entries.size;
+    }
+    return {
+      cooldowns: this.#cooldowns.size,
+      minuteVisitors: this.#minutes.size,
+      minuteEntries,
+      visitorDayBuckets: this.#visitorDays.size,
+      siteDayBuckets: this.#siteDays.size,
+    };
   }
 
   async consume(input: {
@@ -141,11 +172,15 @@ export class InMemoryRateLimitStore implements RateLimitStore {
   }): Promise<RateLimitResult> {
     assertConsumeInput(input);
     const { visitorKey, now, requestId } = input;
+    this.#sweepExpiredOnCadence(now);
     const { dayKey, resetAt: dayResetAt } = getShanghaiDayWindow(now);
 
     const cooldownResetAt = this.#cooldowns.get(visitorKey);
     if (cooldownResetAt !== undefined && now < cooldownResetAt) {
       return { allowed: false, reason: "cooldown", resetAt: cooldownResetAt };
+    }
+    if (cooldownResetAt !== undefined) {
+      this.#cooldowns.delete(visitorKey);
     }
 
     const minuteEntries = this.#minutes.get(visitorKey) ?? new Map();
@@ -154,6 +189,9 @@ export class InMemoryRateLimitStore implements RateLimitStore {
       if (timestamp < minuteCutoff) {
         minuteEntries.delete(entryRequestId);
       }
+    }
+    if (minuteEntries.size === 0) {
+      this.#minutes.delete(visitorKey);
     }
 
     const duplicateTimestamp = minuteEntries.get(requestId);
@@ -175,12 +213,14 @@ export class InMemoryRateLimitStore implements RateLimitStore {
     }
 
     const visitorDayKey = `${dayKey}:${visitorKey}`;
-    const visitorDayCount = this.#visitorDays.get(visitorDayKey) ?? 0;
+    const visitorDayEntry = this.#visitorDays.get(visitorDayKey);
+    const visitorDayCount = visitorDayEntry?.count ?? 0;
     if (visitorDayCount >= this.#policy.visitorDayLimit) {
       return { allowed: false, reason: "visitor_day", resetAt: dayResetAt };
     }
 
-    const siteDayCount = this.#siteDays.get(dayKey) ?? 0;
+    const siteDayEntry = this.#siteDays.get(dayKey);
+    const siteDayCount = siteDayEntry?.count ?? 0;
     if (siteDayCount >= this.#policy.siteDayLimit) {
       return { allowed: false, reason: "site_day", resetAt: dayResetAt };
     }
@@ -189,10 +229,58 @@ export class InMemoryRateLimitStore implements RateLimitStore {
     this.#cooldowns.set(visitorKey, nextCooldownResetAt);
     minuteEntries.set(requestId, now);
     this.#minutes.set(visitorKey, minuteEntries);
-    this.#visitorDays.set(visitorDayKey, visitorDayCount + 1);
-    this.#siteDays.set(dayKey, siteDayCount + 1);
+    const dayExpiresAt = now + DAY_KEY_TTL_SECONDS * 1_000;
+    this.#visitorDays.set(visitorDayKey, {
+      count: visitorDayCount + 1,
+      expiresAt: dayExpiresAt,
+    });
+    this.#siteDays.set(dayKey, {
+      count: siteDayCount + 1,
+      expiresAt: dayExpiresAt,
+    });
 
     return { allowed: true, resetAt: nextCooldownResetAt };
+  }
+
+  /**
+   * Global cleanup is intentionally amortized to at most once per minute. The
+   * current visitor is still pruned on every consume, while this bounded cadence
+   * prevents inactive visitors and 48-hour day buckets from accumulating.
+   */
+  #sweepExpiredOnCadence(now: number): void {
+    if (now < this.#nextGlobalSweepAt) {
+      return;
+    }
+    this.#nextGlobalSweepAt = now + GLOBAL_SWEEP_INTERVAL_MS;
+
+    for (const [visitorKey, resetAt] of this.#cooldowns) {
+      if (resetAt <= now) {
+        this.#cooldowns.delete(visitorKey);
+      }
+    }
+
+    const minuteCutoff = now - this.#policy.minuteWindowMs;
+    for (const [visitorKey, entries] of this.#minutes) {
+      for (const [requestId, timestamp] of entries) {
+        if (timestamp < minuteCutoff) {
+          entries.delete(requestId);
+        }
+      }
+      if (entries.size === 0) {
+        this.#minutes.delete(visitorKey);
+      }
+    }
+
+    for (const [key, entry] of this.#visitorDays) {
+      if (entry.expiresAt <= now) {
+        this.#visitorDays.delete(key);
+      }
+    }
+    for (const [key, entry] of this.#siteDays) {
+      if (entry.expiresAt <= now) {
+        this.#siteDays.delete(key);
+      }
+    }
   }
 }
 
@@ -326,9 +414,22 @@ function parseLuaResult(rawResult: unknown): RateLimitResult {
   if (!Array.isArray(rawResult) || rawResult.length !== 3) {
     throw new Error("invalid rate-limit response");
   }
-  const allowed = Number(rawResult[0]) === 1;
+  const rawAllowed = rawResult[0];
+  if (
+    rawAllowed !== 0 &&
+    rawAllowed !== "0" &&
+    rawAllowed !== 1 &&
+    rawAllowed !== "1"
+  ) {
+    throw new Error("invalid rate-limit response");
+  }
+  const allowed = rawAllowed === 1 || rawAllowed === "1";
   const reason = rawResult[1];
-  const resetAt = Number(rawResult[2]);
+  const rawResetAt = rawResult[2];
+  if (typeof rawResetAt !== "number" && typeof rawResetAt !== "string") {
+    throw new Error("invalid rate-limit response");
+  }
+  const resetAt = Number(rawResetAt);
   if (!Number.isSafeInteger(resetAt) || resetAt < 0) {
     throw new Error("invalid rate-limit response");
   }
