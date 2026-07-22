@@ -6,19 +6,19 @@ Make the committed portfolio knowledge index strictly canonical, privacy-safe, c
 
 ## Trust Boundary
 
-Verification proves that the artifact is structurally canonical for the current manifest, internally consistent with the chunking rules, and bound to the current source files by SHA-256 digests. It deliberately does not rerun OCR and therefore cannot cryptographically defeat a malicious coordinated rewrite of both application code and artifact.
+Verification proves that the artifact is structurally canonical for the current manifest and internally consistent with the chunking rules. Matching SHA-256 digests prove source-file freshness: the current source files still match the digests recorded in the artifact. Because verification deliberately does not rerun extraction or OCR, those digests do not prove that artifact text was derived from the source files, and verification cannot resist coordinated artifact or code-and-artifact edits.
 
 ## Canonical Verifier
 
 `validateGeneratedIndex` will parse unknown input rather than cast it. It will require exact top-level and chunk key sets, validate every primitive and array, and copy accepted values into a fresh `GeneratedKnowledgeIndex`. Manifest metadata is authoritative: title, public target, citation, aliases, tags, and optional project ID must match exactly.
 
-Chunks will be consumed in manifest source order and ascending page order. Each nonvisual page must have at least one chunk; visual pages may have none. IDs and chunk indexes must be contiguous. Text must already equal `normalizeKnowledgeText(text)`, contain at most 1,200 Unicode code points, and produce exactly the stored ordered terms from `[title, ...aliases, ...tags, text]`. Consecutive chunks on a page must have exactly 150 code points of overlap. Multi-chunk pages must use full 1,200-code-point non-final chunks, advance by 1,050 code points, and have a nonempty final chunk no longer than 1,200 code points.
+Chunks will be consumed in manifest source order and ascending page order. Each nonvisual page must have at least one chunk; visual pages may have none. IDs and chunk indexes must be contiguous. Text must already equal `normalizeKnowledgeText(text)`, contain at most 1,200 Unicode code points, and produce exactly the stored ordered terms from `[title, ...aliases, ...tags, text]`. Chunk boundaries move backward when needed so emitted chunks have no leading or trailing normalized whitespace. Consecutive chunks on a multi-chunk page have exactly 150 code points of overlap; the verifier reconstructs and deterministically rechunks the page to enforce canonical progression and a nonempty final chunk of at most 1,200 code points.
 
 ## Privacy Detection
 
 Complete email tokens are extracted before comparison; only an exact case-insensitive match with the approved public address is accepted. Longer emails containing the approved address remain unapproved.
 
-Phone detection considers unlabelled international `+` candidates and standalone 11-digit mobile candidates, then excludes clearly technical or non-contact shapes such as year ranges, dimensions, page/model identifiers, and address-space wording. Address detection operates line by line and requires residential/contact labels or street-address context; technical uses such as IP address and memory address remain accepted. Tests use synthetic values only.
+Phone detection considers unlabelled international `+` candidates, standalone 11-digit mobile candidates, and high-confidence formatted 10–11 digit local candidates, then excludes labelled non-contact shapes such as year ranges, dimensions, dates, and page/model/serial/product identifiers. Address detection operates line by line, evaluates residential/contact labels and street-address context before technical exemptions, and still accepts technical-only uses such as IP address and memory address. Tests use synthetic values only.
 
 ## Cleanup Semantics
 

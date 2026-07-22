@@ -234,6 +234,22 @@ function containsPhoneCandidate(text: string): boolean {
     const digits = match[0].replace(/\D/gu, "");
     if (digits.length >= 8 && digits.length <= 15) return true;
   }
+
+  const nonPhoneContext =
+    /(?:year(?:\s+range)?|timeline|dimensions?|page(?:\s+range)?|model|serial|product(?:\s+code)?|date|年份|日期|尺寸|页码|型号|序列号|产品(?:编号)?)\s*[:：#-]?\s*$/iu;
+  for (const line of text.split(/\r?\n/u)) {
+    for (const match of line.matchAll(
+      /(?<![\p{L}\p{N}-])(?:\(\d{2,4}\)|\d{2,4})[ .-]+\d{3,4}[ .-]+\d{3,4}(?![\p{L}\p{N}-])/gu,
+    )) {
+      const digits = match[0].replace(/\D/gu, "");
+      if (digits.length < 10 || digits.length > 11) continue;
+      const prefix = line.slice(
+        Math.max(0, (match.index ?? 0) - 40),
+        match.index ?? 0,
+      );
+      if (!nonPhoneContext.test(prefix)) return true;
+    }
+  }
   return false;
 }
 
@@ -248,13 +264,15 @@ function containsPrivateAddress(text: string): boolean {
     /(?:\b\d{1,6}\s+[\p{L}][\p{L} .'-]{0,60}\s+(?:street|st|avenue|ave|road|rd|lane|ln|boulevard|blvd|drive|dr)\b|(?:路|街|道|巷)\s*\d+\s*号)/iu;
 
   return text.split(/\r?\n/u).some((line) => {
-    if (privateMarker.test(line)) return true;
-    if (technicalAddress.test(line)) return false;
-    return (
+    if (
+      privateMarker.test(line) ||
       contactLabel.test(line) ||
-      genericAddressLabel.test(line) ||
       streetAddress.test(line)
-    );
+    ) {
+      return true;
+    }
+    if (technicalAddress.test(line)) return false;
+    return genericAddressLabel.test(line);
   });
 }
 

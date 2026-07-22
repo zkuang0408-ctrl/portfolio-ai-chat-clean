@@ -797,6 +797,44 @@ describe("privacy and deterministic serialization", () => {
     }
   });
 
+  test("rejects private addresses that follow technical address text on one line", () => {
+    for (const text of [
+      "IP address: 192.0.2.10; Home address: 42 Example Street",
+      "memory address: 0x7fff0000; 联系地址：示例市测试区虚构路 88 号",
+      "address bus width: 64-bit; 住址：示例市样本街 17 号",
+    ]) {
+      expect(() => assertPrivacySafe(text)).toThrow("Private contact data detected");
+    }
+  });
+
+  test("rejects unlabelled formatted local phone candidates", () => {
+    for (const text of [
+      "☎ (212) 555-0198",
+      "020 7946 0958",
+      "138 0013 8000",
+    ]) {
+      expect(() => assertPrivacySafe(text)).toThrow("Private contact data detected");
+    }
+  });
+
+  test("allows labelled non-phone numeric formats", () => {
+    for (const text of [
+      "Year range: 2020-2024",
+      "Dimensions: 1200-150-030 mm",
+      "Page range: 000-123-4567",
+      "Model: 020-7946-0958",
+      "Serial: (212) 555-0198",
+      "Product code: 138 0013 8000",
+      "Date: 2026-07-22",
+    ]) {
+      expect(() => assertPrivacySafe(text)).not.toThrow();
+    }
+  });
+
+  test("allows longer hyphen-delimited technical identifiers", () => {
+    expect(() => assertPrivacySafe("Artifact ID: 123-456-7890-A")).not.toThrow();
+  });
+
   test("serializes recursively with stable key ordering", () => {
     const first = {
       version: 1,

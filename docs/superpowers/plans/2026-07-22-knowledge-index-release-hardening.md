@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status:** Completed and archived. The steps below are retained as the historical execution plan; implementation and release checks were completed in the Task 5 hardening commits. Unchecked boxes are archival plan syntax, not outstanding work.
+
 **Goal:** Enforce a canonical, privacy-safe knowledge artifact with cleanup-safe generation and a verified server-only browser boundary.
 
 **Architecture:** Keep generation and no-OCR verification separate. Parse the committed artifact against manifest-driven canonical invariants, centralize primary-plus-cleanup error handling, classify privacy candidates by complete tokens and context, and inspect fresh build output with a deterministic helper.
@@ -22,7 +24,7 @@ Add table-driven mutations that insert extra top/chunk keys; delete required key
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
-Run `D:\APPS\claude\npm.cmd test -- --run src/chat/knowledge/build-index.test.ts`. Expected: the new mutations are accepted by the current permissive validator.
+Run `npm.cmd test -- --run src/chat/knowledge/build-index.test.ts`. Expected: the new mutations are accepted by the current permissive validator.
 
 - [ ] **Step 3: Implement exact parsing and sequence validation**
 
@@ -84,7 +86,7 @@ Run the same files and confirm all primary identities and cleanup attempts.
 **Files:**
 - Modify: `src/production-delivery.test.ts`
 - Create: `scripts/check-client-bundle.ts`
-- Create: `scripts/check-client-bundle.test.ts`
+- Create: `src/check-client-bundle.test.ts`
 - Modify: `package.json`
 
 - [ ] **Step 1: Write failing static and bundle tests**
@@ -93,7 +95,7 @@ Test literal dynamic imports and `.tsx/.js/.mjs` resolution in a temporary sourc
 
 - [ ] **Step 2: Run focused delivery tests and verify RED**
 
-Run `D:\APPS\claude\npm.cmd test -- --run src/production-delivery.test.ts scripts/check-client-bundle.test.ts`. Expected: unsupported graph forms and missing helper/build hook fail.
+Run `npm.cmd test -- --run src/production-delivery.test.ts src/check-client-bundle.test.ts`. Expected: unsupported graph forms and missing helper/build hook fail.
 
 - [ ] **Step 3: Implement deterministic scanning**
 
@@ -124,7 +126,7 @@ Run build-index tests. If current behavior passes, retain the tests as platform 
 
 - [ ] **Step 1: Run generation twice with the cached OCR models**
 
-Run `D:\APPS\claude\npm.cmd run knowledge:generate` twice. Record SHA-256 and byte size after each run without printing chunk text. Expected: identical values, 8 sources, 137 pages total, and no empty nonvisual pages.
+Run `npm.cmd run knowledge:generate` twice. Record SHA-256 and byte size after each run without printing chunk text. Expected: identical values, 8 sources, 137 pages total, and no empty nonvisual pages.
 
 - [ ] **Step 2: Verify no-OCR and no-rewrite behavior**
 
