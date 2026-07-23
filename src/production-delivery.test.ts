@@ -344,6 +344,17 @@ describe('production document assets', () => {
     expect(invalidSpecifiers).toEqual([]);
   });
 
+  it('declares the knowledge index JSON type for the Node ESM runtime', () => {
+    const runtimeSource = readFileSync(
+      resolve(projectRoot, 'src/chat/server/runtime.ts'),
+      'utf8',
+    );
+
+    expect(runtimeSource).toContain(
+      'from "../knowledge/generated-index.json" with { type: "json" };',
+    );
+  });
+
   it('verifies the committed knowledge index before every production build', () => {
     const packageJson = JSON.parse(
       readFileSync(new URL('../package.json', import.meta.url), 'utf8'),

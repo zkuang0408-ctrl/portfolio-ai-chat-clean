@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { ipAddress as vercelIpAddress } from "@vercel/functions/headers";
 
-import generatedIndexJson from "../knowledge/generated-index.json";
+import generatedIndexJson from "../knowledge/generated-index.json" with { type: "json" };
 import type { GeneratedKnowledgeIndex } from "../knowledge/types.js";
 import { createLocalHybridRetriever } from "../retrieval/local-hybrid.js";
 import type { Retriever } from "../retrieval/retriever.js";
