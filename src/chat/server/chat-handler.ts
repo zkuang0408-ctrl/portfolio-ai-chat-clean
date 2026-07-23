@@ -9,7 +9,10 @@ import type {
   SourceMarker,
 } from "./chat-types.js";
 import { createCitationParser } from "./citations.js";
-import { DeepSeekProviderError } from "./deepseek-provider.js";
+import {
+  DeepSeekProviderError,
+  type DeepSeekProviderErrorCategory,
+} from "./deepseek-provider.js";
 import { buildGroundedPrompt } from "./prompt.js";
 import type { RateLimitStore } from "./rate-limit.js";
 import { deriveVisitorKey } from "./rate-limit.js";
@@ -49,6 +52,9 @@ export interface ChatHandlerDependencies {
   readonly clock: () => number;
   readonly requestId: () => string;
   metrics: ChatMetricsSink;
+  readonly providerFailure: (
+    category: DeepSeekProviderErrorCategory | "unknown",
+  ) => void;
 }
 
 const encoder = new TextEncoder();
@@ -401,6 +407,15 @@ function createAnswerStream(input: {
             continue;
           }
 
+          try {
+            input.dependencies.providerFailure(
+              error instanceof DeepSeekProviderError
+                ? error.category
+                : "unknown",
+            );
+          } catch {
+            // Diagnostics must never change the visitor-facing response.
+          }
           if (!cancelled && !upstreamController.signal.aborted) {
             send({
               type: "error",

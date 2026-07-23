@@ -10,6 +10,7 @@ import {
 import type { ChatProvider, PublicChatError } from "./chat-types.js";
 import {
   DeepSeekProvider,
+  type DeepSeekProviderErrorCategory,
   type DeepSeekProviderOptions,
 } from "./deepseek-provider.js";
 import {
@@ -48,6 +49,9 @@ export interface RuntimeOptions {
   readonly clock?: () => number;
   readonly requestId?: () => string;
   readonly metrics?: ChatMetricsSink;
+  readonly providerFailure?: (
+    category: DeepSeekProviderErrorCategory | "unknown",
+  ) => void;
 }
 
 export interface ChatRuntime {
@@ -238,6 +242,7 @@ export function createRuntime(options: RuntimeOptions): ChatRuntime {
       clock: options.clock ?? Date.now,
       requestId: options.requestId ?? (() => globalThis.crypto.randomUUID()),
       metrics: options.metrics ?? noopMetrics,
+      providerFailure: options.providerFailure ?? (() => {}),
     };
     return {
       enabled: true,

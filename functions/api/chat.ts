@@ -35,6 +35,14 @@ export async function onRequest(context: PagesContext): Promise<Response> {
     env: context.env,
     ipAddress: (request) =>
       request.headers.get("CF-Connecting-IP") ?? undefined,
+    providerFailure: (category) => {
+      console.warn(
+        JSON.stringify({
+          event: "portfolio_chat_upstream_failure",
+          category,
+        }),
+      );
+    },
   });
   return runtime.handle(context.request);
 }

@@ -54,12 +54,26 @@ test("passes Cloudflare bindings and trusted visitor IP to the runtime", async (
   const options = mocks.createRuntime.mock.calls[0]?.[0] as {
     env: typeof env;
     ipAddress(request: Request): string | undefined;
+    providerFailure(category: string): void;
   };
 
   expect(response.headers.get("content-type")).toBe("text/event-stream");
   expect(options.env).toBe(env);
   expect(options.ipAddress(request)).toBe("203.0.113.10");
   expect(mocks.handle).toHaveBeenCalledWith(request);
+
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    options.providerFailure("authentication");
+    expect(warn).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: "portfolio_chat_upstream_failure",
+        category: "authentication",
+      }),
+    );
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 test("reuses one runtime within a Cloudflare isolate", async () => {

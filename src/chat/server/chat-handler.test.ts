@@ -98,6 +98,7 @@ function dependencies(options: {
   provider?: ChatProvider;
   rateResult?: { allowed: boolean; resetAt: number };
   metrics?: ChatMetric[];
+  providerFailures?: string[];
 } = {}): ChatHandlerDependencies {
   const retriever: Retriever = {
     search: vi.fn(async () =>
@@ -129,6 +130,9 @@ function dependencies(options: {
       record(metric) {
         options.metrics?.push(metric);
       },
+    },
+    providerFailure(category) {
+      options.providerFailures?.push(category);
     },
   };
 }
@@ -278,17 +282,22 @@ describe("handleChat", () => {
   test.each([
     ["authentication", new DeepSeekProviderError("authentication", false)],
     ["balance", new DeepSeekProviderError("balance", false)],
-    ["malformed", new DeepSeekProviderError("malformed_response", false)],
-  ] as const)("does not retry an explicit non-retryable %s failure", async (_name, failure) => {
+    ["malformed_response", new DeepSeekProviderError("malformed_response", false)],
+  ] as const)("records the sanitized category for a non-retryable %s failure", async (category, failure) => {
+    const providerFailures: string[] = [];
     const provider = providerFromAttempts([failure, [
       { type: "delta", text: "must not run" },
       { type: "done" },
     ]]);
-    const response = await handleChat(request(), dependencies({ provider }));
+    const response = await handleChat(
+      request(),
+      dependencies({ provider, providerFailures }),
+    );
     const events = await readEvents(response);
 
     expect(provider.calls).toBe(1);
     expect(events.map(({ event }) => event)).toEqual(["start", "error"]);
+    expect(providerFailures).toEqual([category]);
   });
 
   test("retries an explicit retryable provider failure before visible output", async () => {
