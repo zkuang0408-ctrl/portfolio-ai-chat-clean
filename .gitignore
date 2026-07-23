@@ -12,6 +12,8 @@ output/playwright/
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
 tmp/pdfs/
 tmp/tesseract-cache/
 knowledge/private-sources/

@@ -45,6 +45,18 @@ function trackedFiles(): readonly string[] {
     .map((path) => resolve(projectRoot, path));
 }
 
+function isIgnored(path: string): boolean {
+  const result = spawnSync(
+    'git',
+    ['check-ignore', '--no-index', '--quiet', path],
+    { cwd: projectRoot, encoding: 'utf8' },
+  );
+  if (result.status !== 0 && result.status !== 1) {
+    throw new Error('git check-ignore failed');
+  }
+  return result.status === 0;
+}
+
 const deepSeekSecretPatternSource = `${['s', 'k', '-'].join('')}[A-Za-z0-9_-]{20,}`;
 
 function findSecretBearingPaths(
@@ -180,21 +192,26 @@ function sourceFiles(rootPath: string): readonly string[] {
 
 describe('production document assets', () => {
   it('ignores local environment files while keeping the safe example tracked', () => {
-    const isIgnored = (path: string): boolean => {
-      const result = spawnSync(
-        'git',
-        ['check-ignore', '--no-index', '--quiet', path],
-        { cwd: projectRoot, encoding: 'utf8' },
-      );
-      if (result.status !== 0 && result.status !== 1) {
-        throw new Error('git check-ignore failed');
-      }
-      return result.status === 0;
-    };
-
     expect(isIgnored('.env')).toBe(true);
     expect(isIgnored('.env.production')).toBe(true);
     expect(isIgnored('.env.example')).toBe(false);
+  });
+
+  it('routes only API traffic through Cloudflare Functions', () => {
+    const routes = JSON.parse(
+      readFileSync(resolve(projectRoot, 'public/_routes.json'), 'utf8'),
+    );
+
+    expect(routes).toEqual({
+      version: 1,
+      include: ['/api/*'],
+      exclude: [],
+    });
+  });
+
+  it('ignores Cloudflare local secret files', () => {
+    expect(isIgnored('.dev.vars')).toBe(true);
+    expect(isIgnored('.dev.vars.production')).toBe(true);
   });
 
   it('keeps every git-tracked path in secret-scan scope', () => {
@@ -305,6 +322,7 @@ describe('production document assets', () => {
     expect(tsconfig.include).toEqual([
       'src',
       'api',
+      'functions',
       'scripts',
       'vite.config.ts',
       'vitest.config.ts',
