@@ -39,11 +39,11 @@ Cloudflare 托管前端，Vercel 托管聊天 API。需要迁移 Preview Secrets
 
 ## Cloudflare Token 权限
 
-用户在 Cloudflare Dashboard 创建专用 API Token，作用域仅限当前 Cloudflare 账户，权限采用官方默认 Gateway 初始化所需的最小集合：
+用户在 Cloudflare Dashboard 的 `AI > AI Gateway > default > Settings` 中使用 `Create authentication token` 创建专用运行 Token。该 Token 作用域为当前 Cloudflare 账户，只授予调用已存在 Gateway 所需的：
 
-- Account / AI Gateway / Read
-- Account / AI Gateway / Edit
-- Account / Workers AI / Read
+- Account / AI Gateway / Run
+
+`AI Gateway Read`、`AI Gateway Edit` 与 `Workers AI Read` 用于创建或管理 Gateway，不授予只负责生产请求认证的运行 Token。Cloudflare 2026 年 6 月更新后的认证文档明确区分了 Gateway 运行权限与管理权限。
 
 Token 不发送到聊天，不写入 Git，不用于浏览器，不与 Wrangler OAuth Token 混用。它只保存为 Cloudflare Production Secret：
 
@@ -51,7 +51,10 @@ Token 不发送到聊天，不写入 Git，不用于浏览器，不与 Wrangler 
 CLOUDFLARE_AI_GATEWAY_TOKEN
 ```
 
-如果 Dashboard 的权限名称显示为 `AI Gateway Read`、`AI Gateway Edit` 和 `Workers AI Read`，选择对应项即可。
+参考：
+
+- <https://developers.cloudflare.com/ai-gateway/configuration/authentication/>
+- <https://developers.cloudflare.com/ai-gateway/get-started/>
 
 ## 代码架构
 
