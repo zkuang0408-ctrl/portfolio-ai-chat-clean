@@ -20,6 +20,7 @@ const expectedEnvironmentExample = [
   'DEEPSEEK_API_KEY=',
   'DEEPSEEK_BASE_URL=https://api.deepseek.com',
   'DEEPSEEK_MODEL=deepseek-v4-flash',
+  'CLOUDFLARE_AI_GATEWAY_TOKEN=',
   'RATE_LIMIT_KV_URL=',
   'RATE_LIMIT_KV_TOKEN=',
   'RATE_LIMIT_SALT=',
