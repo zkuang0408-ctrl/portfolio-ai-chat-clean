@@ -2,7 +2,7 @@ import type {
   ChatProvider,
   ProviderEvent,
   ProviderInput,
-} from "./chat-types";
+} from "./chat-types.js";
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "deepseek-v4-flash";

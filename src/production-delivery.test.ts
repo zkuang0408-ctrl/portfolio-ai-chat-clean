@@ -70,7 +70,7 @@ function findSecretBearingPaths(
 function importedModules(filePath: string): readonly string[] {
   const source = readFileSync(filePath, 'utf8');
   const patterns = [
-    /(?:import|export)\s+(?:[^;\n]*?\s+from\s+)?["']([^"']+)["']/g,
+    /(?:import|export)\s+(?:[^;]*?\s+from\s+)?["']([^"']+)["']/g,
     /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
     /\bimport\.meta\.glob(?:Eager)?\s*\(\s*["']([^"']+)["']/g,
   ];
@@ -129,6 +129,36 @@ function browserImportGraph(entryPath: string): readonly string[] {
           break;
         }
       }
+    }
+  }
+
+  return [...visited];
+}
+
+function nodeEsmImportGraph(entryPath: string): readonly string[] {
+  const visited = new Set<string>();
+  const pending = [entryPath];
+
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    if (visited.has(current) || !existsSync(current)) continue;
+    visited.add(current);
+
+    for (const modulePath of importedModules(current)) {
+      if (!modulePath.startsWith('.')) continue;
+      const base = resolve(dirname(current), modulePath);
+      const candidates = [
+        base,
+        `${base}.ts`,
+        `${base}.js`,
+        modulePath.endsWith('.js')
+          ? `${base.slice(0, -'.js'.length)}.ts`
+          : '',
+        resolve(base, 'index.ts'),
+        resolve(base, 'index.js'),
+      ].filter((candidate) => candidate.length > 0);
+      const source = candidates.find((candidate) => existsSync(candidate));
+      if (source && /\.(?:ts|js)$/u.test(source)) pending.push(source);
     }
   }
 
@@ -297,6 +327,21 @@ describe('production document assets', () => {
     );
 
     expect(compatibilityCheck.status).toBe(0);
+  });
+
+  it('uses explicit Node ESM extensions throughout the Vercel Function graph', () => {
+    const apiEntry = resolve(projectRoot, 'api/chat.ts');
+    const invalidSpecifiers = nodeEsmImportGraph(apiEntry).flatMap((path) =>
+      importedModules(path)
+        .filter((modulePath) => modulePath.startsWith('.'))
+        .filter((modulePath) => !/\.(?:js|json)$/u.test(modulePath))
+        .map(
+          (modulePath) =>
+            `${relative(projectRoot, path).replaceAll('\\', '/')}: ${modulePath}`,
+        ),
+    );
+
+    expect(invalidSpecifiers).toEqual([]);
   });
 
   it('verifies the committed knowledge index before every production build', () => {

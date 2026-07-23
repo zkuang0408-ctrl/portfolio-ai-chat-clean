@@ -1,10 +1,10 @@
-import type { SearchResult } from "../retrieval/retriever";
+import type { SearchResult } from "../retrieval/retriever.js";
 import type {
   ChatHistoryMessage,
   ChatLocale,
   PublicChatSource,
   SourceMarker,
-} from "./chat-types";
+} from "./chat-types.js";
 
 const SOURCE_MARKERS = [
   "S1",

@@ -3,24 +3,24 @@ import { randomUUID } from "node:crypto";
 import { ipAddress as vercelIpAddress } from "@vercel/functions/headers";
 
 import generatedIndexJson from "../knowledge/generated-index.json";
-import type { GeneratedKnowledgeIndex } from "../knowledge/types";
-import { createLocalHybridRetriever } from "../retrieval/local-hybrid";
-import type { Retriever } from "../retrieval/retriever";
+import type { GeneratedKnowledgeIndex } from "../knowledge/types.js";
+import { createLocalHybridRetriever } from "../retrieval/local-hybrid.js";
+import type { Retriever } from "../retrieval/retriever.js";
 import {
   handleChat,
   type ChatHandlerDependencies,
   type ChatMetricsSink,
-} from "./chat-handler";
-import type { ChatProvider, PublicChatError } from "./chat-types";
+} from "./chat-handler.js";
+import type { ChatProvider, PublicChatError } from "./chat-types.js";
 import {
   DeepSeekProvider,
   type DeepSeekProviderOptions,
-} from "./deepseek-provider";
+} from "./deepseek-provider.js";
 import {
   createUpstashRateLimitStore,
   type CreateUpstashRateLimitStoreOptions,
   type RateLimitStore,
-} from "./rate-limit";
+} from "./rate-limit.js";
 
 const generatedIndex = generatedIndexJson as GeneratedKnowledgeIndex;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";

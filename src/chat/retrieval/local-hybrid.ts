@@ -1,9 +1,9 @@
-import { buildTerms } from "../knowledge/build-index";
+import { buildTerms } from "../knowledge/build-index.js";
 import type {
   GeneratedKnowledgeIndex,
   KnowledgeChunk,
-} from "../knowledge/types";
-import type { Retriever, SearchOptions, SearchResult } from "./retriever";
+} from "../knowledge/types.js";
+import type { Retriever, SearchOptions, SearchResult } from "./retriever.js";
 
 const DEFAULT_MINIMUM_SCORE = 2.5;
 const DEFAULT_MAX_RESULTS = 8;

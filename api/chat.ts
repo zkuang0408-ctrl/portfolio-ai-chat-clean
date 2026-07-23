@@ -1,4 +1,4 @@
-import { createRuntime } from "../src/chat/server/runtime";
+import { createRuntime } from "../src/chat/server/runtime.js";
 
 let runtime: ReturnType<typeof createRuntime> | undefined;
 

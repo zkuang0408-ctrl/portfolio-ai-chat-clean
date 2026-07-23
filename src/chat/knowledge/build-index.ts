@@ -5,8 +5,8 @@ import type {
   GeneratedKnowledgeIndex,
   KnowledgeChunk,
   KnowledgeSource,
-} from "./types";
-import { attachCleanupError, runWithCleanup } from "./cleanup-error";
+} from "./types.js";
+import { attachCleanupError, runWithCleanup } from "./cleanup-error.js";
 
 export const DEFAULT_CHUNK_CHARACTERS = 1_200;
 export const DEFAULT_OVERLAP_CHARACTERS = 150;

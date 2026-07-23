@@ -1,4 +1,4 @@
-import type { KnowledgeChunk } from "../knowledge/types";
+import type { KnowledgeChunk } from "../knowledge/types.js";
 
 export interface SearchOptions {
   readonly locale: "zh" | "en";

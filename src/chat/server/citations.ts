@@ -1,4 +1,4 @@
-import type { SourceMarker } from "./chat-types";
+import type { SourceMarker } from "./chat-types.js";
 
 export interface CitationParseResult {
   readonly text: string;

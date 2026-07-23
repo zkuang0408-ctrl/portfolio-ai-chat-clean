@@ -3,7 +3,7 @@ import type {
   ChatLocale,
   ParsedChatBody,
   PublicChatErrorCode,
-} from "./chat-types";
+} from "./chat-types.js";
 
 export const MAX_CHAT_MESSAGE_CODE_POINTS = 600;
 export const MAX_CHAT_HISTORY_PAIRS = 10;

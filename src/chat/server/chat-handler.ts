@@ -1,4 +1,4 @@
-import type { Retriever, SearchResult } from "../retrieval/retriever";
+import type { Retriever, SearchResult } from "../retrieval/retriever.js";
 import type {
   ChatLocale,
   ChatProvider,
@@ -7,18 +7,18 @@ import type {
   PublicChatErrorCode,
   PublicChatSource,
   SourceMarker,
-} from "./chat-types";
-import { createCitationParser } from "./citations";
-import { DeepSeekProviderError } from "./deepseek-provider";
-import { buildGroundedPrompt } from "./prompt";
-import type { RateLimitStore } from "./rate-limit";
-import { deriveVisitorKey } from "./rate-limit";
+} from "./chat-types.js";
+import { createCitationParser } from "./citations.js";
+import { DeepSeekProviderError } from "./deepseek-provider.js";
+import { buildGroundedPrompt } from "./prompt.js";
+import type { RateLimitStore } from "./rate-limit.js";
+import { deriveVisitorKey } from "./rate-limit.js";
 import {
   ChatValidationError,
   MAX_CHAT_BODY_BYTES,
   parseChatBody,
   validateChatRequestContext,
-} from "./validation";
+} from "./validation.js";
 
 export type ChatMetricStatus =
   | "success"
