@@ -3,15 +3,50 @@ import { startPortfolioChat } from "./chat/chat-controller";
 import type { ChatLocale } from "./chat/content";
 import { createSafeSessionStorage } from "./chat/session";
 import { navigateToSource } from "./chat/source-navigation";
+import type { ProjectPageAsset } from "./content/portfolio";
 import { renderHero } from "./hero/render-hero";
 import { startPortrait } from "./particles/controller";
-import {
-  startProjectReaders,
-  type PdfReaderDependencies,
-} from "./portfolio/pdf-reader";
-import { loadPdfDocument } from "./portfolio/pdf-runtime";
+import { startProjectReaders } from "./portfolio/image-reader";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
+
+function selectedPageUrl(asset: ProjectPageAsset): string {
+  return window.matchMedia("(max-width: 760px)").matches
+    ? asset.mobile
+    : asset.desktop;
+}
+
+function loadProjectPage(asset: ProjectPageAsset): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Project page unavailable"));
+    image.src = selectedPageUrl(asset);
+  });
+}
+
+function preloadProjectPage(asset: ProjectPageAsset): void {
+  const image = new Image();
+  image.src = selectedPageUrl(asset);
+}
+
+function awaitVisibleImage(image: HTMLImageElement): Promise<void> {
+  if (image.complete && image.naturalWidth > 0) {
+    return image.decode().catch(() => undefined);
+  }
+  return new Promise((resolve, reject) => {
+    const handleLoad = () => {
+      image.removeEventListener("error", handleError);
+      resolve();
+    };
+    const handleError = () => {
+      image.removeEventListener("load", handleLoad);
+      reject(new Error("Project page unavailable"));
+    };
+    image.addEventListener("load", handleLoad, { once: true });
+    image.addEventListener("error", handleError, { once: true });
+  });
+}
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -40,14 +75,9 @@ const stopChat = startPortfolioChat(portrait.chatRoot, {
 });
 
 const stopReaders = startProjectReaders(portfolioRoot, {
-  loadDocument:
-    loadPdfDocument as PdfReaderDependencies["loadDocument"],
-  measureWidth: (stage) => stage.clientWidth,
-  outputScale: () => window.devicePixelRatio || 1,
-  requestFrame: window.requestAnimationFrame.bind(window),
-  cancelFrame: window.cancelAnimationFrame.bind(window),
-  reducedMotion: () =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  load: loadProjectPage,
+  preload: preloadProjectPage,
+  awaitVisibleImage,
 });
 function handlePageHide(event: PageTransitionEvent): void {
   if (event.persisted) {

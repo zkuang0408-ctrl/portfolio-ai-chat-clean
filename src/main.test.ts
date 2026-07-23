@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import type { PdfReaderDependencies } from "./portfolio/pdf-reader";
+import type { ImageReaderDependencies } from "./portfolio/image-reader";
 
 const startPortrait = vi.hoisted(() =>
   vi.fn().mockResolvedValue(() => undefined),
 );
-const loadPdfDocument = vi.hoisted(() => vi.fn());
 const stopReaders = vi.hoisted(() => vi.fn());
 const startProjectReaders = vi.hoisted(() =>
-  vi.fn((_root: ParentNode, _dependencies: PdfReaderDependencies) => stopReaders),
+  vi.fn(
+    (_root: ParentNode, _dependencies: ImageReaderDependencies) => stopReaders,
+  ),
 );
 const stopChat = vi.hoisted(() => vi.fn());
 const startPortfolioChat = vi.hoisted(() =>
@@ -17,8 +18,7 @@ const startPortfolioChat = vi.hoisted(() =>
 const navigateToSource = vi.hoisted(() => vi.fn());
 
 vi.mock("./particles/controller", () => ({ startPortrait }));
-vi.mock("./portfolio/pdf-reader", () => ({ startProjectReaders }));
-vi.mock("./portfolio/pdf-runtime", () => ({ loadPdfDocument }));
+vi.mock("./portfolio/image-reader", () => ({ startProjectReaders }));
 vi.mock("./chat/chat-controller", () => ({ startPortfolioChat }));
 vi.mock("./chat/source-navigation", () => ({ navigateToSource }));
 
@@ -28,7 +28,6 @@ beforeEach(() => {
   );
   vi.resetModules();
   startPortrait.mockClear();
-  loadPdfDocument.mockClear();
   stopReaders.mockClear();
   startProjectReaders.mockClear();
   startPortfolioChat.mockClear();
@@ -133,23 +132,9 @@ test("starts project readers after rendering their markup with browser dependenc
   expect(startProjectReaders.mock.calls[0]?.[0]).toBe(portfolioRoot);
 
   const dependencies = startProjectReaders.mock.calls[0]?.[1];
-  expect(dependencies?.loadDocument).toBe(loadPdfDocument);
-
-  const stage = document.createElement("div");
-  Object.defineProperty(stage, "clientWidth", { value: 864 });
-  expect(dependencies?.measureWidth(stage)).toBe(864);
-  expect(dependencies?.outputScale()).toBe(window.devicePixelRatio || 1);
-
-  const callback = vi.fn();
-  expect(dependencies?.requestFrame(callback)).toBe(17);
-  dependencies?.cancelFrame?.(17);
-  expect(requestFrame).toHaveBeenCalledWith(callback);
-  expect(cancelFrame).toHaveBeenCalledWith(17);
-
-  expect(dependencies?.reducedMotion()).toBe(true);
-  expect(matchMedia).toHaveBeenCalledWith(
-    "(prefers-reduced-motion: reduce)",
-  );
+  expect(dependencies?.load).toEqual(expect.any(Function));
+  expect(dependencies?.preload).toEqual(expect.any(Function));
+  expect(dependencies?.awaitVisibleImage).toEqual(expect.any(Function));
 });
 
 test("preserves chat and readers in BFCache and cleans both once on terminal pagehide", async () => {
