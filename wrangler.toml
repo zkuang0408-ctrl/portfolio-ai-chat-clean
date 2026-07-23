@@ -6,4 +6,5 @@ compatibility_flags = ["global_fetch_strictly_public"]
 [ai]
 binding = "AI"
 
-[env.production]
+[env.production.ai]
+binding = "AI"

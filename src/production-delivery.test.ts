@@ -221,6 +221,9 @@ describe('production document assets', () => {
       'compatibility_flags = ["global_fetch_strictly_public"]',
     );
     expect(config).toMatch(/\[ai\]\r?\nbinding = "AI"/u);
+    expect(config).toMatch(
+      /\[env\.production\.ai\]\r?\nbinding = "AI"/u,
+    );
   });
 
   it('ignores Cloudflare local secret files', () => {
