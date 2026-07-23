@@ -1,3 +1,5 @@
+import generatedPages from "../portfolio/generated-project-pages.json";
+
 export interface Capability {
   title: string;
   items: readonly string[];
@@ -17,10 +19,17 @@ export interface Profile {
   location: string;
 }
 
+export interface ProjectPageAsset {
+  readonly page: number;
+  readonly mobile: string;
+  readonly desktop: string;
+}
+
 export interface ProjectPdf {
   href: string;
   pageCount: number;
   title: string;
+  pages: readonly ProjectPageAsset[];
 }
 
 export interface Project {
@@ -39,6 +48,14 @@ export interface DocumentLink {
   format: "PDF" | "PPTX";
   href: string;
   filename: string;
+}
+
+function pagesFor(projectId: string): readonly ProjectPageAsset[] {
+  const entry = generatedPages.projects.find(({ id }) => id === projectId);
+  if (!entry) {
+    throw new Error(`Missing generated pages for ${projectId}`);
+  }
+  return entry.pages;
 }
 
 export const profile: Profile = {
@@ -83,6 +100,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/inkseat.pdf",
       pageCount: 18,
       title: "INKSeat complete project PDF",
+      pages: pagesFor("inkseat"),
     },
   },
   {
@@ -98,6 +116,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/emovue.pdf",
       pageCount: 19,
       title: "EMOVUE complete project PDF",
+      pages: pagesFor("emovue"),
     },
   },
   {
@@ -113,6 +132,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/fruit-evolution.pdf",
       pageCount: 25,
       title: "Fruit & Evolution complete project PDF",
+      pages: pagesFor("evolution-fruit"),
     },
   },
   {
@@ -128,6 +148,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/atempo.pdf",
       pageCount: 20,
       title: "Atempo / Breath Mirror complete project PDF",
+      pages: pagesFor("atempo"),
     },
   },
   {
@@ -143,6 +164,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/urosense.pdf",
       pageCount: 25,
       title: "UroSense complete project PDF",
+      pages: pagesFor("urosense"),
     },
   },
   {
@@ -158,6 +180,7 @@ export const projects: readonly Project[] = [
       href: "/projects/pdfs/first-fly.pdf",
       pageCount: 28,
       title: "First Fly complete project PDF",
+      pages: pagesFor("first-fly"),
     },
   },
 ];

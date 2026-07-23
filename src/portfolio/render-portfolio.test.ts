@@ -12,12 +12,26 @@ test("renders accessible resume, project, document, and contact sections", () =>
   expect(root.querySelectorAll("#projects article")).toHaveLength(6);
   const readers = root.querySelectorAll<HTMLElement>("[data-project-reader]");
   expect(readers).toHaveLength(6);
-  expect(root.querySelectorAll("#projects .project-media img")).toHaveLength(0);
+  expect(root.querySelectorAll("#projects .project-media img")).toHaveLength(6);
 
   const first = readers[0];
   expect(first?.dataset.pdfUrl).toBe("/projects/pdfs/inkseat.pdf");
   expect(first?.dataset.expectedPages).toBe("18");
-  expect(first?.querySelectorAll("canvas")).toHaveLength(1);
+  expect(first?.querySelectorAll("canvas")).toHaveLength(0);
+  expect(first?.querySelectorAll("picture")).toHaveLength(1);
+  const image = first?.querySelector<HTMLImageElement>("[data-page-image]");
+  const mobile = first?.querySelector<HTMLSourceElement>(
+    'source[media="(max-width: 760px)"]',
+  );
+  expect(image?.getAttribute("src")).toBe(projects[0]?.pdf.pages[0]?.desktop);
+  expect(image?.getAttribute("loading")).toBe("lazy");
+  expect(image?.getAttribute("decoding")).toBe("async");
+  expect(mobile?.getAttribute("srcset")).toBe(
+    projects[0]?.pdf.pages[0]?.mobile,
+  );
+  expect(
+    first?.querySelector("[data-open-original-pdf]")?.getAttribute("href"),
+  ).toBe("/projects/pdfs/inkseat.pdf");
   expect(first?.querySelectorAll("button[data-page-action]")).toHaveLength(2);
   expect(first?.querySelector("[data-current-page]")?.textContent).toBe("01");
   expect(first?.querySelector("[data-total-pages]")?.textContent).toBe("18");
@@ -54,7 +68,7 @@ test("renders accessible controls and matching metadata for every project reader
     const previousIcon = previous?.querySelector("svg");
     const nextIcon = next?.querySelector("svg");
     const originalPdf = reader?.querySelector<HTMLAnchorElement>(
-      "[data-reader-error] a",
+      "[data-open-original-pdf]",
     );
 
     expect(reader?.dataset.pdfUrl).toBe(project.pdf.href);
@@ -66,9 +80,11 @@ test("renders accessible controls and matching metadata for every project reader
     expect(reader?.getAttribute("aria-label")).toBe(
       `${project.title} complete PDF`,
     );
-    expect(reader?.querySelector("canvas")?.getAttribute("aria-label")).toBe(
-      project.pdf.title,
-    );
+    expect(
+      reader?.querySelector<HTMLImageElement>("[data-page-image]")?.alt,
+    ).toBe(`${project.pdf.title} — page 1 of ${project.pdf.pageCount}`);
+    expect(reader?.querySelectorAll("picture")).toHaveLength(1);
+    expect(project.pdf.pages).toHaveLength(project.pdf.pageCount);
     expect(reader?.querySelector("[data-current-page]")?.textContent).toBe("01");
     expect(reader?.querySelector("[data-total-pages]")?.textContent).toBe(
       String(project.pdf.pageCount),

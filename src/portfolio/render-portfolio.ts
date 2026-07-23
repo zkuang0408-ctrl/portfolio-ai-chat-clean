@@ -62,6 +62,12 @@ function renderProjectReader(project: Project): string {
   const pdfTitle = escapeHtml(project.pdf.title);
   const pdfUrl = escapeHtml(project.pdf.href);
   const expectedPages = String(project.pdf.pageCount);
+  const firstPage = project.pdf.pages[0];
+  if (!firstPage) {
+    throw new Error(`Missing first generated page for ${project.id}`);
+  }
+  const firstMobile = escapeHtml(firstPage.mobile);
+  const firstDesktop = escapeHtml(firstPage.desktop);
 
   return `
     <figure
@@ -76,12 +82,24 @@ function renderProjectReader(project: Project): string {
       aria-label="${projectTitle} complete PDF"
     >
       <div class="project-reader-stage" data-reader-stage>
-        <canvas data-pdf-canvas aria-label="${pdfTitle}"></canvas>
+        <picture data-page-picture>
+          <source
+            data-page-mobile
+            media="(max-width: 760px)"
+            srcset="${firstMobile}"
+          />
+          <img
+            data-page-image
+            src="${firstDesktop}"
+            alt="${pdfTitle} — page 1 of ${expectedPages}"
+            loading="lazy"
+            decoding="async"
+          />
+        </picture>
         <p data-reader-status aria-live="polite">Loading project</p>
         <div data-reader-error hidden>
           <p>Unable to load this project.</p>
           <button type="button" data-reader-retry>Retry</button>
-          <a href="${pdfUrl}" target="_blank" rel="noopener">Open original PDF</a>
         </div>
         <button
           class="project-reader-chevron project-reader-chevron--previous"
@@ -104,8 +122,16 @@ function renderProjectReader(project: Project): string {
           </svg>
         </button>
       </div>
-      <figcaption class="project-reader-counter">
-        <strong data-current-page>01</strong><span> / </span><span data-total-pages>${expectedPages}</span>
+      <figcaption class="project-reader-meta">
+        <span class="project-reader-counter">
+          <strong data-current-page>01</strong><span> / </span><span data-total-pages>${expectedPages}</span>
+        </span>
+        <a
+          data-open-original-pdf
+          href="${pdfUrl}"
+          target="_blank"
+          rel="noopener"
+        >Open complete PDF</a>
       </figcaption>
     </figure>
   `;
