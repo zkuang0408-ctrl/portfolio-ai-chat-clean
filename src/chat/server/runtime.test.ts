@@ -18,6 +18,8 @@ const validEnv = {
   RATE_LIMIT_KV_TOKEN: "upstash-token",
   RATE_LIMIT_SALT: "a-runtime-salt-that-is-at-least-thirty-two-bytes",
 };
+const cloudflareBaseUrl =
+  "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek";
 
 function validRequest(): Request {
   return new Request("https://portfolio.test/api/chat", {
@@ -197,17 +199,74 @@ describe("createRuntime", () => {
     });
   });
 
-  test("accepts and forwards the canonical Cloudflare DeepSeek gateway endpoint", () => {
+  test("requires and forwards the Cloudflare credential only for the gateway endpoint", () => {
     const captures: Parameters<typeof factories>[0] = {};
-    const baseUrl =
-      "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek";
     const runtime = createRuntime({
-      env: { ...validEnv, DEEPSEEK_BASE_URL: baseUrl },
+      env: {
+        ...validEnv,
+        DEEPSEEK_BASE_URL: cloudflareBaseUrl,
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "  cloudflare-runtime-token  ",
+      },
       factories: factories(captures),
     });
 
     expect(runtime.enabled).toBe(true);
-    expect(captures.providerOptions).toMatchObject({ baseUrl });
+    expect(captures.providerOptions).toMatchObject({
+      baseUrl: cloudflareBaseUrl,
+      gatewayToken: "cloudflare-runtime-token",
+    });
+  });
+
+  test("fails closed when a Cloudflare gateway endpoint lacks its credential", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: {
+        ...validEnv,
+        DEEPSEEK_BASE_URL: cloudflareBaseUrl,
+      },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(false);
+    expect(captures.providerOptions).toBeUndefined();
+  });
+
+  test.each([
+    " ",
+    "x".repeat(4_097),
+    "contains space",
+    "line\nbreak",
+    "非ASCII",
+  ])("fails closed for an unsafe Cloudflare gateway credential", (gatewayToken) => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: {
+        ...validEnv,
+        DEEPSEEK_BASE_URL: cloudflareBaseUrl,
+        CLOUDFLARE_AI_GATEWAY_TOKEN: gatewayToken,
+      },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(false);
+    expect(captures.providerOptions).toBeUndefined();
+  });
+
+  test("keeps direct DeepSeek enabled without forwarding a Cloudflare credential", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: {
+        ...validEnv,
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "cloudflare-runtime-token",
+      },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+    expect(captures.providerOptions).toMatchObject({
+      baseUrl: "https://api.deepseek.com",
+    });
+    expect(captures.providerOptions).not.toHaveProperty("gatewayToken");
   });
 
   test("normalizes transport whitespace around a configured provider endpoint", () => {

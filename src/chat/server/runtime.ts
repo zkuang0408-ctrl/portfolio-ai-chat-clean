@@ -14,6 +14,7 @@ import {
   type DeepSeekProviderErrorCategory,
   type DeepSeekProviderOptions,
   isApprovedDeepSeekBaseUrl,
+  isCloudflareDeepSeekBaseUrl,
 } from "./deepseek-provider.js";
 import {
   createUpstashRateLimitStore,
@@ -62,6 +63,7 @@ export interface ChatRuntime {
 
 interface RuntimeConfig {
   readonly apiKey: string;
+  readonly gatewayToken?: string;
   readonly baseUrl: string;
   readonly kvUrl: string;
   readonly kvToken: string;
@@ -96,6 +98,13 @@ function required(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function serverToken(value: string | undefined): string | undefined {
+  const token = required(value);
+  return token && token.length <= 4_096 && /^[\x21-\x7e]+$/.test(token)
+    ? token
+    : undefined;
+}
+
 function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
@@ -125,6 +134,10 @@ function parseConfig(
     env.DEEPSEEK_BASE_URL === undefined || env.DEEPSEEK_BASE_URL === ""
       ? DEFAULT_DEEPSEEK_BASE_URL
       : env.DEEPSEEK_BASE_URL.trim();
+  const usesCloudflareGateway = isCloudflareDeepSeekBaseUrl(baseUrl);
+  const gatewayToken = usesCloudflareGateway
+    ? serverToken(env.CLOUDFLARE_AI_GATEWAY_TOKEN)
+    : undefined;
   const model = required(env.DEEPSEEK_MODEL) ?? DEFAULT_MODEL;
   const timeoutMs = positiveInteger(
     env.CHAT_UPSTREAM_TIMEOUT_MS,
@@ -165,6 +178,7 @@ function parseConfig(
   if (
     !apiKey ||
     !isApprovedDeepSeekBaseUrl(baseUrl) ||
+    (usesCloudflareGateway && !gatewayToken) ||
     !kvToken ||
     !salt ||
     utf8ByteLength(salt) < 32 ||
@@ -188,6 +202,7 @@ function parseConfig(
   }
   return {
     apiKey,
+    ...(gatewayToken === undefined ? {} : { gatewayToken }),
     baseUrl,
     kvUrl: kvUrl.origin,
     kvToken,
@@ -227,6 +242,9 @@ export function createRuntime(options: RuntimeOptions): ChatRuntime {
       retriever: factories.createRetriever(generatedIndex),
       provider: factories.createProvider({
         apiKey: config.apiKey,
+        ...(config.gatewayToken === undefined
+          ? {}
+          : { gatewayToken: config.gatewayToken }),
         baseUrl: config.baseUrl,
         model: config.model,
         timeoutMs: config.timeoutMs,
