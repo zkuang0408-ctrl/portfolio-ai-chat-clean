@@ -169,10 +169,10 @@ a:focus-visible {
   position: absolute;
   z-index: 3;
   top: 39%;
-  bottom: clamp(24px, 3vh, 34px);
+  bottom: clamp(96px, 10vh, 112px);
   left: 6.5%;
   width: min(330px, 24vw);
-  max-height: calc(61% - 24px);
+  max-height: calc(61% - clamp(96px, 10vh, 112px));
   margin: 0;
   border: 0;
   border-radius: 0;

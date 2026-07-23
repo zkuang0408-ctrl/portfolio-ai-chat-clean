@@ -186,16 +186,18 @@ test("removes reader fades when reduced motion is requested", () => {
   );
 });
 
-test("positions the frameless assistant at the approved desktop coordinates", () => {
+test("keeps the frameless desktop assistant clear of the page index", () => {
   const heroChat = rule(".hero-chat");
 
   expect(heroChat).toMatch(/position:\s*absolute/);
   expect(heroChat).toMatch(/z-index:\s*3/);
   expect(heroChat).toMatch(/top:\s*39%/);
-  expect(heroChat).toMatch(/bottom:\s*clamp\(/);
+  expect(heroChat).toMatch(/bottom:\s*clamp\(96px,\s*10vh,\s*112px\)/);
   expect(heroChat).toMatch(/left:\s*6\.5%/);
   expect(heroChat).toMatch(/width:\s*min\(330px,\s*24vw\)/);
-  expect(heroChat).toMatch(/max-height:\s*calc\(61%\s*-/);
+  expect(heroChat).toMatch(
+    /max-height:\s*calc\(61%\s*-\s*clamp\(96px,\s*10vh,\s*112px\)\)/,
+  );
   expect(heroChat).toMatch(/border:\s*0/);
   expect(heroChat).toMatch(/border-radius:\s*0/);
   expect(heroChat).toMatch(/background:\s*transparent/);
