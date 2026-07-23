@@ -283,6 +283,22 @@ describe('production document assets', () => {
     ]);
   });
 
+  it('provides the CommonJS TypeScript system API required by Vercel Functions', () => {
+    const compatibilityCheck = spawnSync(
+      process.execPath,
+      [
+        '-e',
+        [
+          'const ts = require("typescript");',
+          'if (typeof ts.sys?.readFile !== "function") process.exit(1);',
+        ].join(' '),
+      ],
+      { cwd: projectRoot, encoding: 'utf8' },
+    );
+
+    expect(compatibilityCheck.status).toBe(0);
+  });
+
   it('verifies the committed knowledge index before every production build', () => {
     const packageJson = JSON.parse(
       readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
