@@ -149,21 +149,32 @@ describe("DeepSeekProvider request", () => {
     expect(body.model).toBe("deepseek-v4-flash");
   });
 
-  test("cannot redirect requests away from the fixed DeepSeek HTTPS endpoint", async () => {
+  test("routes requests through an approved Cloudflare AI Gateway base URL", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       okResponse("data: [DONE]\n\n"),
     );
     const provider = new DeepSeekProvider({
       apiKey: TEST_TOKEN,
       fetch: fetchMock,
-      baseUrl: "http://attacker.invalid/private-token",
-    } as ConstructorParameters<typeof DeepSeekProvider>[0] & { baseUrl: string });
+      baseUrl:
+        "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek",
+    });
 
     await collect(provider);
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://api.deepseek.com/chat/completions",
+      "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek/chat/completions",
     );
+  });
+
+  test("rejects an unapproved provider base URL", () => {
+    expect(
+      () =>
+        new DeepSeekProvider({
+          apiKey: TEST_TOKEN,
+          baseUrl: "https://proxy.example.com/private-token",
+        }),
+    ).toThrow("DeepSeek provider configuration is invalid");
   });
 
   test("trims bounded configuration and opaque user IDs before sending", async () => {

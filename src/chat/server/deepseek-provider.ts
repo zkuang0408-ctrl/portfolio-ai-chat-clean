@@ -4,7 +4,9 @@ import type {
   ProviderInput,
 } from "./chat-types.js";
 
-const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
+export const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const CLOUDFLARE_DEEPSEEK_BASE_URL =
+  /^https:\/\/gateway\.ai\.cloudflare\.com\/v1\/[a-f0-9]{32}\/[a-z0-9][a-z0-9_-]{0,63}\/deepseek$/;
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
@@ -42,10 +44,18 @@ export class DeepSeekProviderError extends Error {
 
 export interface DeepSeekProviderOptions {
   readonly apiKey: string;
+  readonly baseUrl?: string;
   readonly model?: string;
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
   readonly fetch?: typeof fetch;
+}
+
+export function isApprovedDeepSeekBaseUrl(value: string): boolean {
+  return (
+    value === DEFAULT_DEEPSEEK_BASE_URL ||
+    CLOUDFLARE_DEEPSEEK_BASE_URL.test(value)
+  );
 }
 
 interface UsagePayload {
@@ -318,6 +328,7 @@ function codePointLength(value: string): number {
 
 export class DeepSeekProvider implements ChatProvider {
   readonly #apiKey: string;
+  readonly #endpoint: string;
   readonly #model: string;
   readonly #timeoutMs: number;
   readonly #maxTokens: number;
@@ -325,12 +336,14 @@ export class DeepSeekProvider implements ChatProvider {
 
   constructor(options: DeepSeekProviderOptions) {
     const apiKey = options.apiKey.trim();
+    const baseUrl = options.baseUrl ?? DEFAULT_DEEPSEEK_BASE_URL;
     const model = (options.model ?? DEFAULT_MODEL).trim();
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
     const valid =
       apiKey.length > 0 &&
       apiKey.length <= MAX_API_KEY_CHARS &&
+      isApprovedDeepSeekBaseUrl(baseUrl) &&
       model.length > 0 &&
       model.length <= MAX_MODEL_CHARS &&
       /^[\x21-\x7e]+$/.test(model) &&
@@ -345,6 +358,7 @@ export class DeepSeekProvider implements ChatProvider {
     }
 
     this.#apiKey = apiKey;
+    this.#endpoint = `${baseUrl}/chat/completions`;
     this.#model = model;
     this.#timeoutMs = timeoutMs;
     this.#maxTokens = maxTokens;
@@ -366,7 +380,7 @@ export class DeepSeekProvider implements ChatProvider {
     const composite = createCompositeSignal(externalSignal, this.#timeoutMs);
     let response: Response;
     try {
-      response = await this.#fetch(DEEPSEEK_ENDPOINT, {
+      response = await this.#fetch(this.#endpoint, {
         method: "POST",
         headers: {
           authorization: `Bearer ${this.#apiKey}`,

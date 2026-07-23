@@ -9,9 +9,11 @@ import {
 } from "./chat-handler.js";
 import type { ChatProvider, PublicChatError } from "./chat-types.js";
 import {
+  DEFAULT_DEEPSEEK_BASE_URL,
   DeepSeekProvider,
   type DeepSeekProviderErrorCategory,
   type DeepSeekProviderOptions,
+  isApprovedDeepSeekBaseUrl,
 } from "./deepseek-provider.js";
 import {
   createUpstashRateLimitStore,
@@ -20,7 +22,6 @@ import {
 } from "./rate-limit.js";
 
 const generatedIndex = generatedIndexJson as GeneratedKnowledgeIndex;
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
@@ -61,6 +62,7 @@ export interface ChatRuntime {
 
 interface RuntimeConfig {
   readonly apiKey: string;
+  readonly baseUrl: string;
   readonly kvUrl: string;
   readonly kvToken: string;
   readonly salt: string;
@@ -121,7 +123,7 @@ function parseConfig(
   const salt = required(env.RATE_LIMIT_SALT);
   const baseUrl =
     env.DEEPSEEK_BASE_URL === undefined || env.DEEPSEEK_BASE_URL === ""
-      ? DEEPSEEK_BASE_URL
+      ? DEFAULT_DEEPSEEK_BASE_URL
       : env.DEEPSEEK_BASE_URL;
   const model = required(env.DEEPSEEK_MODEL) ?? DEFAULT_MODEL;
   const timeoutMs = positiveInteger(
@@ -162,7 +164,7 @@ function parseConfig(
   }
   if (
     !apiKey ||
-    baseUrl !== DEEPSEEK_BASE_URL ||
+    !isApprovedDeepSeekBaseUrl(baseUrl) ||
     !kvToken ||
     !salt ||
     utf8ByteLength(salt) < 32 ||
@@ -186,6 +188,7 @@ function parseConfig(
   }
   return {
     apiKey,
+    baseUrl,
     kvUrl: kvUrl.origin,
     kvToken,
     salt,
@@ -224,6 +227,7 @@ export function createRuntime(options: RuntimeOptions): ChatRuntime {
       retriever: factories.createRetriever(generatedIndex),
       provider: factories.createProvider({
         apiKey: config.apiKey,
+        baseUrl: config.baseUrl,
         model: config.model,
         timeoutMs: config.timeoutMs,
         maxTokens: config.maxTokens,

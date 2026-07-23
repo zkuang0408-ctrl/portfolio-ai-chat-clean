@@ -143,11 +143,11 @@ describe("createRuntime", () => {
     expect(captures.index?.chunks.some(({ sourceId }) => sourceId === "profile")).toBe(true);
     expect(captures.providerOptions).toMatchObject({
       apiKey: validEnv.DEEPSEEK_API_KEY,
+      baseUrl: "https://api.deepseek.com",
       model: "deepseek-v4-flash",
       timeoutMs: 45_000,
       maxTokens: 700,
     });
-    expect(captures.providerOptions).not.toHaveProperty("baseUrl");
     expect(captures.rateOptions).toEqual({
       url: validEnv.RATE_LIMIT_KV_URL,
       token: validEnv.RATE_LIMIT_KV_TOKEN,
@@ -182,11 +182,11 @@ describe("createRuntime", () => {
 
     expect(runtime.enabled).toBe(true);
     expect(captures.providerOptions).toMatchObject({
+      baseUrl: "https://api.deepseek.com",
       model: "deepseek-custom",
       maxTokens: 512,
       timeoutMs: 30_000,
     });
-    expect(captures.providerOptions).not.toHaveProperty("baseUrl");
     expect(captures.rateOptions).toEqual({
       url: validEnv.RATE_LIMIT_KV_URL,
       token: validEnv.RATE_LIMIT_KV_TOKEN,
@@ -197,11 +197,27 @@ describe("createRuntime", () => {
     });
   });
 
+  test("accepts and forwards the canonical Cloudflare DeepSeek gateway endpoint", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const baseUrl =
+      "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek";
+    const runtime = createRuntime({
+      env: { ...validEnv, DEEPSEEK_BASE_URL: baseUrl },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+    expect(captures.providerOptions).toMatchObject({ baseUrl });
+  });
+
   test.each([
     "https://api.deepseek.com/",
     " https://api.deepseek.com",
     "https://proxy.example.com",
     "http://api.deepseek.com",
+    "https://gateway.ai.cloudflare.com/v1/not-an-account/default/deepseek",
+    "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek/",
+    "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek?target=evil",
   ])("rejects a non-canonical DeepSeek endpoint pin %s", (baseUrl) => {
     expect(
       createRuntime({
