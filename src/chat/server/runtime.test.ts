@@ -210,9 +210,24 @@ describe("createRuntime", () => {
     expect(captures.providerOptions).toMatchObject({ baseUrl });
   });
 
+  test("normalizes transport whitespace around a configured provider endpoint", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: {
+        ...validEnv,
+        DEEPSEEK_BASE_URL: " \r\nhttps://api.deepseek.com\r\n",
+      },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+    expect(captures.providerOptions).toMatchObject({
+      baseUrl: "https://api.deepseek.com",
+    });
+  });
+
   test.each([
     "https://api.deepseek.com/",
-    " https://api.deepseek.com",
     "https://proxy.example.com",
     "http://api.deepseek.com",
     "https://gateway.ai.cloudflare.com/v1/not-an-account/default/deepseek",

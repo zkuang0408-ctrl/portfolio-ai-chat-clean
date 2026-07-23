@@ -124,7 +124,7 @@ function parseConfig(
   const baseUrl =
     env.DEEPSEEK_BASE_URL === undefined || env.DEEPSEEK_BASE_URL === ""
       ? DEFAULT_DEEPSEEK_BASE_URL
-      : env.DEEPSEEK_BASE_URL;
+      : env.DEEPSEEK_BASE_URL.trim();
   const model = required(env.DEEPSEEK_MODEL) ?? DEFAULT_MODEL;
   const timeoutMs = positiveInteger(
     env.CHAT_UPSTREAM_TIMEOUT_MS,
