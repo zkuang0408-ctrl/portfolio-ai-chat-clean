@@ -209,6 +209,20 @@ describe('production document assets', () => {
     });
   });
 
+  it('declares the Cloudflare AI binding and public subrequest routing', () => {
+    const config = readFileSync(
+      resolve(projectRoot, 'wrangler.toml'),
+      'utf8',
+    );
+
+    expect(config).toContain('name = "portfolio-ai-chat-clean"');
+    expect(config).toContain('pages_build_output_dir = "dist"');
+    expect(config).toContain(
+      'compatibility_flags = ["global_fetch_strictly_public"]',
+    );
+    expect(config).toMatch(/\[ai\]\r?\nbinding = "AI"/u);
+  });
+
   it('ignores Cloudflare local secret files', () => {
     expect(isIgnored('.dev.vars')).toBe(true);
     expect(isIgnored('.dev.vars.production')).toBe(true);
