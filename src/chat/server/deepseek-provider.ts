@@ -5,12 +5,13 @@ import type {
 } from "./chat-types.js";
 
 export const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-const CLOUDFLARE_DEEPSEEK_BASE_URL =
+const CLOUDFLARE_DEEPSEEK_BASE_URL_PATTERN =
   /^https:\/\/gateway\.ai\.cloudflare\.com\/v1\/[a-f0-9]{32}\/[a-z0-9][a-z0-9_-]{0,63}\/deepseek$/;
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
 const MAX_API_KEY_CHARS = 4_096;
+const MAX_SERVER_TOKEN_CHARS = 4_096;
 const MAX_MODEL_CHARS = 128;
 const MAX_TIMEOUT_MS = 120_000;
 const MAX_TOKEN_LIMIT = 4_096;
@@ -44,6 +45,7 @@ export class DeepSeekProviderError extends Error {
 
 export interface DeepSeekProviderOptions {
   readonly apiKey: string;
+  readonly gatewayToken?: string;
   readonly baseUrl?: string;
   readonly model?: string;
   readonly timeoutMs?: number;
@@ -51,11 +53,24 @@ export interface DeepSeekProviderOptions {
   readonly fetch?: typeof fetch;
 }
 
+export function isCloudflareDeepSeekBaseUrl(value: string): boolean {
+  return CLOUDFLARE_DEEPSEEK_BASE_URL_PATTERN.test(value);
+}
+
 export function isApprovedDeepSeekBaseUrl(value: string): boolean {
   return (
     value === DEFAULT_DEEPSEEK_BASE_URL ||
-    CLOUDFLARE_DEEPSEEK_BASE_URL.test(value)
+    isCloudflareDeepSeekBaseUrl(value)
   );
+}
+
+function normalizeServerToken(value: string | undefined): string | undefined {
+  const token = value?.trim();
+  return token &&
+    token.length <= MAX_SERVER_TOKEN_CHARS &&
+    /^[\x21-\x7e]+$/.test(token)
+    ? token
+    : undefined;
 }
 
 interface UsagePayload {
@@ -328,6 +343,7 @@ function codePointLength(value: string): number {
 
 export class DeepSeekProvider implements ChatProvider {
   readonly #apiKey: string;
+  readonly #gatewayToken: string | undefined;
   readonly #endpoint: string;
   readonly #model: string;
   readonly #timeoutMs: number;
@@ -337,13 +353,25 @@ export class DeepSeekProvider implements ChatProvider {
   constructor(options: DeepSeekProviderOptions) {
     const apiKey = options.apiKey.trim();
     const baseUrl = options.baseUrl ?? DEFAULT_DEEPSEEK_BASE_URL;
+    const usesCloudflareGateway = isCloudflareDeepSeekBaseUrl(baseUrl);
+    const suppliedGatewayToken =
+      options.gatewayToken === undefined
+        ? undefined
+        : normalizeServerToken(options.gatewayToken);
+    const gatewayToken = usesCloudflareGateway
+      ? suppliedGatewayToken
+      : undefined;
     const model = (options.model ?? DEFAULT_MODEL).trim();
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
     const valid =
       apiKey.length > 0 &&
       apiKey.length <= MAX_API_KEY_CHARS &&
+      /^[\x21-\x7e]+$/.test(apiKey) &&
       isApprovedDeepSeekBaseUrl(baseUrl) &&
+      (options.gatewayToken === undefined ||
+        suppliedGatewayToken !== undefined) &&
+      (!usesCloudflareGateway || gatewayToken !== undefined) &&
       model.length > 0 &&
       model.length <= MAX_MODEL_CHARS &&
       /^[\x21-\x7e]+$/.test(model) &&
@@ -358,6 +386,7 @@ export class DeepSeekProvider implements ChatProvider {
     }
 
     this.#apiKey = apiKey;
+    this.#gatewayToken = gatewayToken;
     this.#endpoint = `${baseUrl}/chat/completions`;
     this.#model = model;
     this.#timeoutMs = timeoutMs;
@@ -378,14 +407,18 @@ export class DeepSeekProvider implements ChatProvider {
     }
 
     const composite = createCompositeSignal(externalSignal, this.#timeoutMs);
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${this.#apiKey}`,
+      "content-type": "application/json",
+    };
+    if (this.#gatewayToken !== undefined) {
+      headers["cf-aig-authorization"] = `Bearer ${this.#gatewayToken}`;
+    }
     let response: Response;
     try {
       response = await this.#fetch(this.#endpoint, {
         method: "POST",
-        headers: {
-          authorization: `Bearer ${this.#apiKey}`,
-          "content-type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: this.#model,
           messages: [

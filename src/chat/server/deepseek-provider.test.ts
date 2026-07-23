@@ -13,6 +13,9 @@ import {
 } from "./deepseek-provider";
 
 const TEST_TOKEN = "unit-test-bearer-token";
+const TEST_GATEWAY_TOKEN = "cloudflare-gateway-unit-test-token";
+const TEST_GATEWAY_BASE_URL =
+  "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek";
 
 const input: ProviderInput = {
   system: "Use only supplied evidence.",
@@ -117,6 +120,7 @@ describe("DeepSeekProvider request", () => {
     expect(new Headers(init?.headers).get("content-type")).toBe(
       "application/json",
     );
+    expect(new Headers(init?.headers).has("cf-aig-authorization")).toBe(false);
     expect(JSON.parse(String(init?.body))).toEqual({
       model: "deepseek-v4-flash-preview",
       messages: [
@@ -149,22 +153,70 @@ describe("DeepSeekProvider request", () => {
     expect(body.model).toBe("deepseek-v4-flash");
   });
 
-  test("routes requests through an approved Cloudflare AI Gateway base URL", async () => {
+  test("sends separate DeepSeek and Cloudflare credentials through the approved gateway", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       okResponse("data: [DONE]\n\n"),
     );
     const provider = new DeepSeekProvider({
       apiKey: TEST_TOKEN,
+      gatewayToken: `  ${TEST_GATEWAY_TOKEN}  `,
       fetch: fetchMock,
-      baseUrl:
-        "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek",
+      baseUrl: TEST_GATEWAY_BASE_URL,
     });
 
     await collect(provider);
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek/chat/completions",
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+    expect(url).toBe(`${TEST_GATEWAY_BASE_URL}/chat/completions`);
+    expect(headers.get("authorization")).toBe(`Bearer ${TEST_TOKEN}`);
+    expect(headers.get("cf-aig-authorization")).toBe(
+      `Bearer ${TEST_GATEWAY_TOKEN}`,
     );
+  });
+
+  test("never sends the Cloudflare credential to the direct DeepSeek endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      okResponse("data: [DONE]\n\n"),
+    );
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      gatewayToken: TEST_GATEWAY_TOKEN,
+      fetch: fetchMock,
+    });
+
+    await collect(provider);
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe(`Bearer ${TEST_TOKEN}`);
+    expect(headers.has("cf-aig-authorization")).toBe(false);
+  });
+
+  test("rejects a Cloudflare gateway endpoint without its gateway credential", () => {
+    expect(
+      () =>
+        new DeepSeekProvider({
+          apiKey: TEST_TOKEN,
+          baseUrl: TEST_GATEWAY_BASE_URL,
+        }),
+    ).toThrow("DeepSeek provider configuration is invalid");
+  });
+
+  test.each([
+    " ",
+    "x".repeat(4_097),
+    "contains space",
+    "line\nbreak",
+    "非ASCII",
+  ])("rejects an unsafe Cloudflare gateway credential", (gatewayToken) => {
+    expect(
+      () =>
+        new DeepSeekProvider({
+          apiKey: TEST_TOKEN,
+          gatewayToken,
+          baseUrl: TEST_GATEWAY_BASE_URL,
+        }),
+    ).toThrow("DeepSeek provider configuration is invalid");
   });
 
   test("rejects an unapproved provider base URL", () => {
@@ -210,6 +262,9 @@ describe("DeepSeekProvider request", () => {
   test.each([
     { apiKey: " ", model: "deepseek-v4-flash" },
     { apiKey: "x".repeat(4_097), model: "deepseek-v4-flash" },
+    { apiKey: "contains space", model: "deepseek-v4-flash" },
+    { apiKey: "line\nbreak", model: "deepseek-v4-flash" },
+    { apiKey: "非ASCII", model: "deepseek-v4-flash" },
     { apiKey: TEST_TOKEN, model: " " },
     { apiKey: TEST_TOKEN, model: "x".repeat(129) },
   ])("rejects unsafe or unbounded configuration", (config) => {
