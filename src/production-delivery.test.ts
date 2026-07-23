@@ -237,25 +237,25 @@ describe('production document assets', () => {
 
   it('exposes a lazy Vercel Web Handler for portfolio chat', async () => {
     const handle = vi.fn(async () => new Response(null, { status: 204 }));
-    const createRuntime = vi.fn(() => ({ enabled: true, handle }));
+    const createVercelRuntime = vi.fn(() => ({ enabled: true, handle }));
     vi.resetModules();
-    vi.doMock('./chat/server/runtime', () => ({ createRuntime }));
+    vi.doMock('./chat/server/vercel-runtime', () => ({ createVercelRuntime }));
 
     try {
       const route = await import('../api/chat');
 
       expect(route.default).toEqual({ fetch: expect.any(Function) });
-      expect(createRuntime).not.toHaveBeenCalled();
+      expect(createVercelRuntime).not.toHaveBeenCalled();
 
       const request = new Request('https://portfolio.example/api/chat');
       await route.default.fetch(request);
       await route.default.fetch(request);
 
-      expect(createRuntime).toHaveBeenCalledTimes(1);
+      expect(createVercelRuntime).toHaveBeenCalledTimes(1);
       expect(handle).toHaveBeenNthCalledWith(1, request);
       expect(handle).toHaveBeenNthCalledWith(2, request);
     } finally {
-      vi.doUnmock('./chat/server/runtime');
+      vi.doUnmock('./chat/server/vercel-runtime');
       vi.resetModules();
     }
   });

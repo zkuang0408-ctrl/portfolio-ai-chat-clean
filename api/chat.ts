@@ -1,10 +1,10 @@
-import { createRuntime } from "../src/chat/server/runtime.js";
+import { createVercelRuntime } from "../src/chat/server/vercel-runtime.js";
 
-let runtime: ReturnType<typeof createRuntime> | undefined;
+let runtime: ReturnType<typeof createVercelRuntime> | undefined;
 
 export default {
   fetch(request: Request): Promise<Response> {
-    runtime ??= createRuntime();
+    runtime ??= createVercelRuntime();
     return runtime.handle(request);
   },
 };
