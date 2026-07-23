@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { buildTerms } from "../knowledge/build-index";
+import { buildTerms } from "../knowledge/terms";
 import type {
   GeneratedKnowledgeIndex,
   KnowledgeChunk,

@@ -364,6 +364,20 @@ describe('production document assets', () => {
     expect(invalidSpecifiers).toEqual([]);
   });
 
+  it('keeps the Cloudflare Function graph free of Node built-in modules', () => {
+    const functionEntry = resolve(projectRoot, 'functions/api/chat.ts');
+    const nodeImports = nodeEsmImportGraph(functionEntry).flatMap((path) =>
+      importedModules(path)
+        .filter((modulePath) => modulePath.startsWith('node:'))
+        .map(
+          (modulePath) =>
+            `${relative(projectRoot, path).replaceAll('\\', '/')}: ${modulePath}`,
+        ),
+    );
+
+    expect(nodeImports).toEqual([]);
+  });
+
   it('declares the knowledge index JSON type for the Node ESM runtime', () => {
     const runtimeSource = readFileSync(
       resolve(projectRoot, 'src/chat/server/runtime.ts'),

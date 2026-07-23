@@ -1,4 +1,4 @@
-import { buildTerms } from "../knowledge/build-index.js";
+import { buildTerms } from "../knowledge/terms.js";
 import type {
   GeneratedKnowledgeIndex,
   KnowledgeChunk,

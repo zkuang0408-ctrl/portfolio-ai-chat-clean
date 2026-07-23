@@ -477,7 +477,10 @@ export async function handleChat(
     if (typeof rawIp !== "string" || rawIp.length === 0) {
       throw new Error("visitor identity unavailable");
     }
-    const visitorKey = deriveVisitorKey(rawIp, dependencies.rateLimitSalt);
+    const visitorKey = await deriveVisitorKey(
+      rawIp,
+      dependencies.rateLimitSalt,
+    );
     const rate = await dependencies.rateLimit.consume({
       visitorKey,
       now: startedAt,

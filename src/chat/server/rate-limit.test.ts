@@ -18,7 +18,7 @@ const MINUTE = 60 * SECOND;
 const TEST_SALT = "rate-limit-test-salt-with-32-bytes";
 
 function visitor(identity: string): string {
-  return deriveVisitorKey(identity, TEST_SALT);
+  return createHmac("sha256", TEST_SALT).update(identity).digest("hex");
 }
 
 function atShanghai(isoLocal: string): number {
@@ -26,11 +26,11 @@ function atShanghai(isoLocal: string): number {
 }
 
 describe("deriveVisitorKey", () => {
-  test("uses HMAC-SHA256 with RATE_LIMIT_SALT and never returns the raw IP", () => {
+  test("uses HMAC-SHA256 with RATE_LIMIT_SALT and never returns the raw IP", async () => {
     const ip = "203.0.113.42";
     const salt = "a-high-entropy-test-salt-32-bytes";
 
-    const key = deriveVisitorKey(ip, salt);
+    const key = await deriveVisitorKey(ip, salt);
 
     expect(key).toBe(createHmac("sha256", salt).update(ip).digest("hex"));
     expect(key).toMatch(/^[a-f0-9]{64}$/);
@@ -39,15 +39,17 @@ describe("deriveVisitorKey", () => {
 
   test.each(["", "a".repeat(31), `${"界".repeat(10)}a`])(
     "rejects RATE_LIMIT_SALT values shorter than 32 UTF-8 bytes",
-    (salt) => {
-      expect(() => deriveVisitorKey("203.0.113.42", salt)).toThrow(
+    async (salt) => {
+      await expect(deriveVisitorKey("203.0.113.42", salt)).rejects.toThrow(
         "RATE_LIMIT_SALT",
       );
     },
   );
 
-  test("accepts a multibyte RATE_LIMIT_SALT at the exact 32-byte boundary", () => {
-    expect(deriveVisitorKey("203.0.113.42", `${"界".repeat(10)}ab`)).toMatch(
+  test("accepts a multibyte RATE_LIMIT_SALT at the exact 32-byte boundary", async () => {
+    await expect(
+      deriveVisitorKey("203.0.113.42", `${"界".repeat(10)}ab`),
+    ).resolves.toMatch(
       /^[a-f0-9]{64}$/,
     );
   });
@@ -388,7 +390,7 @@ describe("createUpstashRateLimitStore", () => {
 
   test("passes four anonymized keys and all policy values to one atomic Lua eval", async () => {
     const rawIp = "203.0.113.42";
-    const visitorKey = deriveVisitorKey(rawIp, TEST_SALT);
+    const visitorKey = await deriveVisitorKey(rawIp, TEST_SALT);
     const now = atShanghai("2026-07-15T12:00:00.000");
     const resetAt = atShanghai("2026-07-16T00:00:00.000");
     const evalMock = vi.fn().mockResolvedValue([1, "", now + 3 * SECOND]);

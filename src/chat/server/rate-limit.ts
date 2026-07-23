@@ -1,5 +1,3 @@
-import { createHmac } from "node:crypto";
-
 import { Redis } from "@upstash/redis";
 
 export type RateLimitReason =
@@ -51,15 +49,30 @@ const DEFAULT_POLICY: RateLimitPolicy = {
   siteDayLimit: DEFAULT_SITE_DAY_LIMIT,
 };
 
-export function deriveVisitorKey(ip: string, rateLimitSalt: string): string {
+export async function deriveVisitorKey(
+  ip: string,
+  rateLimitSalt: string,
+): Promise<string> {
   if (ip.length === 0) {
     throw new Error("visitor IP is required");
   }
-  if (Buffer.byteLength(rateLimitSalt, "utf8") < MINIMUM_SALT_BYTES) {
+  const encoder = new TextEncoder();
+  const saltBytes = encoder.encode(rateLimitSalt);
+  if (saltBytes.byteLength < MINIMUM_SALT_BYTES) {
     throw new Error("RATE_LIMIT_SALT must contain at least 32 UTF-8 bytes");
   }
 
-  return createHmac("sha256", rateLimitSalt).update(ip).digest("hex");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    saltBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(ip));
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 export function getShanghaiDayWindow(now: number): {
