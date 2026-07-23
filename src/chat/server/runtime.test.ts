@@ -1,5 +1,8 @@
 // @vitest-environment node
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, test, vi } from "vitest";
 
 import type { GeneratedKnowledgeIndex } from "../knowledge/types";
@@ -64,6 +67,28 @@ function factories(captures: {
 }
 
 describe("createRuntime", () => {
+  test("keeps platform adapters out of the shared runtime", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/chat/server/runtime.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('"node:crypto"');
+    expect(source).not.toContain('"@vercel/functions/headers"');
+    expect(source).not.toContain("process.env");
+    expect(source).not.toContain("Buffer.byteLength");
+  });
+
+  test("uses injected Web Platform defaults", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: validEnv,
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+  });
+
   test("returns a generic disabled state when chat is explicitly disabled", async () => {
     const createRetriever = vi.fn();
     const runtime = createRuntime({

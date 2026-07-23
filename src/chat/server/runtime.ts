@@ -1,7 +1,3 @@
-import { randomUUID } from "node:crypto";
-
-import { ipAddress as vercelIpAddress } from "@vercel/functions/headers";
-
 import generatedIndexJson from "../knowledge/generated-index.json" with { type: "json" };
 import type { GeneratedKnowledgeIndex } from "../knowledge/types.js";
 import { createLocalHybridRetriever } from "../retrieval/local-hybrid.js";
@@ -46,7 +42,7 @@ export interface RuntimeFactories {
 }
 
 export interface RuntimeOptions {
-  readonly env?: Readonly<Record<string, string | undefined>>;
+  readonly env: Readonly<Record<string, string | undefined>>;
   readonly factories?: RuntimeFactories;
   readonly ipAddress?: (request: Request) => string | undefined;
   readonly clock?: () => number;
@@ -92,6 +88,10 @@ function disabledRuntime(): ChatRuntime {
 function required(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
 }
 
 function positiveInteger(
@@ -161,7 +161,7 @@ function parseConfig(
     baseUrl !== DEEPSEEK_BASE_URL ||
     !kvToken ||
     !salt ||
-    Buffer.byteLength(salt, "utf8") < 32 ||
+    utf8ByteLength(salt) < 32 ||
     kvUrl.protocol !== "https:" ||
     kvUrl.username !== "" ||
     kvUrl.password !== "" ||
@@ -210,10 +210,8 @@ function structuredProfileFacts(index: GeneratedKnowledgeIndex): readonly string
     .filter((text) => text.trim().length > 0);
 }
 
-export function createRuntime(options: RuntimeOptions = {}): ChatRuntime {
-  // Environment access deliberately occurs only when this factory is invoked.
-  const env = options.env ?? process.env;
-  const config = parseConfig(env);
+export function createRuntime(options: RuntimeOptions): ChatRuntime {
+  const config = parseConfig(options.env);
   if (!config) return disabledRuntime();
 
   try {
@@ -236,9 +234,9 @@ export function createRuntime(options: RuntimeOptions = {}): ChatRuntime {
       }),
       rateLimitSalt: config.salt,
       profileFacts: structuredProfileFacts(generatedIndex),
-      ipAddress: options.ipAddress ?? ((request) => vercelIpAddress(request)),
+      ipAddress: options.ipAddress ?? (() => undefined),
       clock: options.clock ?? Date.now,
-      requestId: options.requestId ?? randomUUID,
+      requestId: options.requestId ?? (() => globalThis.crypto.randomUUID()),
       metrics: options.metrics ?? noopMetrics,
     };
     return {
