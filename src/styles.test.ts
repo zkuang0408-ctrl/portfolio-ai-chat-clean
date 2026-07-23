@@ -96,10 +96,15 @@ test("uses a clipped 16:9 reader stage and a centered editorial counter", () => 
   expect(rule(".project-reader-stage")).toMatch(/overflow:\s*hidden/);
   expect(rule(".project-reader-stage")).toMatch(/touch-action:\s*pan-y/);
   expect(rule(".project-reader-stage")).toMatch(/background:\s*#[0-9a-f]{3,6}/i);
-  expect(rule(".project-reader canvas")).toMatch(/display:\s*block/);
-  expect(rule(".project-reader canvas")).toMatch(/width:\s*100%/);
-  expect(rule(".project-reader canvas")).toMatch(/height:\s*100%/);
-  expect(rule(".project-reader canvas")).toMatch(/object-fit:\s*contain/);
+  expect(rule(".project-reader picture")).toMatch(/display:\s*block/);
+  expect(rule(".project-reader picture")).toMatch(/width:\s*100%/);
+  expect(rule(".project-reader picture")).toMatch(/height:\s*100%/);
+  expect(rule(".project-reader [data-page-image]")).toMatch(/display:\s*block/);
+  expect(rule(".project-reader [data-page-image]")).toMatch(/width:\s*100%/);
+  expect(rule(".project-reader [data-page-image]")).toMatch(/height:\s*100%/);
+  expect(rule(".project-reader [data-page-image]")).toMatch(
+    /object-fit:\s*contain/,
+  );
   expect(rule(".project-reader-counter")).toMatch(/text-align:\s*center/);
   expect(rule(".project-reader-counter")).toMatch(/letter-spacing:/);
   expect(rule(".project-reader-counter")).toMatch(/color:\s*#7d7d7d/);
@@ -150,7 +155,9 @@ test("styles reader loading, rendering, ready, error, disabled, hover, and focus
   expect(styles).toMatch(
     /\[data-reader-error\]:not\(\[hidden\]\)[\s\S]*?display:\s*flex/,
   );
-  expect(rule(".project-reader canvas")).toMatch(/transition:\s*opacity/);
+  expect(rule(".project-reader [data-page-image]")).toMatch(
+    /transition:\s*opacity/,
+  );
 });
 
 test("keeps mobile reader geometry compact without shrinking the hit target", () => {
@@ -182,7 +189,7 @@ test("enables smooth anchors only when motion is acceptable", () => {
 
 test("removes reader fades when reduced motion is requested", () => {
   expect(styles).toMatch(
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.project-reader canvas\s*\{[\s\S]*?transition:\s*none;/,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.project-reader \[data-page-image\]\s*\{[\s\S]*?transition:\s*none;/,
   );
 });
 

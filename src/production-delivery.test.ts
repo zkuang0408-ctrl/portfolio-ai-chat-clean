@@ -315,8 +315,10 @@ describe('production document assets', () => {
     expect(packageJson.devDependencies).toMatchObject({
       tsx: '4.23.1',
       '@napi-rs/canvas': '1.0.2',
+      'pdfjs-dist': '6.1.200',
       'tesseract.js': '7.0.0',
     });
+    expect(Object.hasOwn(packageJson.dependencies, 'pdfjs-dist')).toBe(false);
     expect(Object.hasOwn(packageJson.dependencies, 'openai')).toBe(false);
     expect(Object.hasOwn(packageJson.devDependencies, 'openai')).toBe(false);
     expect(tsconfig.include).toEqual([
@@ -381,7 +383,10 @@ describe('production document assets', () => {
     expect(packageJson.scripts).toMatchObject({
       'knowledge:generate': 'tsx scripts/build-knowledge-index.ts --generate',
       'knowledge:verify': 'tsx scripts/build-knowledge-index.ts --verify',
-      prebuild: 'npm run knowledge:verify',
+      'portfolio-pages:generate': 'python tools/render_project_pages.py',
+      'portfolio-pages:verify': 'tsx scripts/verify-project-page-assets.ts',
+      prebuild:
+        'npm run knowledge:verify && npm run portfolio-pages:verify',
       build: 'tsc --noEmit && vite build && tsx scripts/check-client-bundle.ts',
     });
     expect(
@@ -435,6 +440,41 @@ describe('production document assets', () => {
         ),
       ).toBe(false);
     }
+  });
+
+  it('keeps the legacy PDF reader out of the browser import graph', () => {
+    const sourceRoot = fileURLToPath(new URL('.', import.meta.url));
+    const graph = browserImportGraph(resolve(sourceRoot, 'main.ts'));
+    const relativeGraph = graph.map((path) =>
+      relative(projectRoot, path).replaceAll('\\', '/'),
+    );
+
+    expect(relativeGraph.some((path) => path.endsWith('/pdf-runtime.ts'))).toBe(
+      false,
+    );
+    expect(relativeGraph.some((path) => path.endsWith('/pdf-reader.ts'))).toBe(
+      false,
+    );
+  });
+
+  it('defines immutable Cloudflare caching for generated portfolio pages', () => {
+    const headers = readFileSync(
+      resolve(projectRoot, 'public/_headers'),
+      'utf8',
+    );
+
+    expect(headers).toContain('/assets/*\n  Cache-Control: public, max-age=31536000, immutable');
+    expect(headers).toContain(
+      '/projects/pages/*\n  Cache-Control: public, max-age=31536000, immutable',
+    );
+    expect(headers).toContain(
+      '/projects/pdfs/*\n  Cache-Control: public, max-age=86400, s-maxage=31536000',
+    );
+    expect(headers).toContain('X-Content-Type-Options: nosniff');
+    expect(headers).toContain('X-Frame-Options: DENY');
+    expect(headers).toContain(
+      'Referrer-Policy: strict-origin-when-cross-origin',
+    );
   });
 
   it('declares a valid SVG favicon that ships from the public root', () => {
