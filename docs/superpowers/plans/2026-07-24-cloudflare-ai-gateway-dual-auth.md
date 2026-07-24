@@ -633,10 +633,10 @@ Expected: GitHub advances `feature/portfolio-ai-chat-clean` to the exact local c
 Run:
 
 ```powershell
-npx.cmd --yes wrangler@latest pages deploy dist --project-name portfolio-ai-chat-clean --branch main --commit-hash $(git rev-parse HEAD) --commit-message "Restore authenticated portfolio chat"
+npx.cmd --yes wrangler@latest pages deploy dist --project-name portfolio-ai-chat-clean --branch feature/portfolio-ai-chat-clean --commit-hash $(git rev-parse HEAD) --commit-message "Restore authenticated portfolio chat"
 ```
 
-Expected: Wrangler returns a new deployment URL under `portfolio-ai-chat-clean.pages.dev`, and the canonical production domain points to the new deployment.
+Expected: Wrangler returns a new deployment URL under `portfolio-ai-chat-clean.pages.dev`, the deployment list classifies it as `Production`, and the canonical production domain points to the new deployment. This Pages project currently defines `feature/portfolio-ai-chat-clean` as its Production branch; deploying `main` creates only a Preview.
 
 - [ ] **Step 4: Create a non-secret production request fixture**
 
