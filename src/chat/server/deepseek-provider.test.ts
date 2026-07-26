@@ -175,6 +175,20 @@ describe("DeepSeekProvider request", () => {
     });
   });
 
+  test.each([
+    ["omitted model", undefined],
+    ["mismatched safe model", "deepseek-v4-flash"],
+  ])("rejects TokenHub with %s", (_name, model) => {
+    expect(
+      () =>
+        new DeepSeekProvider({
+          apiKey: TEST_TOKEN,
+          baseUrl: TENCENT_TOKENHUB_BASE_URL,
+          ...(model === undefined ? {} : { model }),
+        }),
+    ).toThrow("DeepSeek provider configuration is invalid");
+  });
+
   test("defaults to the approved flash model", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       okResponse("data: [DONE]\n\n"),

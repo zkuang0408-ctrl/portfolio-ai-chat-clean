@@ -9,6 +9,7 @@ export const TENCENT_TOKENHUB_BASE_URL = "https://tokenhub.tencentmaas.com/v1";
 const CLOUDFLARE_DEEPSEEK_BASE_URL_PATTERN =
   /^https:\/\/gateway\.ai\.cloudflare\.com\/v1\/[a-f0-9]{32}\/[a-z0-9][a-z0-9_-]{0,63}\/deepseek$/;
 const DEFAULT_MODEL = "deepseek-v4-flash";
+const TENCENT_TOKENHUB_MODEL = "deepseek-v4-flash-202605";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_TOKENS = 700;
 const MAX_API_KEY_CHARS = 4_096;
@@ -383,6 +384,7 @@ export class DeepSeekProvider implements ChatProvider {
       model.length > 0 &&
       model.length <= MAX_MODEL_CHARS &&
       /^[\x21-\x7e]+$/.test(model) &&
+      (!usesTencentTokenHub || model === TENCENT_TOKENHUB_MODEL) &&
       Number.isSafeInteger(timeoutMs) &&
       timeoutMs > 0 &&
       timeoutMs <= MAX_TIMEOUT_MS &&
