@@ -5,6 +5,7 @@ import type {
 } from "./chat-types.js";
 
 export const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+export const TENCENT_TOKENHUB_BASE_URL = "https://tokenhub.tencentmaas.com/v1";
 const CLOUDFLARE_DEEPSEEK_BASE_URL_PATTERN =
   /^https:\/\/gateway\.ai\.cloudflare\.com\/v1\/[a-f0-9]{32}\/[a-z0-9][a-z0-9_-]{0,63}\/deepseek$/;
 const DEFAULT_MODEL = "deepseek-v4-flash";
@@ -57,10 +58,15 @@ export function isCloudflareDeepSeekBaseUrl(value: string): boolean {
   return CLOUDFLARE_DEEPSEEK_BASE_URL_PATTERN.test(value);
 }
 
+function isTencentTokenHubBaseUrl(value: string): boolean {
+  return value === TENCENT_TOKENHUB_BASE_URL;
+}
+
 export function isApprovedDeepSeekBaseUrl(value: string): boolean {
   return (
     value === DEFAULT_DEEPSEEK_BASE_URL ||
-    isCloudflareDeepSeekBaseUrl(value)
+    isCloudflareDeepSeekBaseUrl(value) ||
+    isTencentTokenHubBaseUrl(value)
   );
 }
 
@@ -344,6 +350,7 @@ function codePointLength(value: string): number {
 export class DeepSeekProvider implements ChatProvider {
   readonly #apiKey: string;
   readonly #gatewayToken: string | undefined;
+  readonly #usesTencentTokenHub: boolean;
   readonly #endpoint: string;
   readonly #model: string;
   readonly #timeoutMs: number;
@@ -354,6 +361,7 @@ export class DeepSeekProvider implements ChatProvider {
     const apiKey = options.apiKey.trim();
     const baseUrl = options.baseUrl ?? DEFAULT_DEEPSEEK_BASE_URL;
     const usesCloudflareGateway = isCloudflareDeepSeekBaseUrl(baseUrl);
+    const usesTencentTokenHub = isTencentTokenHubBaseUrl(baseUrl);
     const suppliedGatewayToken =
       options.gatewayToken === undefined
         ? undefined
@@ -387,6 +395,7 @@ export class DeepSeekProvider implements ChatProvider {
 
     this.#apiKey = apiKey;
     this.#gatewayToken = gatewayToken;
+    this.#usesTencentTokenHub = usesTencentTokenHub;
     this.#endpoint = `${baseUrl}/chat/completions`;
     this.#model = model;
     this.#timeoutMs = timeoutMs;
@@ -430,7 +439,7 @@ export class DeepSeekProvider implements ChatProvider {
           max_tokens: this.#maxTokens,
           stream: true,
           stream_options: { include_usage: true },
-          user_id: userId,
+          ...(this.#usesTencentTokenHub ? {} : { user_id: userId }),
         }),
         signal: composite.signal,
       });

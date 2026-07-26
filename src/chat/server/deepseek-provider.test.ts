@@ -10,12 +10,14 @@ import {
   MAX_SSE_EVENT_CHARS,
   MAX_SSE_LINE_CHARS,
   MAX_SSE_STREAM_BYTES,
+  TENCENT_TOKENHUB_BASE_URL,
 } from "./deepseek-provider";
 
 const TEST_TOKEN = "unit-test-bearer-token";
 const TEST_GATEWAY_TOKEN = "cloudflare-gateway-unit-test-token";
 const TEST_GATEWAY_BASE_URL =
   "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek";
+const TEST_TOKENHUB_MODEL = "deepseek-v4-flash-202605";
 
 const input: ProviderInput = {
   system: "Use only supplied evidence.",
@@ -136,6 +138,43 @@ describe("DeepSeekProvider request", () => {
     });
   });
 
+  test("sends the exact Tencent TokenHub streaming request", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      okResponse("data: [DONE]\n\n"),
+    );
+    const provider = new DeepSeekProvider({
+      apiKey: TEST_TOKEN,
+      baseUrl: TENCENT_TOKENHUB_BASE_URL,
+      model: TEST_TOKENHUB_MODEL,
+      gatewayToken: TEST_GATEWAY_TOKEN,
+      fetch: fetchMock,
+    });
+
+    await expect(collect(provider)).resolves.toEqual([{ type: "done" }]);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("https://tokenhub.tencentmaas.com/v1/chat/completions");
+    expect(new Headers(init?.headers).get("authorization")).toBe(
+      `Bearer ${TEST_TOKEN}`,
+    );
+    expect(new Headers(init?.headers).get("content-type")).toBe(
+      "application/json",
+    );
+    expect(new Headers(init?.headers).has("cf-aig-authorization")).toBe(false);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      model: TEST_TOKENHUB_MODEL,
+      messages: [
+        { role: "system", content: input.system },
+        ...input.messages,
+      ],
+      thinking: { type: "disabled" },
+      temperature: 0.2,
+      max_tokens: 700,
+      stream: true,
+      stream_options: { include_usage: true },
+    });
+  });
+
   test("defaults to the approved flash model", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       okResponse("data: [DONE]\n\n"),
@@ -225,6 +264,25 @@ describe("DeepSeekProvider request", () => {
         new DeepSeekProvider({
           apiKey: TEST_TOKEN,
           baseUrl: "https://proxy.example.com/private-token",
+        }),
+    ).toThrow("DeepSeek provider configuration is invalid");
+  });
+
+  test.each([
+    "https://tokenhub.tencentmaas.com",
+    "https://tokenhub.tencentmaas.com/v1/",
+    "http://tokenhub.tencentmaas.com/v1",
+    "https://evil.tokenhub.tencentmaas.com/v1",
+    "https://tokenhub.tencentmaas.com:443/v1",
+    "https://tokenhub.tencentmaas.com/v1?target=evil",
+    "https://tokenhub.tencentmaas.com/v1#fragment",
+    "https://user@tokenhub.tencentmaas.com/v1",
+  ])("rejects a non-canonical Tencent TokenHub endpoint %s", (baseUrl) => {
+    expect(
+      () =>
+        new DeepSeekProvider({
+          apiKey: TEST_TOKEN,
+          baseUrl,
         }),
     ).toThrow("DeepSeek provider configuration is invalid");
   });

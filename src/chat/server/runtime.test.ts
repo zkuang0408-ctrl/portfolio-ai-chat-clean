@@ -8,6 +8,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { GeneratedKnowledgeIndex } from "../knowledge/types";
 import type { Retriever } from "../retrieval/retriever";
 import type { ChatProvider } from "./chat-types";
+import { TENCENT_TOKENHUB_BASE_URL } from "./deepseek-provider";
 import type { RateLimitStore } from "./rate-limit";
 import { createRuntime, type RuntimeFactories } from "./runtime";
 
@@ -269,6 +270,27 @@ describe("createRuntime", () => {
     expect(captures.providerOptions).not.toHaveProperty("gatewayToken");
   });
 
+  test("accepts the exact Tencent TokenHub endpoint without forwarding a Cloudflare credential", () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: {
+        ...validEnv,
+        DEEPSEEK_BASE_URL: TENCENT_TOKENHUB_BASE_URL,
+        DEEPSEEK_MODEL: "deepseek-v4-flash-202605",
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "cloudflare-runtime-token",
+      },
+      factories: factories(captures),
+    });
+
+    expect(runtime.enabled).toBe(true);
+    expect(captures.providerOptions).toMatchObject({
+      apiKey: validEnv.DEEPSEEK_API_KEY,
+      baseUrl: TENCENT_TOKENHUB_BASE_URL,
+      model: "deepseek-v4-flash-202605",
+    });
+    expect(captures.providerOptions).not.toHaveProperty("gatewayToken");
+  });
+
   test("normalizes transport whitespace around a configured provider endpoint", () => {
     const captures: Parameters<typeof factories>[0] = {};
     const runtime = createRuntime({
@@ -293,6 +315,19 @@ describe("createRuntime", () => {
     "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek/",
     "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek?target=evil",
   ])("rejects a non-canonical DeepSeek endpoint pin %s", (baseUrl) => {
+    expect(
+      createRuntime({
+        env: { ...validEnv, DEEPSEEK_BASE_URL: baseUrl },
+      }).enabled,
+    ).toBe(false);
+  });
+
+  test.each([
+    "https://tokenhub.tencentmaas.com",
+    "https://tokenhub.tencentmaas.com/v1/",
+    "http://tokenhub.tencentmaas.com/v1",
+    "https://tokenhub.tencentmaas.com/v1?target=evil",
+  ])("rejects a non-canonical Tencent TokenHub endpoint %s", (baseUrl) => {
     expect(
       createRuntime({
         env: { ...validEnv, DEEPSEEK_BASE_URL: baseUrl },
