@@ -2,25 +2,25 @@ import {
   createRuntime,
   type RuntimeOptions,
 } from "../../src/chat/server/runtime.js";
+import { TENCENT_TOKENHUB_BASE_URL } from "../../src/chat/server/deepseek-provider.js";
 
-interface AiGateway {
-  getUrl(provider: string): Promise<string>;
-}
-
-interface AiBinding {
-  gateway(id: string): AiGateway;
-}
-
-type CloudflareEnv = Readonly<Record<string, unknown>> & {
-  readonly AI?: AiBinding;
-};
+type CloudflareEnv = Readonly<Record<string, unknown>>;
 
 interface PagesContext {
   readonly request: Request;
   readonly env: CloudflareEnv;
 }
 
-let runtimePromise: Promise<ReturnType<typeof createRuntime>> | undefined;
+const TENCENT_TOKENHUB_MODEL = "deepseek-v4-flash-202605";
+const PROVIDER_ENVIRONMENT_NAMES = new Set([
+  "TENCENT_TOKENHUB_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "DEEPSEEK_BASE_URL",
+  "DEEPSEEK_MODEL",
+  "CLOUDFLARE_AI_GATEWAY_TOKEN",
+]);
+
+let runtime: ReturnType<typeof createRuntime> | undefined;
 
 function stringEnvironment(
   env: CloudflareEnv,
@@ -32,8 +32,21 @@ function stringEnvironment(
   );
 }
 
-function withoutTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
+function sharedEnvironment(
+  env: Readonly<Record<string, string | undefined>>,
+): Record<string, string | undefined> {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => !PROVIDER_ENVIRONMENT_NAMES.has(name)),
+  );
+}
+
+function isTokenHubKey(value: string | undefined): value is string {
+  return (
+    value !== undefined &&
+    value.length > 0 &&
+    value.length <= 4_096 &&
+    /^[\x21-\x7e]+$/.test(value)
+  );
 }
 
 function runtimeOptions(
@@ -54,28 +67,28 @@ function runtimeOptions(
   };
 }
 
-async function initializeRuntime(
-  env: CloudflareEnv,
-): Promise<ReturnType<typeof createRuntime>> {
+function initializeRuntime(env: CloudflareEnv): ReturnType<typeof createRuntime> {
   const values = stringEnvironment(env);
-  try {
-    const gateway = env.AI?.gateway("default");
-    if (!gateway) throw new Error("AI binding unavailable");
-    const baseUrl = withoutTrailingSlash(await gateway.getUrl("deepseek"));
-    return createRuntime(
-      runtimeOptions({ ...values, DEEPSEEK_BASE_URL: baseUrl }),
-    );
-  } catch {
+  const shared = sharedEnvironment(values);
+  const tokenHubKey = values.TENCENT_TOKENHUB_API_KEY;
+  if (!isTokenHubKey(tokenHubKey)) {
     console.warn(
       JSON.stringify({
         event: "portfolio_chat_configuration_failure",
-        category: "ai_binding",
+        category: "tokenhub_key",
       }),
     );
-    return createRuntime(
-      runtimeOptions({ ...values, CHAT_ENABLED: "false" }),
-    );
+    return createRuntime(runtimeOptions({ ...shared, CHAT_ENABLED: "false" }));
   }
+
+  return createRuntime(
+    runtimeOptions({
+      ...shared,
+      DEEPSEEK_API_KEY: tokenHubKey,
+      DEEPSEEK_BASE_URL: TENCENT_TOKENHUB_BASE_URL,
+      DEEPSEEK_MODEL: TENCENT_TOKENHUB_MODEL,
+    }),
+  );
 }
 
 function methodNotAllowed(): Response {
@@ -100,7 +113,6 @@ function methodNotAllowed(): Response {
 export async function onRequest(context: PagesContext): Promise<Response> {
   if (context.request.method !== "POST") return methodNotAllowed();
 
-  runtimePromise ??= initializeRuntime(context.env);
-  const runtime = await runtimePromise;
+  runtime ??= initializeRuntime(context.env);
   return runtime.handle(context.request);
 }

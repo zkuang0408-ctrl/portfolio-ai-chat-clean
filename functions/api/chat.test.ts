@@ -18,19 +18,47 @@ vi.mock("../../src/chat/server/runtime.js", () => ({
   createRuntime: mocks.createRuntime,
 }));
 
-const getUrl = vi.fn(async () =>
-  "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek/",
-);
+const getUrl = vi.fn(async () => "https://binding-sentinel.example/v1");
 const gateway = vi.fn(() => ({ getUrl }));
+const tokenHubKey = "tokenhub-unit-test-key";
+const configurationFailure = JSON.stringify({
+  event: "portfolio_chat_configuration_failure",
+  category: "tokenhub_key",
+});
 
 const env = {
   AI: { gateway },
   CHAT_ENABLED: "true",
-  DEEPSEEK_API_KEY: "test-key",
+  TENCENT_TOKENHUB_API_KEY: tokenHubKey,
+  DEEPSEEK_API_KEY: "legacy-deepseek-key-sentinel",
+  DEEPSEEK_BASE_URL: "https://legacy-deepseek.example/v1",
+  DEEPSEEK_MODEL: "legacy-deepseek-model",
+  CLOUDFLARE_AI_GATEWAY_TOKEN: "cloudflare-gateway-token-sentinel",
   RATE_LIMIT_KV_URL: "https://example.upstash.io",
   RATE_LIMIT_KV_TOKEN: "test-token",
   RATE_LIMIT_SALT: "a-runtime-salt-that-is-at-least-thirty-two-bytes",
 };
+
+type RuntimeOptionsCapture = {
+  env: Readonly<Record<string, string | undefined>>;
+  ipAddress(request: Request): string | undefined;
+  providerFailure(category: string): void;
+};
+
+function runtimeOptions(): RuntimeOptionsCapture {
+  return mocks.createRuntime.mock.calls[0]?.[0] as RuntimeOptionsCapture;
+}
+
+function expectNoProviderSecrets(
+  options: RuntimeOptionsCapture,
+): void {
+  expect(options.env).not.toHaveProperty("AI");
+  expect(options.env).not.toHaveProperty("TENCENT_TOKENHUB_API_KEY");
+  expect(options.env).not.toHaveProperty("DEEPSEEK_API_KEY");
+  expect(options.env).not.toHaveProperty("DEEPSEEK_BASE_URL");
+  expect(options.env).not.toHaveProperty("DEEPSEEK_MODEL");
+  expect(options.env).not.toHaveProperty("CLOUDFLARE_AI_GATEWAY_TOKEN");
+}
 
 beforeEach(() => {
   vi.resetModules();
@@ -50,34 +78,34 @@ test("rejects non-POST requests without falling back to HTML", async () => {
   expect(response.status).toBe(405);
   expect(response.headers.get("allow")).toBe("POST");
   expect(response.headers.get("content-type")).toContain("application/json");
+  expect(mocks.createRuntime).not.toHaveBeenCalled();
+  expect(gateway).not.toHaveBeenCalled();
 });
 
-test("resolves the DeepSeek URL through the account AI binding", async () => {
+test("routes chat through the dedicated TokenHub credential", async () => {
   const { onRequest } = await import("./chat");
   const request = new Request("https://portfolio.test/api/chat", {
     method: "POST",
     headers: { "CF-Connecting-IP": "203.0.113.10" },
   });
   const response = await onRequest({ request, env });
-  const options = mocks.createRuntime.mock.calls[0]?.[0] as {
-    env: Readonly<Record<string, string | undefined>>;
-    ipAddress(request: Request): string | undefined;
-    providerFailure(category: string): void;
-  };
+  const options = runtimeOptions();
 
   expect(response.headers.get("content-type")).toBe("text/event-stream");
-  expect(gateway).toHaveBeenCalledWith("default");
-  expect(getUrl).toHaveBeenCalledWith("deepseek");
+  expect(gateway).not.toHaveBeenCalled();
+  expect(getUrl).not.toHaveBeenCalled();
   expect(options.env).toEqual({
     CHAT_ENABLED: "true",
-    DEEPSEEK_API_KEY: "test-key",
-    DEEPSEEK_BASE_URL:
-      "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek",
+    DEEPSEEK_API_KEY: tokenHubKey,
+    DEEPSEEK_BASE_URL: "https://tokenhub.tencentmaas.com/v1",
+    DEEPSEEK_MODEL: "deepseek-v4-flash-202605",
     RATE_LIMIT_KV_URL: "https://example.upstash.io",
     RATE_LIMIT_KV_TOKEN: "test-token",
     RATE_LIMIT_SALT: "a-runtime-salt-that-is-at-least-thirty-two-bytes",
   });
   expect(options.env).not.toHaveProperty("AI");
+  expect(options.env).not.toHaveProperty("TENCENT_TOKENHUB_API_KEY");
+  expect(options.env).not.toHaveProperty("CLOUDFLARE_AI_GATEWAY_TOKEN");
   expect(options.ipAddress(request)).toBe("203.0.113.10");
   expect(mocks.handle).toHaveBeenCalledWith(request);
 
@@ -96,41 +124,57 @@ test("resolves the DeepSeek URL through the account AI binding", async () => {
 });
 
 test.each([
-  ["missing", { ...env, AI: undefined }],
-  [
-    "unavailable",
-    {
-      ...env,
-      AI: {
-        gateway: () => ({
-          getUrl: vi.fn(async () => {
-            throw new Error("binding unavailable");
-          }),
-        }),
-      },
-    },
-  ],
-])("fails closed when the AI binding is %s", async (_label, failingEnv) => {
+  ["missing", undefined],
+  ["empty", ""],
+  ["leading whitespace", ` ${tokenHubKey}`],
+  ["too long", "x".repeat(4_097)],
+  ["newline", "key\nvalue"],
+  ["control", "key\u0007value"],
+  ["non-ASCII", "密钥"],
+])("fails closed and logs safely for a %s TokenHub key", async (_label, key) => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   try {
     const { onRequest } = await import("./chat");
     await onRequest({
-      request: new Request("https://portfolio.test/api/chat", {
-        method: "POST",
-      }),
-      env: failingEnv,
+      request: new Request("https://portfolio.test/api/chat", { method: "POST" }),
+      env: { ...env, TENCENT_TOKENHUB_API_KEY: key },
     });
 
-    const options = mocks.createRuntime.mock.calls[0]?.[0] as {
-      env: Readonly<Record<string, string | undefined>>;
-    };
+    const options = runtimeOptions();
+    expect(options.env).toEqual({
+      CHAT_ENABLED: "false",
+      RATE_LIMIT_KV_URL: "https://example.upstash.io",
+      RATE_LIMIT_KV_TOKEN: "test-token",
+      RATE_LIMIT_SALT: "a-runtime-salt-that-is-at-least-thirty-two-bytes",
+    });
+    expectNoProviderSecrets(options);
+    expect(gateway).not.toHaveBeenCalled();
+    expect(getUrl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(configurationFailure);
+    for (const [message] of warn.mock.calls) {
+      if (key) expect(String(message)).not.toContain(key);
+      expect(String(message)).not.toContain("tokenhub.tencentmaas.com");
+    }
+  } finally {
+    warn.mockRestore();
+  }
+});
+
+test("does not enable TokenHub with legacy provider credentials alone", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const { onRequest } = await import("./chat");
+    await onRequest({
+      request: new Request("https://portfolio.test/api/chat", { method: "POST" }),
+      env: { ...env, TENCENT_TOKENHUB_API_KEY: undefined },
+    });
+
+    const options = runtimeOptions();
     expect(options.env.CHAT_ENABLED).toBe("false");
-    expect(warn).toHaveBeenCalledWith(
-      JSON.stringify({
-        event: "portfolio_chat_configuration_failure",
-        category: "ai_binding",
-      }),
-    );
+    expectNoProviderSecrets(options);
+    expect(gateway).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(configurationFailure);
   } finally {
     warn.mockRestore();
   }
@@ -138,49 +182,33 @@ test.each([
 
 test("reuses one runtime within a Cloudflare isolate", async () => {
   const { onRequest } = await import("./chat");
-  const first = new Request("https://portfolio.test/api/chat", {
-    method: "POST",
-  });
-  const second = new Request("https://portfolio.test/api/chat", {
-    method: "POST",
-  });
+  const first = new Request("https://portfolio.test/api/chat", { method: "POST" });
+  const second = new Request("https://portfolio.test/api/chat", { method: "POST" });
 
   await onRequest({ request: first, env });
   await onRequest({ request: second, env });
 
   expect(mocks.createRuntime).toHaveBeenCalledTimes(1);
-  expect(getUrl).toHaveBeenCalledTimes(1);
+  expect(gateway).not.toHaveBeenCalled();
+  expect(getUrl).not.toHaveBeenCalled();
   expect(mocks.handle).toHaveBeenCalledTimes(2);
 });
 
-test("shares one asynchronous runtime initialization across concurrent requests", async () => {
-  let resolveUrl!: (value: string) => void;
-  getUrl.mockImplementationOnce(
-    () =>
-      new Promise<string>((resolve) => {
-        resolveUrl = resolve;
-      }),
-  );
+test("shares one runtime initialization across concurrent requests", async () => {
   const { onRequest } = await import("./chat");
   const first = onRequest({
-    request: new Request("https://portfolio.test/api/chat", {
-      method: "POST",
-    }),
+    request: new Request("https://portfolio.test/api/chat", { method: "POST" }),
     env,
   });
   const second = onRequest({
-    request: new Request("https://portfolio.test/api/chat", {
-      method: "POST",
-    }),
+    request: new Request("https://portfolio.test/api/chat", { method: "POST" }),
     env,
   });
 
-  expect(getUrl).toHaveBeenCalledTimes(1);
-  resolveUrl(
-    "https://gateway.ai.cloudflare.com/v1/ce389bbbfa541a3a82e81e65eff6a1eb/default/deepseek",
-  );
   await Promise.all([first, second]);
 
   expect(mocks.createRuntime).toHaveBeenCalledTimes(1);
+  expect(gateway).not.toHaveBeenCalled();
+  expect(getUrl).not.toHaveBeenCalled();
   expect(mocks.handle).toHaveBeenCalledTimes(2);
 });
