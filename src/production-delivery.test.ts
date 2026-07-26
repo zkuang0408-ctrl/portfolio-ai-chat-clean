@@ -21,6 +21,7 @@ const expectedEnvironmentExample = [
   'DEEPSEEK_BASE_URL=https://api.deepseek.com',
   'DEEPSEEK_MODEL=deepseek-v4-flash',
   'CLOUDFLARE_AI_GATEWAY_TOKEN=',
+  'TENCENT_TOKENHUB_API_KEY=',
   'RATE_LIMIT_KV_URL=',
   'RATE_LIMIT_KV_TOKEN=',
   'RATE_LIMIT_SALT=',
