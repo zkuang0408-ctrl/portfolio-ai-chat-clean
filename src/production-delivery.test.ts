@@ -26,12 +26,14 @@ const expectedEnvironmentExample = [
   'RATE_LIMIT_KV_TOKEN=',
   'RATE_LIMIT_SALT=',
   'CHAT_ENABLED=true',
+  'CHAT_ALLOWED_ORIGINS=https://portfolio-ai-chat-clean.pages.dev',
   'CHAT_SITE_DAILY_LIMIT=300',
   'CHAT_VISITOR_DAILY_LIMIT=30',
   'CHAT_VISITOR_MINUTE_LIMIT=6',
   'CHAT_COOLDOWN_SECONDS=3',
   'CHAT_MAX_OUTPUT_TOKENS=700',
   'CHAT_UPSTREAM_TIMEOUT_MS=45000',
+  'VITE_CHAT_API_URL=',
 ].join('\n') + '\n';
 
 function pathsFromGitLsFiles(output: string): readonly string[] {
@@ -233,6 +235,11 @@ describe('production document assets', () => {
     expect(isIgnored('.dev.vars.production')).toBe(true);
   });
 
+  it('ignores generated Tencent SCF package outputs', () => {
+    expect(isIgnored('.scf-build/index.mjs')).toBe(true);
+    expect(isIgnored('output/portfolio-chat-scf.zip')).toBe(true);
+  });
+
   it('keeps every git-tracked path in secret-scan scope', () => {
     const listedPaths = [
       'src/main.ts',
@@ -332,6 +339,7 @@ describe('production document assets', () => {
       '@vercel/functions': '3.7.5',
     });
     expect(packageJson.devDependencies).toMatchObject({
+      esbuild: '0.28.1',
       tsx: '4.23.1',
       '@napi-rs/canvas': '1.0.2',
       'pdfjs-dist': '6.1.200',
@@ -344,6 +352,7 @@ describe('production document assets', () => {
       'src',
       'api',
       'functions',
+      'scf',
       'scripts',
       'vite.config.ts',
       'vitest.config.ts',
@@ -421,6 +430,8 @@ describe('production document assets', () => {
       prebuild:
         'npm run knowledge:verify && npm run portfolio-pages:verify',
       build: 'tsc --noEmit && vite build && tsx scripts/check-client-bundle.ts',
+      'scf:build': 'tsx scripts/build-scf-package.ts',
+      'scf:verify': 'tsx scripts/build-scf-package.ts --verify',
     });
     expect(
       existsSync(new URL('../scripts/check-client-bundle.ts', import.meta.url)),
