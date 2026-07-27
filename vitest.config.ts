@@ -6,6 +6,7 @@ export default defineConfig({
     include: [
       "src/**/*.test.ts",
       "functions/**/*.test.ts",
+      "scf/**/*.test.ts",
       "scripts/**/*.test.ts",
     ],
     restoreMocks: true,
