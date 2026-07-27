@@ -92,6 +92,40 @@ describe("createRuntime", () => {
     expect(runtime.enabled).toBe(true);
   });
 
+  test("passes an explicit cross-origin allow-list to the handler", async () => {
+    const captures: Parameters<typeof factories>[0] = {};
+    const runtime = createRuntime({
+      env: validEnv,
+      factories: factories(captures),
+      allowedOrigins: [
+        "https://portfolio-ai-chat-clean.pages.dev",
+      ],
+      ipAddress: () => "203.0.113.8",
+      requestId: () => "request_12345678",
+    });
+    const response = await runtime.handle(
+      new Request(
+        "https://123456-urlid.ap-guangzhou.tencentscf.com/chat",
+        {
+          method: "POST",
+          headers: {
+            origin: "https://portfolio-ai-chat-clean.pages.dev",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            message: "Tell me about INKSeat",
+            history: [],
+            sessionId: "session_123",
+            locale: "en",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+
   test("returns a generic disabled state when chat is explicitly disabled", async () => {
     const createRetriever = vi.fn();
     const runtime = createRuntime({

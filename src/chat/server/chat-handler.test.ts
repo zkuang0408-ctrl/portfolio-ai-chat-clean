@@ -99,6 +99,7 @@ function dependencies(options: {
   rateResult?: { allowed: boolean; resetAt: number };
   metrics?: ChatMetric[];
   providerFailures?: string[];
+  allowedOrigins?: readonly string[];
 } = {}): ChatHandlerDependencies {
   const retriever: Retriever = {
     search: vi.fn(async () =>
@@ -134,10 +135,45 @@ function dependencies(options: {
     providerFailure(category) {
       options.providerFailures?.push(category);
     },
+    allowedOrigins: options.allowedOrigins,
   };
 }
 
 describe("handleChat", () => {
+  test("accepts only the configured cross-origin site", async () => {
+    const provider = providerFromAttempts([[
+      { type: "delta", text: "Grounded answer [[S1]]" },
+      { type: "done" },
+    ]]);
+    const deps = dependencies({
+      provider,
+      allowedOrigins: [
+        "https://portfolio-ai-chat-clean.pages.dev",
+      ],
+    });
+    const allowed = request(undefined, {
+      headers: {
+        origin: "https://portfolio-ai-chat-clean.pages.dev",
+      },
+    });
+    const allowedRequest = new Request(
+      "https://123456-urlid.ap-guangzhou.tencentscf.com/chat",
+      allowed,
+    );
+    expect((await handleChat(allowedRequest, deps)).status).toBe(200);
+
+    const rejected = request(undefined, {
+      headers: { origin: "https://attacker.example" },
+    });
+    const rejectedRequest = new Request(
+      "https://123456-urlid.ap-guangzhou.tencentscf.com/chat",
+      rejected,
+    );
+    const response = await handleChat(rejectedRequest, deps);
+    expect(response.status).toBe(403);
+    expect(provider.calls).toBe(1);
+  });
+
   test("streams start, visible deltas, verified sources, then done", async () => {
     const response = await handleChat(request(), dependencies());
 

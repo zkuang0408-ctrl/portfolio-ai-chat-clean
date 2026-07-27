@@ -221,6 +221,38 @@ describe("validateChatRequestContext", () => {
     expect(() => validateChatRequestContext(validContext)).not.toThrow();
   });
 
+  test("accepts an origin from an explicit exact allow-list", () => {
+    expect(() =>
+      validateChatRequestContext({
+        ...validContext,
+        requestUrl:
+          "https://123456-urlid.ap-guangzhou.tencentscf.com/chat",
+        origin: "https://portfolio-ai-chat-clean.pages.dev",
+        allowedOrigins: [
+          "https://portfolio-ai-chat-clean.pages.dev",
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  test.each([
+    "https://portfolio-ai-chat-clean.pages.dev.evil.example",
+    "http://portfolio-ai-chat-clean.pages.dev",
+    "https://portfolio-ai-chat-clean.pages.dev/",
+  ])("rejects a near-match explicit origin %s", (origin) => {
+    expect(() =>
+      validateChatRequestContext({
+        ...validContext,
+        requestUrl:
+          "https://123456-urlid.ap-guangzhou.tencentscf.com/chat",
+        origin,
+        allowedOrigins: [
+          "https://portfolio-ai-chat-clean.pages.dev",
+        ],
+      }),
+    ).toThrow("cross_origin_request");
+  });
+
   test("rejects an oversized body using either measured or declared bytes", () => {
     expect(() =>
       validateChatRequestContext({

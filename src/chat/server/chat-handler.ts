@@ -48,6 +48,7 @@ export interface ChatHandlerDependencies {
   readonly rateLimit: RateLimitStore;
   readonly rateLimitSalt: string;
   readonly profileFacts: readonly string[];
+  readonly allowedOrigins?: readonly string[];
   readonly ipAddress: (request: Request) => string | undefined;
   readonly clock: () => number;
   readonly requestId: () => string;
@@ -475,6 +476,7 @@ export async function handleChat(
     validateChatRequestContext({
       requestUrl: request.url,
       origin: request.headers.get("origin"),
+      allowedOrigins: dependencies.allowedOrigins,
       contentType: request.headers.get("content-type"),
       contentLength: declaredLength,
       bodyBytes: 0,
@@ -483,6 +485,7 @@ export async function handleChat(
     validateChatRequestContext({
       requestUrl: request.url,
       origin: request.headers.get("origin"),
+      allowedOrigins: dependencies.allowedOrigins,
       contentType: request.headers.get("content-type"),
       contentLength: declaredLength,
       bodyBytes: body.bodyBytes,

@@ -26,6 +26,7 @@ export class ChatValidationError extends Error {
 export interface ChatRequestContext {
   readonly requestUrl: string;
   readonly origin: string | null;
+  readonly allowedOrigins?: readonly string[];
   readonly contentType: string | null;
   readonly contentLength?: number | null;
   readonly bodyBytes: number;
@@ -178,7 +179,11 @@ export function validateChatRequestContext(
     return fail("invalid_body");
   }
 
-  if (typeof context.origin !== "string" || context.origin !== expectedOrigin) {
+  const allowedOrigins = context.allowedOrigins ?? [expectedOrigin];
+  if (
+    typeof context.origin !== "string" ||
+    !allowedOrigins.includes(context.origin)
+  ) {
     fail("cross_origin_request", 403);
   }
 }
