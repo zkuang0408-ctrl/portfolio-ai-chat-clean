@@ -1,4 +1,5 @@
 import portraitUrl from "./assets/portrait.webp";
+import { resolveChatEndpoint } from "./chat/chat-endpoint";
 import { startPortfolioChat } from "./chat/chat-controller";
 import type { ChatLocale } from "./chat/content";
 import { createSafeSessionStorage } from "./chat/session";
@@ -65,6 +66,7 @@ renderPortfolio(portfolioRoot);
 
 const stopChat = startPortfolioChat(portrait.chatRoot, {
   fetch: window.fetch.bind(window),
+  endpoint: resolveChatEndpoint(import.meta.env.VITE_CHAT_API_URL),
   storage: createSafeSessionStorage(() => window.sessionStorage),
   locale,
   navigateToSource: (source) =>

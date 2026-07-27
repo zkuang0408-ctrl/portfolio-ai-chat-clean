@@ -17,6 +17,7 @@ import {
 
 export interface PortfolioChatDependencies {
   readonly fetch: typeof globalThis.fetch;
+  readonly endpoint: string;
   readonly storage: ChatStorage;
   readonly locale: ChatLocale;
   readonly navigateToSource: (source: ClientChatSource) => void;
@@ -191,7 +192,7 @@ export function startPortfolioChat(
         dependencies.storage,
         dependencies.createSessionId,
       );
-      const response = await dependencies.fetch("/api/chat", {
+      const response = await dependencies.fetch(dependencies.endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

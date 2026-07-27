@@ -54,6 +54,8 @@ function setup(
   );
   const dependencies: PortfolioChatDependencies = {
     fetch,
+    endpoint:
+      "https://1234567890-abcd1234.ap-guangzhou.tencentscf.com/chat",
     storage: sessionStorage,
     locale,
     navigateToSource,
@@ -84,6 +86,9 @@ test("recommendation click submits the exact localized question", async () => {
   await settle();
 
   const request = fetch.mock.calls[0]?.[1];
+  expect(fetch.mock.calls[0]?.[0]).toBe(
+    "https://1234567890-abcd1234.ap-guangzhou.tencentscf.com/chat",
+  );
   expect(JSON.parse(String(request?.body))).toMatchObject({
     message: CHAT_CONTENT.zh.recommendations[0],
     locale: "zh",
