@@ -1,4 +1,5 @@
 import { knowledgeSources } from "../manifest";
+import type { KnowledgeSource } from "../types";
 import glossaryJson from "./glossary.json";
 import atempoJson from "./projects/atempo.json";
 import emovueJson from "./projects/emovue.json";
@@ -16,6 +17,7 @@ import type {
 import {
   validateProjectDossier as validateAuthoredProjectDossier,
 } from "./validate";
+import type { DossierValidationOptions } from "./validate";
 
 const intentOrder = [
   "overview",
@@ -101,6 +103,7 @@ function validateGlossary(candidate: unknown): AuthoredGlossary {
 
   const entries: AuthoredGlossaryEntry[] = [];
   const termOwners = new Map<string, string>();
+  const entrySignatures = new Set<string>();
   for (let index = 0; index < candidate.entries.length; index += 1) {
     const value = candidate.entries[index];
     if (!isRecord(value)) throw new Error(`Invalid glossary entry ${index + 1}`);
@@ -121,7 +124,21 @@ function validateGlossary(candidate: unknown): AuthoredGlossary {
       value.intents,
       `glossary entry ${index + 1} intents`,
     );
-    const owner = `${normalizeTerm(canonical)}\u0000${entryIntents.join("\u0000")}`;
+    const normalizedIntents = [...new Set(entryIntents)].sort();
+    const normalizedAliases = [...new Set(aliases.map(normalizeTerm))].sort();
+    const normalizedCanonical = normalizeTerm(canonical);
+    const entrySignature = JSON.stringify([
+      normalizedCanonical,
+      normalizedAliases,
+      normalizedIntents,
+    ]);
+    if (entrySignatures.has(entrySignature)) {
+      throw new Error(
+        `Duplicate normalized glossary entry: ${canonical.trim()}`,
+      );
+    }
+    entrySignatures.add(entrySignature);
+    const owner = `${normalizedCanonical}\u0000${normalizedIntents.join("\u0000")}`;
     for (const term of [canonical, ...aliases]) {
       const normalized = normalizeTerm(term);
       if (normalized.length === 0) {
@@ -129,7 +146,7 @@ function validateGlossary(candidate: unknown): AuthoredGlossary {
       }
       const previousOwner = termOwners.get(normalized);
       if (previousOwner !== undefined && previousOwner !== owner) {
-        throw new Error(`Conflicting normalized glossary term: ${term}`);
+        throw new Error(`Conflicting normalized glossary term: ${term.trim()}`);
       }
       termOwners.set(normalized, owner);
     }
@@ -150,26 +167,48 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value);
 }
 
+export function resolveProjectManifestValidation(
+  projectId: string,
+  sources: readonly KnowledgeSource[],
+): DossierValidationOptions {
+  const matchingSources = sources.filter(
+    (source) => source.kind === "project-pdf" && source.id === projectId,
+  );
+  if (matchingSources.length !== 1) {
+    throw new Error(
+      `Project manifest ${projectId}: expected 1 project-pdf match, found ${matchingSources.length}`,
+    );
+  }
+
+  const source = matchingSources[0]!;
+  const uniqueMatchPrefix = `Project manifest ${projectId}: found 1 match`;
+  if (source.projectId === undefined) {
+    throw new Error(`${uniqueMatchPrefix}; missing field projectId`);
+  }
+  if (source.projectId !== projectId) {
+    throw new Error(`${uniqueMatchPrefix}; invalid field projectId`);
+  }
+  if (source.pageCount === undefined) {
+    throw new Error(`${uniqueMatchPrefix}; missing field pageCount`);
+  }
+  if (
+    !Number.isInteger(source.pageCount)
+    || source.pageCount < 1
+  ) {
+    throw new Error(`${uniqueMatchPrefix}; invalid field pageCount`);
+  }
+  return {
+    expectedProjectId: source.projectId,
+    expectedPageCount: source.pageCount,
+  };
+}
+
 function loadDossier(
   projectId: string,
   candidate: unknown,
 ): AuthoredProjectDossier {
-  const matchingSources = knowledgeSources.filter(
-    (source) => source.kind === "project-pdf" && source.projectId === projectId,
-  );
-  const source = matchingSources[0];
-  if (
-    matchingSources.length !== 1
-    || source === undefined
-    || source.projectId === undefined
-    || source.pageCount === undefined
-  ) {
-    throw new Error(`Missing unique project manifest entry: ${projectId}`);
-  }
-  return deepFreeze(validateAuthoredProjectDossier(candidate, {
-    expectedProjectId: source.projectId,
-    expectedPageCount: source.pageCount,
-  }));
+  const validation = resolveProjectManifestValidation(projectId, knowledgeSources);
+  return deepFreeze(validateAuthoredProjectDossier(candidate, validation));
 }
 
 export const authoredProjects: readonly AuthoredProjectDossier[] = Object.freeze([
@@ -241,7 +280,15 @@ export function buildPageKnowledgeMap(
       if (pages.has(key)) {
         throw new Error(`Duplicate authored page key: ${key}`);
       }
-      pages.set(key, page);
+      pages.set(key, deepFreeze({
+        page: page.page,
+        role: page.role,
+        informationDensity: page.informationDensity,
+        visualSummary: page.visualSummary,
+        entities: [...page.entities],
+        relationships: [...page.relationships],
+        claimIds: [...page.claimIds],
+      }));
     }
   }
   return new FrozenReadonlyMap(pages);
@@ -250,6 +297,7 @@ export function buildPageKnowledgeMap(
 export function buildIntentAliases(
   glossary: AuthoredGlossary,
 ): Readonly<Record<KnowledgeIntent, readonly string[]>> {
+  const validatedGlossary = validateGlossary(glossary);
   const aliases: Record<KnowledgeIntent, string[]> = {
     overview: [],
     problem: [],
@@ -277,7 +325,7 @@ export function buildIntentAliases(
     contribution: new Set(),
   };
 
-  for (const entry of glossary.entries) {
+  for (const entry of validatedGlossary.entries) {
     for (const intent of entry.intents) {
       for (const term of [entry.canonical, ...entry.aliases]) {
         const key = normalizeTerm(term);

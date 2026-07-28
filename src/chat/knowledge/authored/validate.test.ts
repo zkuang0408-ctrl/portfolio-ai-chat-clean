@@ -11,8 +11,10 @@ import {
   authoredProjects,
   buildIntentAliases,
   buildPageKnowledgeMap,
+  resolveProjectManifestValidation,
 } from "./index";
 import { validateProjectDossier } from "./validate";
+import type { KnowledgeSource } from "../types";
 import type {
   AuthoredGlossary,
   AuthoredProjectDossier,
@@ -1456,6 +1458,56 @@ describe("reviewed authored knowledge loader", () => {
     )).toBe(true);
   });
 
+  function projectManifestSource(
+    overrides: Partial<KnowledgeSource> = {},
+  ): KnowledgeSource {
+    return {
+      id: "sample-project",
+      kind: "project-pdf",
+      title: "Sample project",
+      aliases: [],
+      tags: [],
+      projectId: "sample-project",
+      pageCount: 3,
+      ...overrides,
+    };
+  }
+
+  test("distinguishes zero and multiple project manifest matches", () => {
+    expect(() => resolveProjectManifestValidation("sample-project", [])).toThrow(
+      "Project manifest sample-project: expected 1 project-pdf match, found 0",
+    );
+    expect(() => resolveProjectManifestValidation("sample-project", [
+      projectManifestSource(),
+      projectManifestSource({ title: "Duplicate entry" }),
+    ])).toThrow(
+      "Project manifest sample-project: expected 1 project-pdf match, found 2",
+    );
+  });
+
+  test("reports a unique project manifest entry with a missing pageCount", () => {
+    const { pageCount: _pageCount, ...withoutPageCount } = projectManifestSource();
+    expect(() => resolveProjectManifestValidation(
+      "sample-project",
+      [withoutPageCount],
+    )).toThrow(
+      "Project manifest sample-project: found 1 match; missing field pageCount",
+    );
+  });
+
+  test("reports invalid projectId and pageCount manifest fields separately", () => {
+    expect(() => resolveProjectManifestValidation("sample-project", [
+      projectManifestSource({ projectId: "wrong-project" }),
+    ])).toThrow(
+      "Project manifest sample-project: found 1 match; invalid field projectId",
+    );
+    expect(() => resolveProjectManifestValidation("sample-project", [
+      projectManifestSource({ pageCount: 0 }),
+    ])).toThrow(
+      "Project manifest sample-project: found 1 match; invalid field pageCount",
+    );
+  });
+
   test("builds exact project-page keys with useful anchors", () => {
     const pageMap = buildPageKnowledgeMap(authoredProjects);
     expect(pageMap.size).toBe(135);
@@ -1479,6 +1531,40 @@ describe("reviewed authored knowledge loader", () => {
       authoredProjects[0]!,
       authoredProjects[0]!,
     ])).toThrow("Duplicate authored page key: inkseat:p1");
+  });
+
+  test("copies and recursively freezes page values without freezing caller input", () => {
+    const sourcePage = authoredProjects[0]!.pages[0]!;
+    const mutablePage = {
+      ...sourcePage,
+      entities: [...sourcePage.entities],
+      relationships: [...sourcePage.relationships],
+      claimIds: [...sourcePage.claimIds],
+    };
+    const mutableDossier = {
+      ...authoredProjects[0]!,
+      pages: [mutablePage],
+    };
+    const snapshot = structuredClone(mutableDossier);
+
+    const pages = buildPageKnowledgeMap([mutableDossier]);
+    const returnedPage = pages.get("inkseat:p1");
+
+    expect(mutableDossier).toStrictEqual(snapshot);
+    expect(returnedPage).not.toBe(mutablePage);
+    expect(Object.isFrozen(returnedPage)).toBe(true);
+    expect(Object.isFrozen(returnedPage?.entities)).toBe(true);
+    expect(Object.isFrozen(returnedPage?.relationships)).toBe(true);
+    expect(Object.isFrozen(returnedPage?.claimIds)).toBe(true);
+    expect(() => {
+      (returnedPage?.entities as string[]).push("map mutation");
+    }).toThrow();
+
+    expect(Object.isFrozen(mutablePage)).toBe(false);
+    expect(Object.isFrozen(mutablePage.entities)).toBe(false);
+    mutablePage.entities.push("caller mutation");
+    expect(mutablePage.entities.at(-1)).toBe("caller mutation");
+    expect(returnedPage?.entities).not.toContain("caller mutation");
   });
 
   test("loads the bilingual glossary with six canonical project entries", () => {
@@ -1530,6 +1616,78 @@ describe("reviewed authored knowledge loader", () => {
     const aliases = buildIntentAliases(input);
     expect(aliases.overview).toStrictEqual(["INKSeat", "智能座舱"]);
     expect(input).toStrictEqual(snapshot);
+  });
+
+  test("allows compatible normalized terms when intent sets use a different order", () => {
+    const glossary: AuthoredGlossary = {
+      version: 1,
+      entries: [
+        {
+          canonical: "System",
+          aliases: ["shared synonym", "alpha"],
+          intents: ["architecture", "comparison"],
+        },
+        {
+          canonical: " system ",
+          aliases: [" ＳＨＡＲＥＤ ＳＹＮＯＮＹＭ ", "beta"],
+          intents: ["comparison", "architecture"],
+        },
+      ],
+    };
+
+    const aliases = buildIntentAliases(glossary);
+
+    expect(aliases.architecture).toStrictEqual([
+      "System",
+      "shared synonym",
+      "alpha",
+      "beta",
+    ]);
+    expect(aliases.comparison).toStrictEqual(aliases.architecture);
+  });
+
+  test("rejects fully duplicate glossary entries after normalization", () => {
+    const glossary: AuthoredGlossary = {
+      version: 1,
+      entries: [
+        {
+          canonical: "Shared",
+          aliases: ["Alpha", "Beta"],
+          intents: ["overview", "problem"],
+        },
+        {
+          canonical: " ＳＨＡＲＥＤ ",
+          aliases: [" beta ", "ALPHA"],
+          intents: ["problem", "overview"],
+        },
+      ],
+    };
+
+    expect(() => buildIntentAliases(glossary)).toThrow(
+      "Duplicate normalized glossary entry: ＳＨＡＲＥＤ",
+    );
+  });
+
+  test("rejects a normalized term shared by incompatible glossary owners", () => {
+    const glossary: AuthoredGlossary = {
+      version: 1,
+      entries: [
+        {
+          canonical: "First owner",
+          aliases: ["shared synonym"],
+          intents: ["overview"],
+        },
+        {
+          canonical: "Second owner",
+          aliases: [" ＳＨＡＲＥＤ ＳＹＮＯＮＹＭ "],
+          intents: ["overview"],
+        },
+      ],
+    };
+
+    expect(() => buildIntentAliases(glossary)).toThrow(
+      "Conflicting normalized glossary term: ＳＨＡＲＥＤ ＳＹＮＯＮＹＭ",
+    );
   });
 
   test("does not expose normalized terms under incompatible canonical entries or intents", () => {
