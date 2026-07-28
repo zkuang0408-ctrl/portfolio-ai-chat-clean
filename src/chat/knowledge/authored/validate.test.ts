@@ -162,4 +162,41 @@ describe("validateProjectDossier", () => {
   test("rejects unknown dossier keys", () => {
     expect(() => validate({ ...minimalDossier(), unexpected: true })).toThrow();
   });
+
+  test("rejects a non-object dossier", () => {
+    expect(() => validate(null)).toThrow();
+  });
+
+  test("rejects nonpositive expected and authored page counts", () => {
+    const dossier = minimalDossier();
+    expect(() => validateProjectDossier(dossier, { expectedProjectId: projectId, expectedPageCount: 0 })).toThrow();
+    expect(() => validate({ ...dossier, pageCount: 0 })).toThrow();
+  });
+
+  test("rejects empty authored strings", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({ ...dossier, title: " " })).toThrow();
+    expect(() => validate({ ...dossier, pages: [{ ...dossier.pages[0], role: " " }] })).toThrow();
+    expect(() => validate({ ...dossier, pages: [{ ...dossier.pages[0], visualSummary: " " }] })).toThrow();
+    expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], id: " " }] })).toThrow();
+  });
+
+  test("requires page numbers to be complete and ordered", () => {
+    const dossier = minimalDossier();
+    const pageTwo = { ...dossier.pages[0], page: 2 };
+    const twoPageDossier = { ...dossier, pageCount: 2, pages: [dossier.pages[0], pageTwo] };
+    const options = { expectedProjectId: projectId, expectedPageCount: 2 };
+    expect(() => validateProjectDossier({ ...twoPageDossier, pages: [dossier.pages[0], dossier.pages[0]] }, options)).toThrow("must annotate every page");
+    expect(() => validateProjectDossier({ ...twoPageDossier, pages: [pageTwo, dossier.pages[0]] }, options)).toThrow("must annotate every page");
+  });
+
+  test("reports malformed annotated pages as missing annotations", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({ ...dossier, pages: [{ ...dossier.pages[0], page: 1.5 }] })).toThrow("must annotate every page");
+  });
+
+  test("rejects evidence from a different project", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], evidence: [{ sourceId: "another-project", page: 1 }] }] })).toThrow();
+  });
 });

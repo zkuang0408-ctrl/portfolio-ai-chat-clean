@@ -136,7 +136,9 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
   const pages: PageKnowledge[] = dossier.pages.map((value) => {
     const page = requireRecord(value, "page annotation");
     requireKeys(page, ["page", "role", "informationDensity", "visualSummary", "entities", "relationships", "claimIds"], "page annotation");
-    if (typeof page.page !== "number" || !Number.isInteger(page.page)) throw new Error("Invalid annotated page");
+    if (typeof page.page !== "number" || !Number.isInteger(page.page)) {
+      throw new Error(`Project ${projectId} must annotate every page in order`);
+    }
     if (typeof page.informationDensity !== "string" || !densities.includes(page.informationDensity as PageInformationDensity)) throw new Error(`Invalid information density for page ${page.page}`);
     return { page: page.page, role: requireNonEmptyString(page.role, `role for page ${page.page}`), informationDensity: page.informationDensity as PageInformationDensity, visualSummary: requireNonEmptyString(page.visualSummary, `visual summary for page ${page.page}`), entities: requireStringArray(page.entities, `entities for page ${page.page}`), relationships: requireStringArray(page.relationships, `relationships for page ${page.page}`), claimIds: requireClaimReferences(page.claimIds, `page ${page.page}`, claimIds) };
   });
