@@ -59,7 +59,6 @@ export interface ChatHandlerDependencies {
   readonly rateLimitSalt: string;
   readonly profileFacts: readonly string[];
   readonly allowedOrigins?: readonly string[];
-  readonly ipAddress: (request: Request) => string | undefined;
   readonly clock: () => number;
   readonly requestId: () => string;
   metrics: ChatMetricsSink;
@@ -517,12 +516,8 @@ export async function handleChat(
     });
     const parsed = parseChatBody(parseJson(body.text));
     runtimeStage = "visitor_identity";
-    const rawIp = dependencies.ipAddress(request);
-    if (typeof rawIp !== "string" || rawIp.length === 0) {
-      throw new Error("visitor identity unavailable");
-    }
     const visitorKey = await deriveVisitorKey(
-      rawIp,
+      `session:${parsed.sessionId}`,
       dependencies.rateLimitSalt,
     );
     runtimeStage = "rate_limit";

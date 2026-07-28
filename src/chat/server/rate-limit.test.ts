@@ -26,21 +26,23 @@ function atShanghai(isoLocal: string): number {
 }
 
 describe("deriveVisitorKey", () => {
-  test("uses HMAC-SHA256 with RATE_LIMIT_SALT and never returns the raw IP", async () => {
-    const ip = "203.0.113.42";
+  test("uses HMAC-SHA256 and never returns the raw identity", async () => {
+    const identity = "session:session_123";
     const salt = "a-high-entropy-test-salt-32-bytes";
 
-    const key = await deriveVisitorKey(ip, salt);
+    const key = await deriveVisitorKey(identity, salt);
 
-    expect(key).toBe(createHmac("sha256", salt).update(ip).digest("hex"));
+    expect(key).toBe(
+      createHmac("sha256", salt).update(identity).digest("hex"),
+    );
     expect(key).toMatch(/^[a-f0-9]{64}$/);
-    expect(key).not.toContain(ip);
+    expect(key).not.toContain("session_123");
   });
 
   test.each(["", "a".repeat(31), `${"界".repeat(10)}a`])(
     "rejects RATE_LIMIT_SALT values shorter than 32 UTF-8 bytes",
     async (salt) => {
-      await expect(deriveVisitorKey("203.0.113.42", salt)).rejects.toThrow(
+      await expect(deriveVisitorKey("session:session_123", salt)).rejects.toThrow(
         "RATE_LIMIT_SALT",
       );
     },
@@ -48,7 +50,7 @@ describe("deriveVisitorKey", () => {
 
   test("accepts a multibyte RATE_LIMIT_SALT at the exact 32-byte boundary", async () => {
     await expect(
-      deriveVisitorKey("203.0.113.42", `${"界".repeat(10)}ab`),
+      deriveVisitorKey("session:session_123", `${"界".repeat(10)}ab`),
     ).resolves.toMatch(
       /^[a-f0-9]{64}$/,
     );

@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { createHmac } from "node:crypto";
 import { describe, expect, test, vi } from "vitest";
 
 import type { KnowledgeChunk } from "../knowledge/types";
@@ -16,6 +17,8 @@ import {
 
 const encoder = new TextEncoder();
 const fixedNow = 1_786_000_000_000;
+const RATE_LIMIT_SALT =
+  "a-safe-test-salt-that-is-at-least-32-bytes-long";
 
 function chunk(sourceId: string, page: number): KnowledgeChunk {
   return {
@@ -101,7 +104,7 @@ function dependencies(options: {
   metrics?: ChatMetric[];
   providerFailures?: string[];
   runtimeFailures?: ChatRuntimeFailure[];
-  ipAddress?: string;
+  rateLimitSalt?: string;
   rateLimitError?: Error;
   retrievalError?: Error;
   runtimeFailureThrows?: boolean;
@@ -133,11 +136,10 @@ function dependencies(options: {
         { type: "delta", text: "Grounded answer [[S1]]" },
         { type: "usage", inputTokens: 12, outputTokens: 4 },
         { type: "done" },
-      ]]),
+    ]]),
     rateLimit,
-    rateLimitSalt: "a-safe-test-salt-that-is-at-least-32-bytes-long",
+    rateLimitSalt: options.rateLimitSalt ?? RATE_LIMIT_SALT,
     profileFacts: ["赵实旷是同济大学工业设计学生。"],
-    ipAddress: () => options.ipAddress ?? "203.0.113.8",
     clock: () => fixedNow,
     requestId: () => "request_12345678",
     metrics: {
@@ -159,6 +161,50 @@ function dependencies(options: {
 }
 
 describe("handleChat", () => {
+  test("derives an anonymous visitor key from the validated session", async () => {
+    const deps = dependencies();
+    const response = await handleChat(request(), deps);
+    await response.text();
+
+    const consume = vi.mocked(deps.rateLimit.consume);
+    expect(consume).toHaveBeenCalledOnce();
+    const input = consume.mock.calls[0]?.[0];
+    expect(input?.visitorKey).toBe(
+      createHmac("sha256", RATE_LIMIT_SALT)
+        .update("session:session_123")
+        .digest("hex"),
+    );
+    expect(JSON.stringify(input)).not.toContain("session_123");
+    expect(input?.visitorKey).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  test("keeps sessions stable and distinct without visitor IP headers", async () => {
+    const keys: string[] = [];
+    for (const sessionId of [
+      "session_123",
+      "session_123",
+      "session_456",
+    ]) {
+      const deps = dependencies();
+      const response = await handleChat(
+        request({
+          message: "Tell me about INKSeat",
+          history: [],
+          sessionId,
+          locale: "en",
+        }),
+        deps,
+      );
+      await response.text();
+      const input =
+        vi.mocked(deps.rateLimit.consume).mock.calls[0]?.[0];
+      keys.push(input!.visitorKey);
+    }
+
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[0]).not.toBe(keys[2]);
+  });
+
   test("accepts only the configured cross-origin site", async () => {
     const provider = providerFromAttempts([[
       { type: "delta", text: "Grounded answer [[S1]]" },
@@ -587,7 +633,7 @@ describe("handleChat", () => {
   test.each([
     [
       "visitor_identity",
-      { ipAddress: "" },
+      { rateLimitSalt: "short" },
     ],
     [
       "rate_limit",

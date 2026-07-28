@@ -50,11 +50,11 @@ const DEFAULT_POLICY: RateLimitPolicy = {
 };
 
 export async function deriveVisitorKey(
-  ip: string,
+  identityMaterial: string,
   rateLimitSalt: string,
 ): Promise<string> {
-  if (ip.length === 0) {
-    throw new Error("visitor IP is required");
+  if (identityMaterial.length === 0) {
+    throw new Error("visitor identity is required");
   }
   const encoder = new TextEncoder();
   const saltBytes = encoder.encode(rateLimitSalt);
@@ -69,7 +69,11 @@ export async function deriveVisitorKey(
     false,
     ["sign"],
   );
-  const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(ip));
+  const digest = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(identityMaterial),
+  );
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
