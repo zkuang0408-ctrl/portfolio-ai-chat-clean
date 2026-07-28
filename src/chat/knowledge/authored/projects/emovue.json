@@ -1,0 +1,841 @@
+{
+  "projectId": "emovue",
+  "title": "EMOVUE",
+  "aliases": [
+    "emo vue",
+    "情绪感知穿戴相机",
+    "emotion-sensing wearable camera",
+    "挂脖情绪相机"
+  ],
+  "oneLine": "a neck-worn emotion-sensing camera concept that uses physiological-signal changes to trigger recording and AI-assisted organization/editing",
+  "pageCount": 19,
+  "claims": [
+    {
+      "id": "emovue.overview",
+      "text": "EMOVUE 是一款面向未来的颈挂式情绪感知相机概念：它以生理信号变化触发免手持、弱打扰的自动记录，并通过 AI 辅助素材归纳与剪辑来组织日常影像。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 1
+        },
+        {
+          "sourceId": "emovue",
+          "page": 8
+        }
+      ],
+      "intents": [
+        "overview",
+        "solution"
+      ],
+      "topics": [
+        "颈挂式相机",
+        "情绪感知",
+        "自动记录",
+        "AI 辅助整理"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.problem",
+      "text": "作品研究将手动拿起相机造成的体验中断、真实瞬间漏拍，以及创作者返程后素材过多和整理负担重归纳为主要问题；页面展示的调查比例属于作品自身的研究呈现，不应视为经外部独立验证的统计结论。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 2
+        },
+        {
+          "sourceId": "emovue",
+          "page": 3
+        },
+        {
+          "sourceId": "emovue",
+          "page": 4
+        }
+      ],
+      "intents": [
+        "problem",
+        "research"
+      ],
+      "topics": [
+        "拍摄中断",
+        "瞬间漏拍",
+        "素材整理",
+        "作品研究"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.positioning",
+      "text": "项目以旅行和内容创作人群为主要画像，将产品定位在可穿戴便捷性、真实记录、情感共鸣与后期效率的交叉点。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 3
+        }
+      ],
+      "intents": [
+        "research",
+        "solution"
+      ],
+      "topics": [
+        "创作者画像",
+        "旅行场景",
+        "产品定位",
+        "情感共鸣"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.product",
+      "text": "产品页提出读取心率、皮肤电和体温等信号，在情绪波动时自动拍摄，同时提供情绪档案、AI 辅助管理和手动记录模式；3D 扫描与 VR 回忆被表达为未来方向，而非已经验证完成的功能。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 8
+        }
+      ],
+      "intents": [
+        "solution",
+        "technology"
+      ],
+      "topics": [
+        "心率",
+        "皮肤电",
+        "体温",
+        "自动拍摄",
+        "情绪档案",
+        "未来 3D/VR 方向"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.app",
+      "text": "配套 App 概念覆盖设备连接与设置、自动素材归档、情绪轨迹、剪辑推荐、影像浏览回放与分享，并在预览中同步呈现拍摄时的生理和情绪语境。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 11
+        },
+        {
+          "sourceId": "emovue",
+          "page": 12
+        },
+        {
+          "sourceId": "emovue",
+          "page": 13
+        }
+      ],
+      "intents": [
+        "interaction",
+        "solution"
+      ],
+      "topics": [
+        "配套 App",
+        "设备连接",
+        "情绪轨迹",
+        "剪辑推荐",
+        "回放分享"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.wearing",
+      "text": "佩戴方案采用模块化颈挂组件：较短一侧可拆下充电后装回主机，并支持 Type-C 线充或直接充电及佩戴舒适度调节。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 14
+        }
+      ],
+      "intents": [
+        "interaction",
+        "form"
+      ],
+      "topics": [
+        "模块化佩戴",
+        "可拆卸部件",
+        "Type-C",
+        "舒适度调节"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.technical-prototype",
+      "text": "作品展示的功能模型以 Arduino 为核心，集成心率、皮肤电与摄像头模块，并按可调阈值判断生理波动后触发拍摄；这证明的是交互触发原型，不代表经过临床验证的情绪识别或准确率。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 15
+        }
+      ],
+      "intents": [
+        "technology",
+        "architecture",
+        "comparison"
+      ],
+      "topics": [
+        "Arduino",
+        "心率传感器",
+        "皮肤电传感器",
+        "摄像头模块",
+        "阈值触发原型"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.human-factors",
+      "text": "人因设计强调曲面软垫贴合、可调滑轨与佩戴舒适性，同时用克制色彩和可拆卸结构回应时尚感、便携性及社交场景考虑。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 16
+        }
+      ],
+      "intents": [
+        "form",
+        "value"
+      ],
+      "topics": [
+        "曲面软垫",
+        "可调滑轨",
+        "佩戴舒适",
+        "色彩",
+        "社交考虑"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.packaging",
+      "text": "包装方案将模块化产品、配套充电器和可拆卸收纳支架组织为一套三类主要组件。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "emovue",
+          "page": 17
+        }
+      ],
+      "intents": [
+        "form"
+      ],
+      "topics": [
+        "产品包装",
+        "充电器",
+        "收纳支架",
+        "组件套装"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.core-contributor",
+      "text": "据赵实旷本人陈述，赵实旷是 EMOVUE 团队项目的核心贡献者，承担了实质性工作，并在团队成果中占有较大贡献份额。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "赵实旷",
+        "核心贡献者",
+        "团队项目",
+        "实质性贡献"
+      ],
+      "public": true
+    },
+    {
+      "id": "emovue.contribution.product-positioning",
+      "text": "待本人确认：赵实旷可能参与了 EMOVUE 的产品定位与创作者场景梳理。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "产品定位"
+      ],
+      "public": false
+    },
+    {
+      "id": "emovue.contribution.form-exploration",
+      "text": "待本人确认：赵实旷可能参与了 EMOVUE 的颈挂形态、草图与造型探索。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "形态探索"
+      ],
+      "public": false
+    },
+    {
+      "id": "emovue.contribution.interaction-flow",
+      "text": "待本人确认：赵实旷可能参与了 EMOVUE 从生理波动触发到记录、整理与回看的交互流程设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "交互流程"
+      ],
+      "public": false
+    },
+    {
+      "id": "emovue.contribution.app-interface",
+      "text": "待本人确认：赵实旷可能参与了 EMOVUE 配套 App 的功能结构或界面表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "App 界面"
+      ],
+      "public": false
+    },
+    {
+      "id": "emovue.contribution.packaging",
+      "text": "待本人确认：赵实旷可能参与了 EMOVUE 的包装与套装呈现。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "包装设计"
+      ],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": [
+      "emovue.overview"
+    ],
+    "problem": [
+      "emovue.problem"
+    ],
+    "research": [
+      "emovue.problem",
+      "emovue.positioning"
+    ],
+    "solution": [
+      "emovue.overview",
+      "emovue.positioning",
+      "emovue.product",
+      "emovue.app"
+    ],
+    "architecture": [
+      "emovue.technical-prototype"
+    ],
+    "interaction": [
+      "emovue.app",
+      "emovue.wearing"
+    ],
+    "technology": [
+      "emovue.product",
+      "emovue.technical-prototype"
+    ],
+    "form": [
+      "emovue.wearing",
+      "emovue.human-factors",
+      "emovue.packaging"
+    ],
+    "value": [
+      "emovue.positioning",
+      "emovue.human-factors"
+    ],
+    "comparison": [
+      "emovue.technical-prototype"
+    ],
+    "contribution": [
+      "emovue.core-contributor",
+      "emovue.contribution.product-positioning",
+      "emovue.contribution.form-exploration",
+      "emovue.contribution.interaction-flow",
+      "emovue.contribution.app-interface",
+      "emovue.contribution.packaging"
+    ]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "深色紫调封面以颈挂式相机渲染为主体，并用英文短句说明生理信号驱动的自动记录概念。",
+      "entities": [
+        "EMOVUE 标题",
+        "颈挂式相机渲染",
+        "概念说明"
+      ],
+      "relationships": [
+        "产品渲染与概念定位共同介绍项目"
+      ],
+      "claimIds": [
+        "emovue.overview"
+      ]
+    },
+    {
+      "page": 2,
+      "role": "research",
+      "informationDensity": "high",
+      "visualSummary": "研究页并置内容趋势图、真实性与情绪化关键词，以及作品内的采访比例和用户表述。",
+      "entities": [
+        "内容趋势图",
+        "关键词云",
+        "采访记录",
+        "作品内调查比例"
+      ],
+      "relationships": [
+        "趋势与采访材料用于界定拍摄中断和瞬间漏拍问题"
+      ],
+      "claimIds": [
+        "emovue.problem"
+      ]
+    },
+    {
+      "page": 3,
+      "role": "positioning-and-persona",
+      "informationDensity": "high",
+      "visualSummary": "页面展示旅行内容创作者画像、目标与痛点，并用二维坐标对比穿戴性和拍摄功能性。",
+      "entities": [
+        "旅行创作者画像",
+        "目标与痛点",
+        "社交媒体活动",
+        "产品定位图"
+      ],
+      "relationships": [
+        "用户痛点连接到穿戴便捷与拍摄功能的定位"
+      ],
+      "claimIds": [
+        "emovue.problem",
+        "emovue.positioning"
+      ]
+    },
+    {
+      "page": 4,
+      "role": "customer-journey",
+      "informationDensity": "medium",
+      "visualSummary": "横向旅程图覆盖拍摄前、拍摄、剪辑与发布阶段，并对照现状情绪曲线、机会点和使用 EMOVUE 后的流程。",
+      "entities": [
+        "拍摄前阶段",
+        "拍摄阶段",
+        "剪辑阶段",
+        "发布阶段",
+        "机会点"
+      ],
+      "relationships": [
+        "现有流程痛点与自动监测、归档、筛选和分享机会对应"
+      ],
+      "claimIds": [
+        "emovue.problem"
+      ]
+    },
+    {
+      "page": 5,
+      "role": "mood-board",
+      "informationDensity": "medium",
+      "visualSummary": "情绪板收集颈部穿戴设备、环形曲面、半透明材质和紫色渐变等视觉参考。",
+      "entities": [
+        "穿戴设备参考",
+        "曲率参考",
+        "材质参考",
+        "紫色渐变"
+      ],
+      "relationships": [
+        "参考图共同定义未来感、环形与柔和曲面的造型语汇"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 6,
+      "role": "concept-sketches",
+      "informationDensity": "medium",
+      "visualSummary": "三排手绘草图比较多种开放式颈环、端部摄像头和分段连接方案。",
+      "entities": [
+        "颈环草图",
+        "摄像头端部",
+        "分段连接"
+      ],
+      "relationships": [
+        "草图在佩戴开口、曲率和功能端布局之间探索变体"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 7,
+      "role": "ai-form-exploration",
+      "informationDensity": "medium",
+      "visualSummary": "AI 形态探索页展示多组未来感颈挂相机生成图和英文提示词。",
+      "entities": [
+        "AI 生成图",
+        "穿戴相机变体",
+        "生成提示词"
+      ],
+      "relationships": [
+        "提示词围绕生物识别、柔和曲线与环境灯探索外观方向"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 8,
+      "role": "product-and-functions",
+      "informationDensity": "high",
+      "visualSummary": "产品介绍页结合整机渲染、佩戴示意和功能表，说明生理信号、自动拍摄、素材管理、手动模式及未来 3D/VR 方向。",
+      "entities": [
+        "整机渲染",
+        "佩戴示意",
+        "心率与皮肤电",
+        "功能表",
+        "未来 3D/VR 方向"
+      ],
+      "relationships": [
+        "生理信号变化连接自动记录与后续素材组织"
+      ],
+      "claimIds": [
+        "emovue.overview",
+        "emovue.product"
+      ]
+    },
+    {
+      "page": 9,
+      "role": "product-details",
+      "informationDensity": "high",
+      "visualSummary": "多处放大图标注滑轨、磁吸、软垫、传感器、摄像头、灯带和模块化电池等概念细节。",
+      "entities": [
+        "可调滑轨",
+        "磁吸连接",
+        "PPG 心率传感器",
+        "皮肤电模块",
+        "摄像头",
+        "模块化电池"
+      ],
+      "relationships": [
+        "结构与传感细节围绕佩戴、采集、记录和充电分布"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 10,
+      "role": "exploded-view",
+      "informationDensity": "high",
+      "visualSummary": "爆炸图按颈环两侧拆分外壳、滑轨、控制板、电池、传感器、麦克风、相机与 Type-C 接口。",
+      "entities": [
+        "外壳",
+        "控制板",
+        "电池",
+        "传感器",
+        "麦克风",
+        "相机模块",
+        "Type-C 接口"
+      ],
+      "relationships": [
+        "组件沿颈环两侧形成传感、控制与成像的概念装配关系"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 11,
+      "role": "companion-app",
+      "informationDensity": "high",
+      "visualSummary": "配套应用概览以多台手机界面渲染展示蓝牙连接、情绪档案、回顾、管理与分享。",
+      "entities": [
+        "手机界面",
+        "蓝牙连接",
+        "情绪档案",
+        "回顾与分享"
+      ],
+      "relationships": [
+        "设备自动捕捉的内容同步到应用进行管理与分享"
+      ],
+      "claimIds": [
+        "emovue.app"
+      ]
+    },
+    {
+      "page": 12,
+      "role": "app-functions",
+      "informationDensity": "high",
+      "visualSummary": "五个 App 界面分别说明自动归档、剪辑推荐、设备设置、视频回顾和情绪轨迹可视化。",
+      "entities": [
+        "自动素材归档",
+        "剪辑推荐",
+        "设备设置",
+        "视频回顾",
+        "情绪轨迹"
+      ],
+      "relationships": [
+        "连接与灵敏度设置支撑记录，记录再进入归档、编辑和回顾"
+      ],
+      "claimIds": [
+        "emovue.app"
+      ]
+    },
+    {
+      "page": 13,
+      "role": "emotional-preview",
+      "informationDensity": "high",
+      "visualSummary": "相机预览概念把第一人称画面与心率、情绪标签和波动图形叠加呈现。",
+      "entities": [
+        "第一人称预览",
+        "心率数值",
+        "情绪标签",
+        "情绪波动图形"
+      ],
+      "relationships": [
+        "拍摄画面与同步生理和情绪语境共同支持回看"
+      ],
+      "claimIds": [
+        "emovue.app"
+      ]
+    },
+    {
+      "page": 14,
+      "role": "wearing-and-charging",
+      "informationDensity": "high",
+      "visualSummary": "使用方式页用线稿展示两段式装回与颈挂动作，并以实物渲染说明 Type-C 线充和直接充电。",
+      "entities": [
+        "两段式组件",
+        "颈挂动作",
+        "Type-C 线缆",
+        "直接充电"
+      ],
+      "relationships": [
+        "可拆部件在充电后装回主机并用于颈部佩戴"
+      ],
+      "claimIds": [
+        "emovue.wearing"
+      ]
+    },
+    {
+      "page": 15,
+      "role": "technical-prototype",
+      "informationDensity": "high",
+      "visualSummary": "技术支持页展示 Arduino 接线、心率与皮肤电输入、摄像头模块、阈值判断流程及面包板实物照片。",
+      "entities": [
+        "Arduino",
+        "心率传感器",
+        "皮肤电传感器",
+        "摄像头模块",
+        "阈值判断",
+        "功能模型照片"
+      ],
+      "relationships": [
+        "生理信号输入经过可调阈值判断后触发摄像头记录"
+      ],
+      "claimIds": [
+        "emovue.technical-prototype"
+      ]
+    },
+    {
+      "page": 16,
+      "role": "human-factors",
+      "informationDensity": "high",
+      "visualSummary": "人因页聚焦曲面软垫、淡雅配色、可拆充电部件与可调滑轨，并列出便携和社交场景考虑。",
+      "entities": [
+        "曲面软垫",
+        "淡雅配色",
+        "可拆充电部件",
+        "可调滑轨",
+        "社交场景"
+      ],
+      "relationships": [
+        "结构贴合、调节和便携设计共同回应佩戴舒适与生活方式"
+      ],
+      "claimIds": [
+        "emovue.human-factors"
+      ]
+    },
+    {
+      "page": 17,
+      "role": "packaging",
+      "informationDensity": "medium",
+      "visualSummary": "包装渲染展示透明顶盖套装，内含颈挂产品、充电器、线缆和可拆卸收纳支架。",
+      "entities": [
+        "套装包装",
+        "颈挂产品",
+        "充电器与线缆",
+        "收纳支架"
+      ],
+      "relationships": [
+        "三类主要组件在包装内形成完整收纳套装"
+      ],
+      "claimIds": [
+        "emovue.packaging"
+      ]
+    },
+    {
+      "page": 18,
+      "role": "presentation",
+      "informationDensity": "low",
+      "visualSummary": "视频展示页以大幅产品渲染画面作为演示入口。",
+      "entities": [
+        "视频展示框",
+        "颈挂产品渲染"
+      ],
+      "relationships": [
+        "产品渲染作为演示内容的视觉主体"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 19,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "深紫色感谢页结束项目展示。",
+      "entities": [
+        "感谢文字",
+        "项目页脚"
+      ],
+      "relationships": [
+        "结束语标记作品展示收尾"
+      ],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    {
+      "question": "EMOVUE是什么作品",
+      "locale": "zh",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "emovue.overview"
+      ]
+    },
+    {
+      "question": "EMOVUE如何自动捕捉情绪瞬间",
+      "locale": "zh",
+      "intents": [
+        "technology",
+        "solution"
+      ],
+      "preferredClaimIds": [
+        "emovue.technical-prototype",
+        "emovue.product"
+      ]
+    },
+    {
+      "question": "EMOVUE解决了什么问题",
+      "locale": "zh",
+      "intents": [
+        "problem"
+      ],
+      "preferredClaimIds": [
+        "emovue.problem"
+      ]
+    },
+    {
+      "question": "EMOVUE配套App有哪些功能",
+      "locale": "zh",
+      "intents": [
+        "interaction",
+        "solution"
+      ],
+      "preferredClaimIds": [
+        "emovue.app"
+      ]
+    },
+    {
+      "question": "EMOVUE如何考虑佩戴舒适性",
+      "locale": "zh",
+      "intents": [
+        "form",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "emovue.human-factors",
+        "emovue.wearing"
+      ]
+    },
+    {
+      "question": "赵实旷在EMOVUE中有哪些贡献",
+      "locale": "zh",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "emovue.core-contributor"
+      ]
+    },
+    {
+      "question": "What is EMOVUE",
+      "locale": "en",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "emovue.overview"
+      ]
+    },
+    {
+      "question": "How does EMOVUE trigger automatic recording",
+      "locale": "en",
+      "intents": [
+        "technology",
+        "architecture"
+      ],
+      "preferredClaimIds": [
+        "emovue.technical-prototype",
+        "emovue.product"
+      ]
+    },
+    {
+      "question": "What problem does EMOVUE address",
+      "locale": "en",
+      "intents": [
+        "problem",
+        "research"
+      ],
+      "preferredClaimIds": [
+        "emovue.problem"
+      ]
+    },
+    {
+      "question": "What can the EMOVUE companion app do",
+      "locale": "en",
+      "intents": [
+        "interaction",
+        "solution"
+      ],
+      "preferredClaimIds": [
+        "emovue.app"
+      ]
+    },
+    {
+      "question": "How does EMOVUE approach wearing comfort",
+      "locale": "en",
+      "intents": [
+        "form",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "emovue.human-factors",
+        "emovue.wearing"
+      ]
+    },
+    {
+      "question": "What did Zhao contribute to EMOVUE",
+      "locale": "en",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "emovue.core-contributor"
+      ]
+    }
+  ]
+}

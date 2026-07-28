@@ -1,0 +1,986 @@
+{
+  "projectId": "evolution-fruit",
+  "title": "Fruit & Evolution",
+  "aliases": [
+    "果实与演化",
+    "果实演化",
+    "fruit evolution",
+    "参数化食物设计"
+  ],
+  "oneLine": "generative food-design project translating fruit evolution and climate logic into algorithmic descriptions, parametric forms, and physical edible prototypes",
+  "pageCount": 25,
+  "claims": [
+    {
+      "id": "evolution-fruit.overview",
+      "text": "Fruit & Evolution 是一个生成式食物设计项目，以果实演化为组织逻辑，连接算法描述、参数化模型和可食用实体原型。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 1
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 2
+        }
+      ],
+      "intents": [
+        "overview",
+        "solution"
+      ],
+      "topics": [
+        "生成式食物设计",
+        "果实演化",
+        "算法描述",
+        "参数化模型",
+        "可食用原型"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.inspiration",
+      "text": "项目从自然选择、人工选择、基因编辑以及不同作物在历史中的形态差异获得灵感，提出一个同时受环境和人为因素影响的“元果实”概念。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 3
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 4
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 5
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 6
+        }
+      ],
+      "intents": [
+        "research",
+        "problem"
+      ],
+      "topics": [
+        "自然选择",
+        "人工选择",
+        "基因编辑",
+        "历史形态",
+        "元果实"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.system",
+      "text": "系统把果实图片、名称、世代数与气候描述作为输入，结合气候知识生成形态和风味描述，再把结果转译为参数化造型指导与可能的配方、风味路线。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 6
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 10
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 11
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 12
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 13
+        }
+      ],
+      "intents": [
+        "architecture",
+        "comparison"
+      ],
+      "topics": [
+        "系统输入",
+        "气候知识",
+        "形态描述",
+        "风味描述",
+        "模型指导"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.algorithm",
+      "text": "作品展示的工作流借助 Coze 与豆包，把自建气候知识、果实信息和世代数组织为气候、形态与风味描述，并输出参数化建模指导；这是作品集中的流程演示，不代表已部署的生产级 AI 服务。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 9
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 10
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 11
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 12
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 13
+        }
+      ],
+      "intents": [
+        "technology",
+        "architecture"
+      ],
+      "topics": [
+        "Coze",
+        "豆包",
+        "气候知识库",
+        "生成工作流",
+        "作品流程演示"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.parametric-model",
+      "text": "Rhino 参数化形态通过调节大小、形状、沟壑深度和果块密度来可视化世代变化；页面展示的一条演化线以释迦果（番荔枝）为形态参照起点。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 15
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 16
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 17
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 18
+        }
+      ],
+      "intents": [
+        "form",
+        "technology"
+      ],
+      "topics": [
+        "Rhino",
+        "参数化形态",
+        "沟壑深度",
+        "果块密度",
+        "释迦果参照"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.physical-making",
+      "text": "项目通过模具、食材准备、果冻和芋泥成品，把生成几何转译为多种颜色、纹理与表面起伏的可食用实体原型。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 20
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 21
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 22
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 23
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 24
+        }
+      ],
+      "intents": [
+        "form",
+        "solution"
+      ],
+      "topics": [
+        "模具制作",
+        "食材准备",
+        "果冻",
+        "芋泥",
+        "可食用原型"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.value",
+      "text": "项目的价值在于把抽象的演化与环境数据保守地转译为可见的形态家族，再进一步落到可触摸、可食用的食物结果；它展示的是设计转译路径，而非对演化或风味关系的科学证明。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "evolution-fruit",
+          "page": 2
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 18
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 20
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 21
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 22
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 23
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 24
+        }
+      ],
+      "intents": [
+        "value",
+        "comparison"
+      ],
+      "topics": [
+        "数据转译",
+        "形态家族",
+        "食物结果",
+        "设计价值"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.core-contributor",
+      "text": "据赵实旷本人陈述，赵实旷是 Fruit & Evolution 团队项目的核心贡献者，承担了实质性工作，并在团队成果中占有较大贡献份额。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "赵实旷",
+        "核心贡献者",
+        "团队项目",
+        "实质性贡献"
+      ],
+      "public": true
+    },
+    {
+      "id": "evolution-fruit.contribution.concept",
+      "text": "待本人确认：赵实旷可能参与了 Fruit & Evolution 的演化灵感与元果实概念构思。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "概念构思"
+      ],
+      "public": false
+    },
+    {
+      "id": "evolution-fruit.contribution.parametric-model",
+      "text": "待本人确认：赵实旷可能参与了 Fruit & Evolution 的 Rhino 参数化模型搭建与参数调节。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "参数化模型"
+      ],
+      "public": false
+    },
+    {
+      "id": "evolution-fruit.contribution.visual-generation",
+      "text": "待本人确认：赵实旷可能参与了 Fruit & Evolution 的算法输出转译和果实形态系列生成。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "视觉生成"
+      ],
+      "public": false
+    },
+    {
+      "id": "evolution-fruit.contribution.physical-making",
+      "text": "待本人确认：赵实旷可能参与了 Fruit & Evolution 的模具、食材与实体食物制作。",
+      "provenance": "candidate_contribution",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "待确认贡献",
+        "实体制作"
+      ],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": [
+      "evolution-fruit.overview"
+    ],
+    "problem": [
+      "evolution-fruit.inspiration"
+    ],
+    "research": [
+      "evolution-fruit.inspiration",
+      "evolution-fruit.system"
+    ],
+    "solution": [
+      "evolution-fruit.overview",
+      "evolution-fruit.physical-making"
+    ],
+    "architecture": [
+      "evolution-fruit.system",
+      "evolution-fruit.algorithm"
+    ],
+    "interaction": [
+      "evolution-fruit.system"
+    ],
+    "technology": [
+      "evolution-fruit.algorithm",
+      "evolution-fruit.parametric-model"
+    ],
+    "form": [
+      "evolution-fruit.parametric-model",
+      "evolution-fruit.physical-making"
+    ],
+    "value": [
+      "evolution-fruit.value"
+    ],
+    "comparison": [
+      "evolution-fruit.system",
+      "evolution-fruit.value"
+    ],
+    "contribution": [
+      "evolution-fruit.core-contributor",
+      "evolution-fruit.contribution.concept",
+      "evolution-fruit.contribution.parametric-model",
+      "evolution-fruit.contribution.visual-generation",
+      "evolution-fruit.contribution.physical-making"
+    ]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "封面以一组从粗糙分块到圆润的果实线稿和中英项目标题介绍果实食物设计主题。",
+      "entities": [
+        "果实演化线稿",
+        "项目标题",
+        "食物设计副标题"
+      ],
+      "relationships": [
+        "系列果实形态与标题共同建立演化和食物设计主题"
+      ],
+      "claimIds": [
+        "evolution-fruit.overview"
+      ]
+    },
+    {
+      "page": 2,
+      "role": "process",
+      "informationDensity": "high",
+      "visualSummary": "流程总览列出汲取演化灵感、方案构思、算法演化、参数化模型和食物制作五个阶段。",
+      "entities": [
+        "演化灵感",
+        "方案构思",
+        "算法演化",
+        "参数化模型",
+        "食物制作"
+      ],
+      "relationships": [
+        "五个阶段把形态抽象、算法数据、模型系列和食物结果串联起来"
+      ],
+      "claimIds": [
+        "evolution-fruit.overview",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 3,
+      "role": "evolution-inspiration",
+      "informationDensity": "high",
+      "visualSummary": "演化灵感页以果实序列线稿配合自然选择、人工选择和基因编辑三种演化路径说明。",
+      "entities": [
+        "果实序列",
+        "自然选择",
+        "人工选择",
+        "基因编辑"
+      ],
+      "relationships": [
+        "不同选择机制对应果实性状变化的不同驱动力"
+      ],
+      "claimIds": [
+        "evolution-fruit.inspiration"
+      ]
+    },
+    {
+      "page": 4,
+      "role": "morphology-study",
+      "informationDensity": "medium",
+      "visualSummary": "形态研究页并列萝卜、姜、玉米、豆角、辣椒和马铃薯的历史或品种差异图像。",
+      "entities": [
+        "萝卜",
+        "姜",
+        "玉米",
+        "豆角",
+        "辣椒",
+        "马铃薯"
+      ],
+      "relationships": [
+        "多种作物案例用于观察颜色、形态和品种差异"
+      ],
+      "claimIds": [
+        "evolution-fruit.inspiration"
+      ]
+    },
+    {
+      "page": 5,
+      "role": "morphology-patterns",
+      "informationDensity": "medium",
+      "visualSummary": "页面用胡萝卜、苹果、姜和块茎图像概括颜色加深、尺寸增大及表皮纹理差异等视觉规律。",
+      "entities": [
+        "颜色变化",
+        "尺寸变化",
+        "形状变化",
+        "表皮纹理"
+      ],
+      "relationships": [
+        "历史样本被归纳为可用于设计转译的形态变化模式"
+      ],
+      "claimIds": [
+        "evolution-fruit.inspiration"
+      ]
+    },
+    {
+      "page": 6,
+      "role": "concept-logic",
+      "informationDensity": "high",
+      "visualSummary": "设计逻辑页通过流程图和手绘示意定义元果实、自然选择、人为因素、数字演化与结果之间的关系。",
+      "entities": [
+        "元果实",
+        "自然选择",
+        "人为因素",
+        "数字演化",
+        "演化果实"
+      ],
+      "relationships": [
+        "自然与人为因素进入算法驱动流程并影响元果实的后续形态"
+      ],
+      "claimIds": [
+        "evolution-fruit.inspiration",
+        "evolution-fruit.system"
+      ]
+    },
+    {
+      "page": 7,
+      "role": "fruit-environment-concept",
+      "informationDensity": "medium",
+      "visualSummary": "果实与环境概念页将形态、风味、世代时间、气候环境和人类育种因素绘制为两组关系图。",
+      "entities": [
+        "果实形态",
+        "果实风味",
+        "世代时间",
+        "气候环境",
+        "人类育种"
+      ],
+      "relationships": [
+        "环境与人为条件被设想为影响形态和风味的输入因素"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 8,
+      "role": "process-recap",
+      "informationDensity": "low",
+      "visualSummary": "重复的五阶段流程页突出项目即将进入算法演化阶段。",
+      "entities": [
+        "五阶段流程",
+        "算法演化阶段"
+      ],
+      "relationships": [
+        "流程回顾作为章节过渡"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 9,
+      "role": "algorithm-platform",
+      "informationDensity": "medium",
+      "visualSummary": "算法平台页展示 Coze 中由多个节点和连线构成的果实演化工作流全景。",
+      "entities": [
+        "Coze",
+        "工作流节点",
+        "节点连线"
+      ],
+      "relationships": [
+        "多个处理节点串联为作品中的生成流程"
+      ],
+      "claimIds": [
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "page": 10,
+      "role": "algorithm-input",
+      "informationDensity": "high",
+      "visualSummary": "输入框架图连接果实图片、名称、世代数、气候文本、自建气候知识库与形态和风味输出。",
+      "entities": [
+        "果实图片",
+        "果实名称",
+        "世代数",
+        "气候描述",
+        "气候知识库",
+        "豆包输出"
+      ],
+      "relationships": [
+        "果实和气候输入经知识来源处理后生成形态、风味与气候关键词"
+      ],
+      "claimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "page": 11,
+      "role": "climate-knowledge-workflow",
+      "informationDensity": "high",
+      "visualSummary": "Coze 界面截图展示自建气候知识表，字段涵盖气候区、环境描述、典型果实形态与典型风味。",
+      "entities": [
+        "Coze 界面",
+        "气候知识表",
+        "气候区",
+        "环境描述",
+        "形态字段",
+        "风味字段"
+      ],
+      "relationships": [
+        "气候分类与形态、风味描述在自建知识表中对应"
+      ],
+      "claimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "page": 12,
+      "role": "morphology-output",
+      "informationDensity": "high",
+      "visualSummary": "形态输出框架把上传照片、世代数和气候形态文字连接到生成图、差异描述与 Rhino 参数化建模指导。",
+      "entities": [
+        "上传果实照片",
+        "世代数",
+        "气候形态参考",
+        "生成形态图",
+        "差异描述",
+        "Rhino 指导"
+      ],
+      "relationships": [
+        "输入信息逐步转为形态描述和参数化建模指导"
+      ],
+      "claimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "page": 13,
+      "role": "flavor-output",
+      "informationDensity": "high",
+      "visualSummary": "风味输出框架把用户风味描述、气候风味档案和生成形态图连接到风味描述、菜谱关键词与筛选结果。",
+      "entities": [
+        "用户风味描述",
+        "气候风味档案",
+        "生成形态图",
+        "风味描述",
+        "菜谱关键词",
+        "菜谱筛选"
+      ],
+      "relationships": [
+        "形态与风味信息被组织为可能的菜谱和风味路线"
+      ],
+      "claimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "page": 14,
+      "role": "process-recap",
+      "informationDensity": "low",
+      "visualSummary": "重复的五阶段流程页将展示从算法演化过渡到参数化模型。",
+      "entities": [
+        "五阶段流程",
+        "参数化模型阶段"
+      ],
+      "relationships": [
+        "流程回顾作为模型章节过渡"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 15,
+      "role": "parametric-exploration",
+      "informationDensity": "medium",
+      "visualSummary": "参数化探索页并列丝状缠绕、尖刺分块、块面果实和球簇等四种灰色网格模型。",
+      "entities": [
+        "丝状模型",
+        "尖刺模型",
+        "块面模型",
+        "球簇模型"
+      ],
+      "relationships": [
+        "多种网格形态展示参数化造型的候选方向"
+      ],
+      "claimIds": [
+        "evolution-fruit.parametric-model"
+      ]
+    },
+    {
+      "page": 16,
+      "role": "parametric-model",
+      "informationDensity": "high",
+      "visualSummary": "页面对照释迦果照片和网格模型，列出大小、形状、沟壑深度、果块密度等参数，并展示 Grasshopper 定义。",
+      "entities": [
+        "释迦果参照",
+        "网格模型",
+        "大小参数",
+        "沟壑深度",
+        "果块密度",
+        "Grasshopper 定义"
+      ],
+      "relationships": [
+        "果实参照与气候设定通过参数调节映射到模型形态"
+      ],
+      "claimIds": [
+        "evolution-fruit.parametric-model"
+      ]
+    },
+    {
+      "page": 17,
+      "role": "evolution-path",
+      "informationDensity": "high",
+      "visualSummary": "参数化模型阶段合集以五个网格果实展示从椭圆、锋锐到逐渐饱满圆润的形态变化。",
+      "entities": [
+        "五阶段网格模型",
+        "椭圆起点",
+        "锋锐阶段",
+        "圆润阶段"
+      ],
+      "relationships": [
+        "模型序列把参数变化呈现为可阅读的演化路径"
+      ],
+      "claimIds": [
+        "evolution-fruit.parametric-model"
+      ]
+    },
+    {
+      "page": 18,
+      "role": "algorithm-driven-family",
+      "informationDensity": "high",
+      "visualSummary": "页面以七个果实线稿、分枝图标和说明文字汇总算法结果调参形成的果实演变家族。",
+      "entities": [
+        "七个果实线稿",
+        "参数化演变路径",
+        "分枝图标",
+        "形态集合"
+      ],
+      "relationships": [
+        "算法结果指导不同参数，形成可比较的果实形态家族"
+      ],
+      "claimIds": [
+        "evolution-fruit.parametric-model",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 19,
+      "role": "process-recap",
+      "informationDensity": "low",
+      "visualSummary": "重复的五阶段流程页将展示从参数化模型过渡到食物制作。",
+      "entities": [
+        "五阶段流程",
+        "食物制作阶段"
+      ],
+      "relationships": [
+        "流程回顾作为实体制作章节过渡"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 20,
+      "role": "mold-making",
+      "informationDensity": "high",
+      "visualSummary": "模具制作页展示十种内凹果实纹理模具及球形外壳、果实体与模具的分解线稿。",
+      "entities": [
+        "内凹模具",
+        "果实纹理",
+        "球形外壳",
+        "分解线稿"
+      ],
+      "relationships": [
+        "参数化果实表面被转译为可用于成型的模具"
+      ],
+      "claimIds": [
+        "evolution-fruit.physical-making",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 21,
+      "role": "material-preparation",
+      "informationDensity": "medium",
+      "visualSummary": "材料准备页用过程照片展示蒸制、切配、揉制和不同颜色食材的准备。",
+      "entities": [
+        "蒸制食材",
+        "切配工具",
+        "彩色食材",
+        "揉制过程"
+      ],
+      "relationships": [
+        "食材经过处理后成为模具成型所需的材料"
+      ],
+      "claimIds": [
+        "evolution-fruit.physical-making",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 22,
+      "role": "jelly-display",
+      "informationDensity": "medium",
+      "visualSummary": "果冻展示页记录脱模过程，并以单碟照片比较透明、绿色、黄色、橙色和红色果实形态。",
+      "entities": [
+        "果冻脱模",
+        "彩色果冻",
+        "纹理变化",
+        "单碟展示"
+      ],
+      "relationships": [
+        "同一类参数化纹理通过不同颜色和透明度形成实体变体"
+      ],
+      "claimIds": [
+        "evolution-fruit.physical-making",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 23,
+      "role": "jelly-display",
+      "informationDensity": "medium",
+      "visualSummary": "第二张果冻展示页用三幅组合照片呈现多色果冻果实的成组效果。",
+      "entities": [
+        "多色果冻",
+        "果实组合",
+        "表面纹理"
+      ],
+      "relationships": [
+        "不同几何和颜色的果冻共同构成可比较的食物系列"
+      ],
+      "claimIds": [
+        "evolution-fruit.physical-making",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 24,
+      "role": "taro-display",
+      "informationDensity": "medium",
+      "visualSummary": "芋泥展示页以托盘和单碟照片呈现多种圆形、分块与粗糙表面形态，并含粉末装饰变体。",
+      "entities": [
+        "芋泥果实",
+        "托盘展示",
+        "单碟展示",
+        "粉末装饰"
+      ],
+      "relationships": [
+        "参数化表面通过芋泥材料形成另一组可食用实体"
+      ],
+      "claimIds": [
+        "evolution-fruit.physical-making",
+        "evolution-fruit.value"
+      ]
+    },
+    {
+      "page": 25,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "收尾页以绿色尖刺果实图像、项目标题和感谢文字结束展示。",
+      "entities": [
+        "绿色果实图像",
+        "项目标题",
+        "感谢文字"
+      ],
+      "relationships": [
+        "代表性果实图像与结束语共同收束项目"
+      ],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    {
+      "question": "Fruit & Evolution是什么作品",
+      "locale": "zh",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.overview"
+      ]
+    },
+    {
+      "question": "Fruit & Evolution如何生成果实形态",
+      "locale": "zh",
+      "intents": [
+        "technology",
+        "form"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.algorithm",
+        "evolution-fruit.parametric-model"
+      ]
+    },
+    {
+      "question": "Fruit & Evolution从什么获得灵感",
+      "locale": "zh",
+      "intents": [
+        "research",
+        "problem"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.inspiration"
+      ]
+    },
+    {
+      "question": "Fruit & Evolution的算法系统如何工作",
+      "locale": "zh",
+      "intents": [
+        "architecture",
+        "technology"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "question": "Fruit & Evolution的设计价值是什么",
+      "locale": "zh",
+      "intents": [
+        "value",
+        "comparison"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.value",
+        "evolution-fruit.physical-making"
+      ]
+    },
+    {
+      "question": "赵实旷在Fruit & Evolution中有哪些贡献",
+      "locale": "zh",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.core-contributor"
+      ]
+    },
+    {
+      "question": "What is Fruit & Evolution",
+      "locale": "en",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.overview"
+      ]
+    },
+    {
+      "question": "How does Fruit & Evolution generate fruit forms",
+      "locale": "en",
+      "intents": [
+        "technology",
+        "form"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.algorithm",
+        "evolution-fruit.parametric-model"
+      ]
+    },
+    {
+      "question": "What inspired Fruit & Evolution",
+      "locale": "en",
+      "intents": [
+        "research",
+        "problem"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.inspiration"
+      ]
+    },
+    {
+      "question": "How does the Fruit & Evolution system work",
+      "locale": "en",
+      "intents": [
+        "architecture",
+        "technology"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.system",
+        "evolution-fruit.algorithm"
+      ]
+    },
+    {
+      "question": "What value does Fruit & Evolution create",
+      "locale": "en",
+      "intents": [
+        "value",
+        "comparison"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.value",
+        "evolution-fruit.physical-making"
+      ]
+    },
+    {
+      "question": "What did Zhao contribute to Fruit & Evolution",
+      "locale": "en",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "evolution-fruit.core-contributor"
+      ]
+    }
+  ]
+}
