@@ -45,6 +45,17 @@ function validate(candidate: unknown): AuthoredProjectDossier {
   return validateProjectDossier(candidate, { expectedProjectId: projectId, expectedPageCount: 1 });
 }
 
+function expectPublicSectionClaimReferences(dossier: AuthoredProjectDossier): void {
+  const claimsById = new Map(dossier.claims.map((claim) => [claim.id, claim]));
+  for (const [section, claimIds] of Object.entries(dossier.sectionClaims)) {
+    for (const claimId of claimIds) {
+      const claim = claimsById.get(claimId);
+      expect(claim, `${section} section claim ${claimId} resolves`).toBeDefined();
+      expect(claim?.public, `${section} section claim ${claimId} is public`).toBe(true);
+    }
+  }
+}
+
 describe("authored knowledge contracts", () => {
   test("keeps contribution candidates distinguishable from public evidence", () => {
     expectTypeOf<KnowledgeClaim["provenance"]>().toEqualTypeOf<
@@ -398,6 +409,10 @@ describe("EMOVUE authored dossier", () => {
     });
   });
 
+  test("indexes only public claims in every section", () => {
+    expectPublicSectionClaimReferences(emovue);
+  });
+
   test("keeps contribution candidates private and the owner statement conservative", () => {
     const candidates = emovue.claims.filter(
       ({ provenance }) => provenance === "candidate_contribution",
@@ -511,6 +526,10 @@ describe("Fruit & Evolution authored dossier", () => {
       sourceId: "evolution-fruit",
       page: 16,
     });
+  });
+
+  test("indexes only public claims in every section", () => {
+    expectPublicSectionClaimReferences(fruit);
   });
 
   test("keeps contribution candidates private and the owner statement conservative", () => {

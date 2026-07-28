@@ -381,11 +381,7 @@
       "evolution-fruit.value"
     ],
     "contribution": [
-      "evolution-fruit.core-contributor",
-      "evolution-fruit.contribution.concept",
-      "evolution-fruit.contribution.parametric-model",
-      "evolution-fruit.contribution.visual-generation",
-      "evolution-fruit.contribution.physical-making"
+      "evolution-fruit.core-contributor"
     ]
   },
   "pages": [

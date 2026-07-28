@@ -361,12 +361,7 @@
       "emovue.technical-prototype"
     ],
     "contribution": [
-      "emovue.core-contributor",
-      "emovue.contribution.product-positioning",
-      "emovue.contribution.form-exploration",
-      "emovue.contribution.interaction-flow",
-      "emovue.contribution.app-interface",
-      "emovue.contribution.packaging"
+      "emovue.core-contributor"
     ]
   },
   "pages": [
