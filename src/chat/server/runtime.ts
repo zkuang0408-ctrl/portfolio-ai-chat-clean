@@ -50,7 +50,6 @@ export interface RuntimeOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly allowedOrigins?: readonly string[];
   readonly factories?: RuntimeFactories;
-  readonly ipAddress?: (request: Request) => string | undefined;
   readonly clock?: () => number;
   readonly requestId?: () => string;
   readonly metrics?: ChatMetricsSink;
@@ -266,7 +265,6 @@ export function createRuntime(options: RuntimeOptions): ChatRuntime {
       rateLimitSalt: config.salt,
       profileFacts: structuredProfileFacts(generatedIndex),
       allowedOrigins: options.allowedOrigins,
-      ipAddress: options.ipAddress ?? (() => undefined),
       clock: options.clock ?? Date.now,
       requestId: options.requestId ?? (() => globalThis.crypto.randomUUID()),
       metrics: options.metrics ?? noopMetrics,

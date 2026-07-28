@@ -1,5 +1,3 @@
-import { isIP } from "node:net";
-
 export function parseAllowedOrigins(
   value: string | undefined,
 ): readonly string[] | undefined {
@@ -31,18 +29,4 @@ export function parseAllowedOrigins(
     }
   }
   return [...new Set(parsed)];
-}
-
-export function scfRemoteAddress(
-  headers: Headers,
-): string | undefined {
-  const value = headers.get("x-scf-remote-addr");
-  return (
-    value !== null &&
-    value.length <= 45 &&
-    !value.includes(",") &&
-    isIP(value) !== 0
-  )
-    ? value
-    : undefined;
 }

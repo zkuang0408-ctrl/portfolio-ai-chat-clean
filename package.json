@@ -37,7 +37,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@upstash/redis": "1.38.0",
-    "@vercel/functions": "3.7.5"
+    "@upstash/redis": "1.38.0"
   }
 }

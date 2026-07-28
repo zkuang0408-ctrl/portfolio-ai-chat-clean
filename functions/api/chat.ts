@@ -54,8 +54,6 @@ function runtimeOptions(
 ): RuntimeOptions {
   return {
     env,
-    ipAddress: (request) =>
-      request.headers.get("CF-Connecting-IP") ?? undefined,
     providerFailure: (category) => {
       console.warn(
         JSON.stringify({

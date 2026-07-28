@@ -334,9 +334,8 @@ describe('production document assets', () => {
       readFileSync(new URL('../tsconfig.json', import.meta.url), 'utf8'),
     ) as { include: string[] };
 
-    expect(packageJson.dependencies).toMatchObject({
+    expect(packageJson.dependencies).toEqual({
       '@upstash/redis': '1.38.0',
-      '@vercel/functions': '3.7.5',
     });
     expect(packageJson.devDependencies).toMatchObject({
       esbuild: '0.28.1',

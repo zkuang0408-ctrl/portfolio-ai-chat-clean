@@ -5,10 +5,7 @@ import {
   createRuntime,
   type ChatRuntime,
 } from "../src/chat/server/runtime.js";
-import {
-  parseAllowedOrigins,
-  scfRemoteAddress,
-} from "./security.js";
+import { parseAllowedOrigins } from "./security.js";
 
 const TENCENT_TOKENHUB_MODEL = "deepseek-v4-flash-202605";
 const PROVIDER_ENVIRONMENT_NAMES = new Set([
@@ -76,8 +73,6 @@ export function createScfRuntime(
         DEEPSEEK_MODEL: TENCENT_TOKENHUB_MODEL,
       },
       allowedOrigins,
-      ipAddress: (request) =>
-        scfRemoteAddress(request.headers),
       providerFailure: (category) => {
         console.warn(JSON.stringify({
           event: "portfolio_chat_upstream_failure",

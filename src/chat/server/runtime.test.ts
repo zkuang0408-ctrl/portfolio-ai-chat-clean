@@ -100,7 +100,6 @@ describe("createRuntime", () => {
       allowedOrigins: [
         "https://portfolio-ai-chat-clean.pages.dev",
       ],
-      ipAddress: () => "203.0.113.8",
       requestId: () => "request_12345678",
     });
     const response = await runtime.handle(
@@ -170,7 +169,6 @@ describe("createRuntime", () => {
     const runtime = createRuntime({
       env: validEnv,
       factories: factories(captures),
-      ipAddress: () => "203.0.113.8",
       clock: () => 1_786_000_000_000,
       requestId: () => "request_12345678",
     });

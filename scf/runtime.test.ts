@@ -40,7 +40,6 @@ const environment = {
 type RuntimeOptionsCapture = {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly allowedOrigins?: readonly string[];
-  readonly ipAddress?: (request: Request) => string | undefined;
   readonly providerFailure?: (category: string) => void;
   readonly runtimeFailure?: (
     failure: ChatRuntimeFailure,
@@ -74,10 +73,7 @@ describe("createScfRuntime", () => {
     expect(options.allowedOrigins).toEqual(
       configured.allowedOrigins,
     );
-    const request = new Request("https://function.example/chat", {
-      headers: { "x-scf-remote-addr": "203.0.113.8" },
-    });
-    expect(options.ipAddress?.(request)).toBe("203.0.113.8");
+    expect(options).not.toHaveProperty("ipAddress");
   });
 
   test.each([

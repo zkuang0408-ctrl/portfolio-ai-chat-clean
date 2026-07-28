@@ -41,7 +41,6 @@ const env = {
 
 type RuntimeOptionsCapture = {
   env: Readonly<Record<string, string | undefined>>;
-  ipAddress(request: Request): string | undefined;
   providerFailure(category: string): void;
 };
 
@@ -106,7 +105,7 @@ test("routes chat through the dedicated TokenHub credential", async () => {
   expect(options.env).not.toHaveProperty("AI");
   expect(options.env).not.toHaveProperty("TENCENT_TOKENHUB_API_KEY");
   expect(options.env).not.toHaveProperty("CLOUDFLARE_AI_GATEWAY_TOKEN");
-  expect(options.ipAddress(request)).toBe("203.0.113.10");
+  expect(options).not.toHaveProperty("ipAddress");
   expect(mocks.handle).toHaveBeenCalledWith(request);
 
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
