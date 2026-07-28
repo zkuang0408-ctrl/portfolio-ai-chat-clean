@@ -60,11 +60,19 @@
     },
     {
       "id": "urosense.structure",
-      "text": "结构概念把可拆卸易清洗漏斗与载重板、坐便器适配底板、带识别区和显示端的扶手、流量计、电源与数据连接组织为一套附件，并以螺丝固定和腕带识别作为页面标示的连接方式。",
+      "text": "结构与形态页面把可拆卸易清洗漏斗、载重板、坐便器适配底板、带识别区和显示端的扶手、流量计、电源与数据连接组织为一套附件。爆炸图标出总开关、电池、接线部件、信号线、流量计和膨胀螺栓等构成；标示中的螺丝固定附件，扶手识别区读取患者腕带，两者属于不同部位和用途。后续页面记录收集容器参考与非对称开口的形态探索、环形底板与中央漏斗的整体俯视渲染、标有 473、424、338、200 等数值的俯视尺寸图、侧视高度关系，以及漏斗下收曲面的线框近景。",
       "provenance": "document_fact",
-      "evidence": [{ "sourceId": "urosense", "page": 12 }],
+      "evidence": [
+        { "sourceId": "urosense", "page": 12 },
+        { "sourceId": "urosense", "page": 13 },
+        { "sourceId": "urosense", "page": 17 },
+        { "sourceId": "urosense", "page": 18 },
+        { "sourceId": "urosense", "page": 19 },
+        { "sourceId": "urosense", "page": 20 },
+        { "sourceId": "urosense", "page": 24 }
+      ],
       "intents": ["architecture", "technology", "form"],
-      "topics": ["可拆卸漏斗", "载重板", "扶手", "流量计", "腕带识别", "坐便器适配"],
+      "topics": ["可拆卸漏斗", "载重板", "坐便器适配", "爆炸结构", "螺丝固定", "扶手识别区", "患者腕带", "流量计", "形态探索", "整体渲染", "尺寸图", "线框近景"],
       "public": true
     },
     {
@@ -296,7 +304,7 @@
       "visualSummary": "坐便器和附件爆炸图标出总开关、识别区、电池、接线柱、接线头、信号线、流量计与膨胀螺栓等部件。",
       "entities": ["总开关", "识别区", "电池", "接线柱", "信号线", "流量计", "膨胀螺栓"],
       "relationships": ["识别与供电部件位于侧向扶手", "信号线连接漏斗流量计与显示端", "附件结构叠加在坐便器上"],
-      "claimIds": ["urosense.contribution.system-architecture"]
+      "claimIds": ["urosense.structure", "urosense.contribution.system-architecture"]
     },
     {
       "page": 14,
@@ -332,7 +340,7 @@
       "visualSummary": "页面汇集多种坐便器尿液收集容器参考图、适配轮廓草图和堆叠形态，作为附件形态探索。",
       "entities": ["尿液收集容器", "坐便器适配参考", "轮廓草图", "堆叠形态"],
       "relationships": ["参考产品比较便圈内的收集方式", "轮廓草图提炼非对称开口"],
-      "claimIds": ["urosense.contribution.form-design"]
+      "claimIds": ["urosense.structure", "urosense.contribution.form-design"]
     },
     {
       "page": 18,
@@ -341,7 +349,7 @@
       "visualSummary": "深色背景上以俯视渲染展示环形底板、中央漏斗和侧向扶手的整体形式。",
       "entities": ["环形底板", "中央漏斗", "侧向扶手", "俯视渲染"],
       "relationships": ["漏斗位于便圈开口下方", "扶手从底板后侧向前延伸"],
-      "claimIds": ["urosense.contribution.form-design"]
+      "claimIds": ["urosense.structure", "urosense.contribution.form-design"]
     },
     {
       "page": 19,
@@ -350,7 +358,7 @@
       "visualSummary": "俯视工程图标示附件整体长度 473、上部长度 424、内圈宽度 200 和相关宽度尺寸。",
       "entities": ["俯视工程图", "整体尺寸", "内圈尺寸", "扶手"],
       "relationships": ["尺寸线约束附件与坐便器开口关系"],
-      "claimIds": ["urosense.contribution.form-design"]
+      "claimIds": ["urosense.structure", "urosense.contribution.form-design"]
     },
     {
       "page": 20,
@@ -359,7 +367,7 @@
       "visualSummary": "侧视工程图标示底板、漏斗和扶手的高度与厚度关系。",
       "entities": ["侧视工程图", "底板", "漏斗", "扶手高度"],
       "relationships": ["漏斗位于底板下方", "扶手通过转轴结构抬升"],
-      "claimIds": ["urosense.contribution.form-design"]
+      "claimIds": ["urosense.structure", "urosense.contribution.form-design"]
     },
     {
       "page": 21,
@@ -395,7 +403,7 @@
       "visualSummary": "紫色线框式近景呈现漏斗底部曲面与周围结构网格。",
       "entities": ["漏斗曲面", "线框网格", "产品结构近景"],
       "relationships": ["线框强调漏斗从宽口向下收束的曲面"],
-      "claimIds": []
+      "claimIds": ["urosense.structure"]
     },
     {
       "page": 25,
@@ -416,7 +424,7 @@
     { "question": "What problem does UroSense aim to address?", "locale": "en", "intents": ["problem"], "preferredClaimIds": ["urosense.problem"] },
     { "question": "UroSense遵循哪些设计原则", "locale": "zh", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
     { "question": "What design principles guide UroSense?", "locale": "en", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
-    { "question": "UroSense如何安装在坐便器上", "locale": "zh", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
+    { "question": "UroSense的附件形态与结构如何设计", "locale": "zh", "intents": ["form", "architecture"], "preferredClaimIds": ["urosense.structure"] },
     { "question": "How is UroSense installed on a toilet?", "locale": "en", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
     { "question": "UroSense未来可能扩展什么", "locale": "zh", "intents": ["value"], "preferredClaimIds": ["urosense.future"] },
     { "question": "What future possibilities does UroSense propose?", "locale": "en", "intents": ["value"], "preferredClaimIds": ["urosense.future"] }

@@ -7,12 +7,12 @@
     "desktop rhythm interaction system",
     "缓律"
   ],
-  "oneLine": "利用桌面充电过渡窗口、呼吸与灯光反馈帮助用户从任务状态切换至恢复状态的桌面节律交互系统",
+  "oneLine": "利用桌面充电过渡窗口、呼吸与灯光反馈，旨在帮助用户从任务状态切换至恢复状态的桌面节律交互系统概念",
   "pageCount": 20,
   "claims": [
     {
       "id": "atempo.overview",
-      "text": "Atempo 是一个桌面节律交互系统概念：它利用任务结束后把设备放回桌面充电的过渡窗口，以非接触呼吸感知、双弧运动与环境灯光反馈，帮助用户从任务状态转向恢复状态。",
+      "text": "Atempo 是一个桌面节律交互系统概念：它利用任务结束后把设备放回桌面充电的过渡窗口，以非接触呼吸感知、双弧运动与环境灯光反馈，尝试帮助用户从任务状态转向恢复状态，作为作品的设计目标。",
       "provenance": "document_synthesis",
       "evidence": [
         { "sourceId": "atempo", "page": 1 },

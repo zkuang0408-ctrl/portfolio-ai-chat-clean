@@ -143,10 +143,22 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
     if (claimIds.has(claim.id)) throw new Error(`Duplicate claim ID: ${claim.id}`);
     claimIds.add(claim.id);
   }
+  const claimsById = new Map(claims.map((claim) => [claim.id, claim]));
 
   const sectionRecord = requireRecord(dossier.sectionClaims, "section claims");
   requireKeys(sectionRecord, intents, "section claims");
   const sectionClaims = Object.fromEntries(intents.map((intent) => [intent, requireClaimReferences(sectionRecord[intent], `section ${intent}`, claimIds)])) as AuthoredProjectDossier["sectionClaims"];
+  for (const [section, references] of Object.entries(sectionClaims)) {
+    for (const claimId of references) {
+      const claim = claimsById.get(claimId);
+      if (!claim?.public) {
+        throw new Error(`Section ${section} cannot reference private claim ${claimId}`);
+      }
+      if (!claim.intents.includes(section as KnowledgeIntent)) {
+        throw new Error(`Section ${section} claim ${claimId} must declare ${section} intent`);
+      }
+    }
+  }
 
   if (!Array.isArray(dossier.pages)) throw new Error("Project must annotate every page");
   const pages: PageKnowledge[] = [];
@@ -163,6 +175,24 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
   if (pages.length !== pageCount || pages.some((page, index) => page.page !== index + 1)) {
     throw new Error(`Project ${projectId} must annotate every page in order`);
   }
+  const pagesByNumber = new Map(pages.map((page) => [page.page, page]));
+  for (const claim of claims) {
+    for (const evidence of claim.evidence) {
+      if (!pagesByNumber.get(evidence.page)?.claimIds.includes(claim.id)) {
+        throw new Error(
+          `Claim ${claim.id} evidence page ${evidence.page} must backlink from page claimIds`,
+        );
+      }
+    }
+  }
+  for (const page of pages) {
+    for (const claimId of page.claimIds) {
+      const claim = claimsById.get(claimId);
+      if (!claim?.evidence.some((evidence) => evidence.page === page.page)) {
+        throw new Error(`Page ${page.page} claim ${claimId} must cite page ${page.page} as evidence`);
+      }
+    }
+  }
 
   if (!Array.isArray(dossier.commonQuestions)) throw new Error("Invalid common questions");
   const commonQuestions: CommonQuestion[] = [];
@@ -173,12 +203,24 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
     const text = requireNonEmptyString(question.question, "common question");
     if (question.locale !== "zh" && question.locale !== "en") throw new Error(`Invalid locale for question ${text}`);
     const preferredClaimIds = requireClaimReferences(question.preferredClaimIds, `question ${text}`, claimIds);
+    const questionIntents = requireIntentArray(question.intents, `intents for question ${text}`);
     for (const claimId of preferredClaimIds) {
-      if (!claims.find((claim) => claim.id === claimId)?.public) {
+      const claim = claimsById.get(claimId);
+      if (!claim?.public) {
         throw new Error(`Common question ${text} cannot reference private claim ${claimId}`);
       }
+      if (!claim.intents.some((intent) => questionIntents.includes(intent))) {
+        throw new Error(
+          `Common question ${text} preferred claim ${claimId} must share a question intent`,
+        );
+      }
     }
-    commonQuestions.push({ question: text, locale: question.locale, intents: requireIntentArray(question.intents, `intents for question ${text}`), preferredClaimIds });
+    commonQuestions.push({
+      question: text,
+      locale: question.locale,
+      intents: questionIntents,
+      preferredClaimIds,
+    });
   }
   requireNormalizedUnique(commonQuestions.map(({ question }) => question), "common questions");
 

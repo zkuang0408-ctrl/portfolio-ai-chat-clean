@@ -107,6 +107,7 @@
         }
       ],
       "intents": [
+        "research",
         "technology",
         "value"
       ],
@@ -130,7 +131,8 @@
       ],
       "intents": [
         "architecture",
-        "comparison"
+        "comparison",
+        "value"
       ],
       "topics": [
         "智能推送后台",
@@ -412,11 +414,7 @@
       "inkseat.journey"
     ],
     "contribution": [
-      "inkseat.core-contributor",
-      "inkseat.contribution.system-analysis",
-      "inkseat.contribution.information-architecture",
-      "inkseat.contribution.recommendation-logic",
-      "inkseat.contribution.terminal-interface"
+      "inkseat.core-contributor"
     ]
   },
   "pages": [
@@ -478,7 +476,8 @@
         "座椅级屏幕触点在轻量化趋势中减少"
       ],
       "claimIds": [
-        "inkseat.problem"
+        "inkseat.problem",
+        "inkseat.contribution.system-analysis"
       ]
     },
     {
@@ -499,7 +498,8 @@
         "移除 IFE 屏幕会削弱座位级数字触点"
       ],
       "claimIds": [
-        "inkseat.problem"
+        "inkseat.problem",
+        "inkseat.contribution.system-analysis"
       ]
     },
     {
@@ -520,7 +520,8 @@
         "新的座椅背信息层试图兼顾定向更新与客舱品质"
       ],
       "claimIds": [
-        "inkseat.problem"
+        "inkseat.problem",
+        "inkseat.contribution.system-analysis"
       ]
     },
     {
@@ -543,7 +544,8 @@
       ],
       "claimIds": [
         "inkseat.problem",
-        "inkseat.solution"
+        "inkseat.solution",
+        "inkseat.contribution.system-analysis"
       ]
     },
     {
@@ -588,7 +590,9 @@
         "信息触点指向乘客体验与辅营收入"
       ],
       "claimIds": [
-        "inkseat.architecture"
+        "inkseat.architecture",
+        "inkseat.contribution.information-architecture",
+        "inkseat.contribution.recommendation-logic"
       ]
     },
     {
@@ -611,7 +615,8 @@
         "机组电脑经无线链路分发终端内容"
       ],
       "claimIds": [
-        "inkseat.explainability"
+        "inkseat.explainability",
+        "inkseat.contribution.recommendation-logic"
       ]
     },
     {
@@ -630,7 +635,8 @@
         "内容库与乘客画像共同支持推荐"
       ],
       "claimIds": [
-        "inkseat.content-system"
+        "inkseat.content-system",
+        "inkseat.contribution.information-architecture"
       ]
     },
     {
@@ -652,7 +658,9 @@
         "购物平台作为内容与购买路径的概念中转界面"
       ],
       "claimIds": [
-        "inkseat.content-system"
+        "inkseat.content-system",
+        "inkseat.contribution.information-architecture",
+        "inkseat.contribution.terminal-interface"
       ]
     },
     {
@@ -727,7 +735,8 @@
         "两块显示区域以自然视线和互不干扰为目标"
       ],
       "claimIds": [
-        "inkseat.form"
+        "inkseat.form",
+        "inkseat.contribution.terminal-interface"
       ]
     },
     {
@@ -749,7 +758,8 @@
         "橙红刺绣标识形成品牌点缀"
       ],
       "claimIds": [
-        "inkseat.form"
+        "inkseat.form",
+        "inkseat.contribution.terminal-interface"
       ]
     },
     {
@@ -773,7 +783,8 @@
         "旅程数据、机组决策、Wi-Fi 指令与终端调用协调内容刷新"
       ],
       "claimIds": [
-        "inkseat.journey"
+        "inkseat.journey",
+        "inkseat.contribution.information-architecture"
       ]
     },
     {

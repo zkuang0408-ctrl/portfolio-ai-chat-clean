@@ -84,7 +84,7 @@
     },
     {
       "id": "first-fly.form",
-      "text": "形态设计从多轮环形座椅草图收敛为椭圆外环、中央姿态切换座椅和环形支撑界面，强调空间利用、舒适与轻量化；页面展示坐姿到俯卧的活动范围、贴合人体曲线的软质座椅、半隐私围合、结构拆解，以及尼龙、聚氨酯记忆棉、轻质镁合金与碳纤维等概念 CMF 标注。",
+      "text": "形态设计从多轮环形座椅草图收敛为椭圆外环、中央姿态切换座椅和环形支撑界面，强调空间利用、舒适与轻量化；页面展示坐姿到俯卧的活动范围、贴合人体曲线的软质座椅、半隐私围合、结构拆解，以及尼龙、聚氨酯记忆棉、轻质镁合金与碳纤维等概念 CMF 标注。客舱布局页把环形座椅沿中央波形过道两侧交错排列；三视图明确标注座椅单元约 210 cm 长、158 cm 高、68 cm 宽，整体渲染与局部细节继续展示成排座椅、客舱通道、环形框架和照明关系，这些页面记录的是未来概念的布局与可视化表达。",
       "provenance": "document_synthesis",
       "evidence": [
         { "sourceId": "first-fly", "page": 15 },
@@ -92,10 +92,14 @@
         { "sourceId": "first-fly", "page": 17 },
         { "sourceId": "first-fly", "page": 18 },
         { "sourceId": "first-fly", "page": 19 },
-        { "sourceId": "first-fly", "page": 20 }
+        { "sourceId": "first-fly", "page": 20 },
+        { "sourceId": "first-fly", "page": 24 },
+        { "sourceId": "first-fly", "page": 25 },
+        { "sourceId": "first-fly", "page": 26 },
+        { "sourceId": "first-fly", "page": 27 }
       ],
       "intents": ["form", "architecture", "value"],
-      "topics": ["椭圆外环", "俯卧姿态", "空间利用", "舒适性", "轻量化", "CMF"],
+      "topics": ["椭圆外环", "俯卧姿态", "空间利用", "舒适性", "轻量化", "CMF", "客舱布局", "产品尺寸", "整体渲染", "局部细节"],
       "public": true
     },
     {
@@ -415,7 +419,7 @@
       "visualSummary": "俯视客舱渲染把环形座椅交错排列在中央波形过道两侧，并叠加人物通行剪影说明空间利用。",
       "entities": ["客舱俯视", "环形座椅", "波形过道", "人物通行剪影"],
       "relationships": ["座椅沿过道两侧交错布置", "中央波形过道组织乘客通行"],
-      "claimIds": []
+      "claimIds": ["first-fly.form"]
     },
     {
       "page": 25,
@@ -424,7 +428,7 @@
       "visualSummary": "三视图和俯视客舱布局标示产品约 210 cm 长、158 cm 高、68 cm 宽及内部座椅相关尺寸。",
       "entities": ["三视图", "产品尺寸", "客舱俯视", "环形座椅"],
       "relationships": ["尺寸图约束产品占用空间", "俯视布局展示多座椅在客舱中的排列"],
-      "claimIds": []
+      "claimIds": ["first-fly.form"]
     },
     {
       "page": 26,
@@ -433,7 +437,7 @@
       "visualSummary": "整体渲染页用一张横向客舱全景和三张局部视图展示成排环形座椅、发光轨道与舱内通道。",
       "entities": ["整体客舱渲染", "环形座椅", "发光轨道", "舱内通道", "侧向视图"],
       "relationships": ["座椅沿客舱纵向重复排列", "蓝白灯带统一座椅与内饰视觉"],
-      "claimIds": []
+      "claimIds": ["first-fly.form"]
     },
     {
       "page": 27,
@@ -442,7 +446,7 @@
       "visualSummary": "四张竖幅局部渲染聚焦环形框架、座椅正背面、顶部圆形灯和客舱照明细节。",
       "entities": ["环形框架", "座椅", "顶部灯", "客舱照明", "局部渲染"],
       "relationships": ["局部视角展示座椅与客舱灯光关系"],
-      "claimIds": []
+      "claimIds": ["first-fly.form"]
     },
     {
       "page": 28,

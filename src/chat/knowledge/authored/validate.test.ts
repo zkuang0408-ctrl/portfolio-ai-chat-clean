@@ -66,14 +66,17 @@ function expectPublicSectionClaimReferences(dossier: AuthoredProjectDossier): vo
 function expectIntentAlignedPublicQuestionClaims(dossier: AuthoredProjectDossier): void {
   const claimsById = new Map(dossier.claims.map((claim) => [claim.id, claim]));
   for (const question of dossier.commonQuestions) {
-    const publicPreferredClaims = question.preferredClaimIds
-      .map((claimId) => claimsById.get(claimId))
-      .filter((claim): claim is KnowledgeClaim => claim?.public === true);
-    expect(
-      publicPreferredClaims.some((claim) =>
-        claim.intents.some((intent) => question.intents.includes(intent))),
-      `question "${question.question}" has an intent-aligned public preferred claim`,
-    ).toBe(true);
+    for (const claimId of question.preferredClaimIds) {
+      const claim = claimsById.get(claimId);
+      expect(
+        claim?.public,
+        `question "${question.question}" preferred claim ${claimId} is public`,
+      ).toBe(true);
+      expect(
+        claim?.intents.some((intent) => question.intents.includes(intent)),
+        `question "${question.question}" preferred claim ${claimId} is intent-aligned`,
+      ).toBe(true);
+    }
   }
 }
 
@@ -223,6 +226,31 @@ describe("validateProjectDossier", () => {
     expect(() => validate({ ...dossier, commonQuestions: [{ ...dossier.commonQuestions[0], preferredClaimIds: ["missing"] }] })).toThrow();
   });
 
+  test("rejects private claims referenced by sections", () => {
+    const dossier = minimalDossier();
+    const privateClaim = {
+      ...dossier.claims[0],
+      id: "private-claim",
+      provenance: "candidate_contribution" as const,
+      evidence: [],
+      intents: ["problem"] as const,
+      public: false,
+    };
+    expect(() => validate({
+      ...dossier,
+      claims: [...dossier.claims, privateClaim],
+      sectionClaims: { ...dossier.sectionClaims, problem: [privateClaim.id] },
+    })).toThrow("Section problem cannot reference private claim private-claim");
+  });
+
+  test("rejects section claims that do not declare the section intent", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({
+      ...dossier,
+      sectionClaims: { ...dossier.sectionClaims, problem: [dossier.claims[0]!.id] },
+    })).toThrow("Section problem claim overview-claim must declare problem intent");
+  });
+
   test("rejects private preferred claims in common questions", () => {
     const dossier = minimalDossier();
     const privateClaim = {
@@ -246,6 +274,55 @@ describe("validateProjectDossier", () => {
     );
   });
 
+  test("rejects every intent-misaligned preferred claim in common questions", () => {
+    const dossier = minimalDossier();
+    const problemClaim = {
+      ...dossier.claims[0],
+      id: "problem-claim",
+      intents: ["problem"] as const,
+    };
+    expect(() => validate({
+      ...dossier,
+      claims: [...dossier.claims, problemClaim],
+      pages: [{
+        ...dossier.pages[0],
+        claimIds: [dossier.claims[0]!.id, problemClaim.id],
+      }],
+      commonQuestions: [{
+        ...dossier.commonQuestions[0],
+        preferredClaimIds: [dossier.claims[0]!.id, problemClaim.id],
+      }],
+    })).toThrow(
+      "Common question What is it? preferred claim problem-claim must share a question intent",
+    );
+  });
+
+  test("rejects claim evidence pages without a page backlink", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({
+      ...dossier,
+      pages: [{ ...dossier.pages[0], claimIds: [] }],
+    })).toThrow("Claim overview-claim evidence page 1 must backlink from page claimIds");
+  });
+
+  test("rejects page claim IDs without matching claim evidence", () => {
+    const dossier = minimalDossier();
+    const pageTwo = {
+      ...dossier.pages[0],
+      page: 2,
+      role: "detail",
+      claimIds: [dossier.claims[0]!.id],
+    };
+    expect(() => validateProjectDossier({
+      ...dossier,
+      pageCount: 2,
+      pages: [dossier.pages[0], pageTwo],
+    }, {
+      expectedProjectId: projectId,
+      expectedPageCount: 2,
+    })).toThrow("Page 2 claim overview-claim must cite page 2 as evidence");
+  });
+
   test("requires evidence for document claims", () => {
     const dossier = minimalDossier();
     expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], evidence: [] }] })).toThrow();
@@ -254,7 +331,15 @@ describe("validateProjectDossier", () => {
 
   test("allows owner statements without evidence", () => {
     const dossier = minimalDossier();
-    expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], provenance: "owner_statement", evidence: [] }] })).not.toThrow();
+    expect(() => validate({
+      ...dossier,
+      claims: [{
+        ...dossier.claims[0],
+        provenance: "owner_statement",
+        evidence: [],
+      }],
+      pages: [{ ...dossier.pages[0], claimIds: [] }],
+    })).not.toThrow();
   });
 
   test("rejects unknown closed-union values", () => {
@@ -433,6 +518,17 @@ describe("INKSeat authored dossier", () => {
       evidence: [],
       public: true,
     });
+  });
+
+  test("keeps the strict validator migration minimal and bidirectionally linked", () => {
+    expect(inkseat.claims.find(({ id }) => id === "inkseat.feasibility")?.intents)
+      .toContain("research");
+    expect(inkseat.claims.find(({ id }) => id === "inkseat.architecture")?.intents)
+      .toContain("value");
+    expect(inkseat.sectionClaims.contribution).toStrictEqual([
+      "inkseat.core-contributor",
+    ]);
+    expectEvidencePagesBacklinked(inkseat);
   });
 
   test("routes the two canonical Chinese questions to their preferred claims", () => {
@@ -715,7 +811,7 @@ describe("Atempo authored dossier", () => {
     expect(atempo).toMatchObject({
       projectId: "atempo",
       title: "Atempo",
-      oneLine: "利用桌面充电过渡窗口、呼吸与灯光反馈帮助用户从任务状态切换至恢复状态的桌面节律交互系统",
+      oneLine: "利用桌面充电过渡窗口、呼吸与灯光反馈，旨在帮助用户从任务状态切换至恢复状态的桌面节律交互系统概念",
       pageCount: 20,
     });
     expect(atempo.aliases).toEqual(expect.arrayContaining([
@@ -799,6 +895,18 @@ describe("Atempo authored dossier", () => {
     ]);
     expect(atempo.pages.find(({ page }) => page === 13)?.claimIds)
       .toContain("atempo.data-translation");
+  });
+
+  test("frames recovery as a design goal instead of an achieved causal effect", () => {
+    const overview = atempo.claims.find(({ id }) => id === "atempo.overview");
+    expect(atempo.oneLine).toBe(
+      "利用桌面充电过渡窗口、呼吸与灯光反馈，旨在帮助用户从任务状态切换至恢复状态的桌面节律交互系统概念",
+    );
+    expect(overview?.text).toBe(
+      "Atempo 是一个桌面节律交互系统概念：它利用任务结束后把设备放回桌面充电的过渡窗口，以非接触呼吸感知、双弧运动与环境灯光反馈，尝试帮助用户从任务状态转向恢复状态，作为作品的设计目标。",
+    );
+    expect(atempo.oneLine).not.toContain("反馈帮助用户");
+    expect(overview?.text).not.toContain("灯光反馈，帮助用户");
   });
 
   test("keeps the biofeedback rationale and technology description conservative", () => {
@@ -948,7 +1056,15 @@ describe("UroSense authored dossier", () => {
     expect(urosense.claims.find(({ id }) => id === "urosense.principles")?.evidence)
       .toStrictEqual([{ sourceId: "urosense", page: 9 }]);
     expect(urosense.claims.find(({ id }) => id === "urosense.structure")?.evidence)
-      .toStrictEqual([{ sourceId: "urosense", page: 12 }]);
+      .toStrictEqual([
+        { sourceId: "urosense", page: 12 },
+        { sourceId: "urosense", page: 13 },
+        { sourceId: "urosense", page: 17 },
+        { sourceId: "urosense", page: 18 },
+        { sourceId: "urosense", page: 19 },
+        { sourceId: "urosense", page: 20 },
+        { sourceId: "urosense", page: 24 },
+      ]);
     expect(urosense.claims.find(({ id }) => id === "urosense.measurement-flow")?.evidence)
       .toStrictEqual([
         { sourceId: "urosense", page: 14 },
@@ -960,6 +1076,30 @@ describe("UroSense authored dossier", () => {
       .toStrictEqual([{ sourceId: "urosense", page: 23 }]);
     expect(urosense.pages.find(({ page }) => page === 14)?.claimIds)
       .toContain("urosense.measurement-flow");
+  });
+
+  test("makes the visible structure and form pages publicly reachable without medical inference", () => {
+    const structure = urosense.claims.find(({ id }) => id === "urosense.structure");
+    expect(structure).toMatchObject({
+      public: true,
+      intents: expect.arrayContaining(["architecture", "technology", "form"]),
+      topics: expect.arrayContaining([
+        "形态探索",
+        "爆炸结构",
+        "尺寸图",
+        "整体渲染",
+        "扶手识别区",
+      ]),
+    });
+    expect(structure?.text).toContain("螺丝固定附件");
+    expect(structure?.text).toContain("扶手识别区读取患者腕带");
+    for (const page of [13, 17, 18, 19, 20, 24]) {
+      expect(
+        urosense.pages.find((candidate) => candidate.page === page)?.claimIds,
+        `UroSense page ${page} exposes the public structure claim`,
+      ).toContain("urosense.structure");
+    }
+    expect(urosense.sectionClaims.form).toContain("urosense.structure");
   });
 
   test("keeps medical and future claims at concept level", () => {
@@ -1010,6 +1150,12 @@ describe("UroSense authored dossier", () => {
     )).toMatchObject({
       intents: ["architecture", "interaction"],
       preferredClaimIds: ["urosense.measurement-flow", "urosense.structure"],
+    });
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "UroSense的附件形态与结构如何设计",
+    )).toMatchObject({
+      intents: ["form", "architecture"],
+      preferredClaimIds: ["urosense.structure"],
     });
   });
 
@@ -1115,16 +1261,42 @@ describe("First Fly authored dossier", () => {
     expect(firstFly.claims.find(({ id }) => id === "first-fly.journey")?.evidence)
       .toStrictEqual([{ sourceId: "first-fly", page: 14 }]);
     expect(firstFly.claims.find(({ id }) => id === "first-fly.form")?.evidence)
-      .toStrictEqual(Array.from({ length: 6 }, (_, index) => ({
-        sourceId: "first-fly",
-        page: index + 15,
-      })));
+      .toStrictEqual([
+        ...Array.from({ length: 6 }, (_, index) => ({
+          sourceId: "first-fly",
+          page: index + 15,
+        })),
+        ...Array.from({ length: 4 }, (_, index) => ({
+          sourceId: "first-fly",
+          page: index + 24,
+        })),
+      ]);
     expect(firstFly.claims.find(({ id }) => id === "first-fly.motion")?.evidence)
       .toStrictEqual([{ sourceId: "first-fly", page: 21 }]);
     expect(firstFly.claims.find(({ id }) => id === "first-fly.ar")?.evidence)
       .toStrictEqual([{ sourceId: "first-fly", page: 23 }]);
     expect(firstFly.pages.find(({ page }) => page === 10)?.claimIds)
       .toContain("first-fly.concept");
+  });
+
+  test("makes cabin layout, dimensions, render, and detail publicly reachable through form", () => {
+    const form = firstFly.claims.find(({ id }) => id === "first-fly.form");
+    expect(form).toMatchObject({
+      public: true,
+      topics: expect.arrayContaining([
+        "客舱布局",
+        "产品尺寸",
+        "整体渲染",
+        "局部细节",
+      ]),
+    });
+    expect(form?.text).toContain("210 cm 长、158 cm 高、68 cm 宽");
+    for (const page of [24, 25, 26, 27]) {
+      expect(
+        firstFly.pages.find((candidate) => candidate.page === page)?.claimIds,
+        `First Fly page ${page} exposes the public form claim`,
+      ).toContain("first-fly.form");
+    }
   });
 
   test("keeps the 2035 experience explicitly conceptual", () => {
