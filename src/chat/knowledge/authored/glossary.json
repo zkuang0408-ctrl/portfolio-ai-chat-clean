@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "canonical": "INKSeat",
+      "aliases": [
+        "inkseat",
+        "ink seat",
+        "电子纸座椅显示系统",
+        "智能内容推送系统",
+        "窄体机经济舱显示终端",
+        "智能座舱",
+        "电子纸广告终端",
+        "Explainable Recommendation"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "EMOVUE",
+      "aliases": [
+        "emovue",
+        "emo vue",
+        "情绪感知穿戴相机",
+        "emotion-sensing wearable camera",
+        "挂脖情绪相机",
+        "情绪感知",
+        "可穿戴相机",
+        "Wearable Camera"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "Fruit & Evolution",
+      "aliases": [
+        "fruit and evolution",
+        "fruit evolution",
+        "果实与演化",
+        "果实演化",
+        "参数化食物设计",
+        "参数化食物",
+        "Generative Form"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "Atempo",
+      "aliases": [
+        "a tempo",
+        "Breath Mirror",
+        "呼吸镜",
+        "桌面节律交互系统",
+        "desktop rhythm interaction system",
+        "缓律",
+        "呼吸引导",
+        "智能交互"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "UroSense",
+      "aliases": [
+        "urosense",
+        "uro sense",
+        "智能尿量检测附件",
+        "urine measurement attachment",
+        "自主尿量检测装置",
+        "医疗场景",
+        "智慧产品",
+        "Smart Product"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "First Fly",
+      "aliases": [
+        "firstfly",
+        "第一飞行",
+        "沉浸式飞行体验",
+        "immersive flight experience",
+        "第一人称飞行座椅",
+        "未来出行",
+        "飞行座舱",
+        "Future Mobility"
+      ],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "项目概览",
+      "aliases": ["是什么", "介绍", "what is", "introduce", "overview"],
+      "intents": ["overview"]
+    },
+    {
+      "canonical": "问题",
+      "aliases": ["痛点", "设计机会", "problem", "pain point", "opportunity"],
+      "intents": ["problem"]
+    },
+    {
+      "canonical": "调研",
+      "aliases": ["洞察", "研究", "research", "insight"],
+      "intents": ["research"]
+    },
+    {
+      "canonical": "方案",
+      "aliases": ["产品定义", "solution", "concept"],
+      "intents": ["solution"]
+    },
+    {
+      "canonical": "系统架构",
+      "aliases": ["系统", "架构", "工作原理", "architecture", "system", "how it works"],
+      "intents": ["architecture"]
+    },
+    {
+      "canonical": "交互",
+      "aliases": ["流程", "旅程", "interaction", "flow", "journey"],
+      "intents": ["interaction"]
+    },
+    {
+      "canonical": "技术",
+      "aliases": ["原型", "传感器", "technology", "prototype", "sensor"],
+      "intents": ["technology"]
+    },
+    {
+      "canonical": "造型",
+      "aliases": ["结构", "材料", "form", "structure", "material"],
+      "intents": ["form"]
+    },
+    {
+      "canonical": "价值",
+      "aliases": ["意义", "商业模式", "value", "impact", "business model"],
+      "intents": ["value"]
+    },
+    {
+      "canonical": "对比",
+      "aliases": ["哪个项目", "系统思考", "compare", "which project", "system thinking"],
+      "intents": ["comparison"]
+    },
+    {
+      "canonical": "核心贡献",
+      "aliases": ["负责", "贡献", "做了什么", "role", "contribution"],
+      "intents": ["contribution"]
+    }
+  ]
+}

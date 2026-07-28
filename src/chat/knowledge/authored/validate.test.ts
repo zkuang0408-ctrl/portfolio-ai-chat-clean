@@ -5,8 +5,16 @@ import evolutionFruitJson from "./projects/evolution-fruit.json";
 import firstFlyJson from "./projects/first-fly.json";
 import inkseatJson from "./projects/inkseat.json";
 import urosenseJson from "./projects/urosense.json";
+import glossaryJson from "./glossary.json";
+import {
+  authoredGlossary,
+  authoredProjects,
+  buildIntentAliases,
+  buildPageKnowledgeMap,
+} from "./index";
 import { validateProjectDossier } from "./validate";
 import type {
+  AuthoredGlossary,
   AuthoredProjectDossier,
   KnowledgeClaim,
   KnowledgeIntent,
@@ -1397,5 +1405,172 @@ describe("First Fly authored dossier", () => {
 
   test("backlinks every evidence page to its claim", () => {
     expectEvidencePagesBacklinked(firstFly);
+  });
+});
+
+describe("reviewed authored knowledge loader", () => {
+  const expectedProjectIds = [
+    "inkseat",
+    "emovue",
+    "evolution-fruit",
+    "atempo",
+    "urosense",
+    "first-fly",
+  ] as const;
+  const expectedIntentAliases = {
+    overview: ["是什么", "介绍", "项目概览", "what is", "introduce", "overview"],
+    problem: ["问题", "痛点", "设计机会", "problem", "pain point", "opportunity"],
+    research: ["调研", "洞察", "研究", "research", "insight"],
+    solution: ["方案", "产品定义", "solution", "concept"],
+    architecture: [
+      "系统",
+      "架构",
+      "工作原理",
+      "architecture",
+      "system",
+      "how it works",
+    ],
+    interaction: ["交互", "流程", "旅程", "interaction", "flow", "journey"],
+    technology: ["技术", "原型", "传感器", "technology", "prototype", "sensor"],
+    form: ["造型", "结构", "材料", "form", "structure", "material"],
+    value: ["价值", "意义", "商业模式", "value", "impact", "business model"],
+    comparison: [
+      "对比",
+      "哪个项目",
+      "系统思考",
+      "compare",
+      "which project",
+      "system thinking",
+    ],
+    contribution: ["负责", "贡献", "做了什么", "role", "contribution"],
+  } as const satisfies Readonly<Record<KnowledgeIntent, readonly string[]>>;
+
+  test("loads all six dossiers in portfolio order and validates 135 annotated pages", () => {
+    expect(authoredProjects.map(({ projectId }) => projectId)).toStrictEqual(
+      expectedProjectIds,
+    );
+    expect(authoredProjects.reduce((total, dossier) => total + dossier.pageCount, 0))
+      .toBe(135);
+    expect(authoredProjects.every(
+      (dossier) => dossier.pages.length === dossier.pageCount,
+    )).toBe(true);
+  });
+
+  test("builds exact project-page keys with useful anchors", () => {
+    const pageMap = buildPageKnowledgeMap(authoredProjects);
+    expect(pageMap.size).toBe(135);
+    expect(pageMap.get("inkseat:p1")).toMatchObject({
+      page: 1,
+      role: "overview",
+    });
+    expect(pageMap.get("inkseat:p8")).toMatchObject({
+      page: 8,
+      role: "system-architecture",
+    });
+    expect(pageMap.get("first-fly:p28")).toMatchObject({
+      page: 28,
+      role: "closing",
+    });
+    expect(pageMap.has("inkseat:1")).toBe(false);
+  });
+
+  test("rejects duplicate project-page keys", () => {
+    expect(() => buildPageKnowledgeMap([
+      authoredProjects[0]!,
+      authoredProjects[0]!,
+    ])).toThrow("Duplicate authored page key: inkseat:p1");
+  });
+
+  test("loads the bilingual glossary with six canonical project entries", () => {
+    expect(authoredGlossary.version).toBe(1);
+    expect(authoredGlossary).not.toBe(glossaryJson);
+    const canonicalEntries = authoredGlossary.entries.map(({ canonical }) => canonical);
+    expect(canonicalEntries).toEqual(expect.arrayContaining([
+      "INKSeat",
+      "EMOVUE",
+      "Fruit & Evolution",
+      "Atempo",
+      "UroSense",
+      "First Fly",
+      "系统架构",
+      "核心贡献",
+    ]));
+    for (const canonical of expectedProjectIds) {
+      const dossier = authoredProjects.find(({ projectId }) => projectId === canonical)!;
+      const glossaryEntry = authoredGlossary.entries.find(
+        (entry) => entry.canonical === dossier.title,
+      );
+      expect(glossaryEntry, `${dossier.title} has a glossary entry`).toBeDefined();
+      expect(glossaryEntry?.aliases).toEqual(
+        expect.arrayContaining([...dossier.aliases]),
+      );
+    }
+  });
+
+  test("returns every intent key in contract order with required bilingual aliases", () => {
+    const aliases = buildIntentAliases(authoredGlossary);
+    expect(Object.keys(aliases)).toStrictEqual(intents);
+    for (const intent of intents) {
+      expect(aliases[intent], `${intent} aliases`).toEqual(
+        expect.arrayContaining([...expectedIntentAliases[intent]]),
+      );
+    }
+  });
+
+  test("normalizes NFKC, trim, and case when deduplicating without mutating input", () => {
+    const input: AuthoredGlossary = {
+      version: 1,
+      entries: [{
+        canonical: "INKSeat",
+        aliases: [" inkseat ", "ＩＮＫＳＥＡＴ", "智能座舱"],
+        intents: ["overview"],
+      }],
+    };
+    const snapshot = structuredClone(input);
+    const aliases = buildIntentAliases(input);
+    expect(aliases.overview).toStrictEqual(["INKSeat", "智能座舱"]);
+    expect(input).toStrictEqual(snapshot);
+  });
+
+  test("does not expose normalized terms under incompatible canonical entries or intents", () => {
+    const occurrences = new Map<string, {
+      canonical: string;
+      intents: readonly KnowledgeIntent[];
+    }>();
+    for (const entry of authoredGlossary.entries) {
+      for (const term of [entry.canonical, ...entry.aliases]) {
+        const key = term.normalize("NFKC").trim().toLowerCase();
+        const previous = occurrences.get(key);
+        if (previous) {
+          expect(previous.canonical).toBe(entry.canonical);
+          expect(previous.intents).toStrictEqual(entry.intents);
+        } else {
+          occurrences.set(key, {
+            canonical: entry.canonical,
+            intents: entry.intents,
+          });
+        }
+      }
+    }
+  });
+
+  test("freezes exported records, arrays, and directly mutable collections", () => {
+    expect(Object.isFrozen(authoredProjects)).toBe(true);
+    expect(Object.isFrozen(authoredProjects[0])).toBe(true);
+    expect(Object.isFrozen(authoredProjects[0]?.pages)).toBe(true);
+    expect(Object.isFrozen(authoredGlossary)).toBe(true);
+    expect(Object.isFrozen(authoredGlossary.entries)).toBe(true);
+    expect(Object.isFrozen(authoredGlossary.entries[0]?.aliases)).toBe(true);
+    const aliases = buildIntentAliases(authoredGlossary);
+    expect(Object.isFrozen(aliases)).toBe(true);
+    expect(Object.isFrozen(aliases.overview)).toBe(true);
+    expect(() => {
+      (aliases.overview as string[]).push("mutate");
+    }).toThrow();
+    const pages = buildPageKnowledgeMap(authoredProjects);
+    expect(Object.isFrozen(pages)).toBe(true);
+    expect(() => {
+      (pages as Map<string, unknown>).set("mutate:p1", {});
+    }).toThrow();
   });
 });
