@@ -48,14 +48,24 @@ function requireNonEmptyString(value: unknown, label: string): string {
 
 function requireStringArray(value: unknown, label: string): readonly string[] {
   if (!Array.isArray(value)) throw new Error(`Invalid ${label}`);
-  return value.map((item, index) => requireNonEmptyString(item, `${label} ${index + 1}`));
+  const result: string[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    result.push(requireNonEmptyString(value[index], `${label} ${index + 1}`));
+  }
+  return result;
 }
 
 function requireIntentArray(value: unknown, label: string): readonly KnowledgeIntent[] {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !intents.includes(item as KnowledgeIntent))) {
-    throw new Error(`Invalid ${label}`);
+  if (!Array.isArray(value)) throw new Error(`Invalid ${label}`);
+  const result: KnowledgeIntent[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index];
+    if (typeof item !== "string" || !intents.includes(item as KnowledgeIntent)) {
+      throw new Error(`Invalid ${label}`);
+    }
+    result.push(item as KnowledgeIntent);
   }
-  return value as readonly KnowledgeIntent[];
+  return result;
 }
 
 function normalizedKey(value: string): string {
@@ -66,6 +76,7 @@ function requireNormalizedUnique(values: readonly string[], label: string): void
   const seen = new Set<string>();
   for (const value of values) {
     const key = normalizedKey(value);
+    if (key.length === 0) throw new Error(`Invalid ${label}`);
     if (seen.has(key)) throw new Error(`Duplicate ${label}`);
     seen.add(key);
   }
@@ -85,7 +96,9 @@ function parseClaim(value: unknown, projectId: string, pageCount: number): Knowl
     throw new Error(`Claim ${id}: candidate contribution cannot be public`);
   }
   if (!Array.isArray(record.evidence)) throw new Error(`Invalid evidence for claim ${id}`);
-  const evidence: ClaimEvidence[] = record.evidence.map((item) => {
+  const evidence: ClaimEvidence[] = [];
+  for (let index = 0; index < record.evidence.length; index += 1) {
+    const item = record.evidence[index];
     const evidenceRecord = requireRecord(item, `evidence for claim ${id}`);
     requireKeys(evidenceRecord, ["sourceId", "page"], `evidence for claim ${id}`);
     const sourceId = requireNonEmptyString(evidenceRecord.sourceId, `evidence source for claim ${id}`);
@@ -93,8 +106,8 @@ function parseClaim(value: unknown, projectId: string, pageCount: number): Knowl
     if (typeof evidenceRecord.page !== "number" || !Number.isInteger(evidenceRecord.page) || evidenceRecord.page < 1 || evidenceRecord.page > pageCount) {
       throw new Error(`Claim ${id}: invalid evidence page`);
     }
-    return { sourceId, page: evidenceRecord.page };
-  });
+    evidence.push({ sourceId, page: evidenceRecord.page });
+  }
   if ((provenance === "document_fact" || provenance === "document_synthesis") && evidence.length === 0) {
     throw new Error(`Claim ${id} requires evidence`);
   }
@@ -121,7 +134,10 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
   requireNormalizedUnique(aliases, "aliases");
   const oneLine = requireNonEmptyString(dossier.oneLine, "one-line summary");
   if (!Array.isArray(dossier.claims)) throw new Error("Invalid claims");
-  const claims = dossier.claims.map((claim) => parseClaim(claim, projectId, pageCount));
+  const claims: KnowledgeClaim[] = [];
+  for (let index = 0; index < dossier.claims.length; index += 1) {
+    claims.push(parseClaim(dossier.claims[index], projectId, pageCount));
+  }
   const claimIds = new Set<string>();
   for (const claim of claims) {
     if (claimIds.has(claim.id)) throw new Error(`Duplicate claim ID: ${claim.id}`);
@@ -133,27 +149,31 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
   const sectionClaims = Object.fromEntries(intents.map((intent) => [intent, requireClaimReferences(sectionRecord[intent], `section ${intent}`, claimIds)])) as AuthoredProjectDossier["sectionClaims"];
 
   if (!Array.isArray(dossier.pages)) throw new Error("Project must annotate every page");
-  const pages: PageKnowledge[] = dossier.pages.map((value) => {
+  const pages: PageKnowledge[] = [];
+  for (let index = 0; index < dossier.pages.length; index += 1) {
+    const value = dossier.pages[index];
     const page = requireRecord(value, "page annotation");
     requireKeys(page, ["page", "role", "informationDensity", "visualSummary", "entities", "relationships", "claimIds"], "page annotation");
     if (typeof page.page !== "number" || !Number.isInteger(page.page)) {
       throw new Error(`Project ${projectId} must annotate every page in order`);
     }
     if (typeof page.informationDensity !== "string" || !densities.includes(page.informationDensity as PageInformationDensity)) throw new Error(`Invalid information density for page ${page.page}`);
-    return { page: page.page, role: requireNonEmptyString(page.role, `role for page ${page.page}`), informationDensity: page.informationDensity as PageInformationDensity, visualSummary: requireNonEmptyString(page.visualSummary, `visual summary for page ${page.page}`), entities: requireStringArray(page.entities, `entities for page ${page.page}`), relationships: requireStringArray(page.relationships, `relationships for page ${page.page}`), claimIds: requireClaimReferences(page.claimIds, `page ${page.page}`, claimIds) };
-  });
+    pages.push({ page: page.page, role: requireNonEmptyString(page.role, `role for page ${page.page}`), informationDensity: page.informationDensity as PageInformationDensity, visualSummary: requireNonEmptyString(page.visualSummary, `visual summary for page ${page.page}`), entities: requireStringArray(page.entities, `entities for page ${page.page}`), relationships: requireStringArray(page.relationships, `relationships for page ${page.page}`), claimIds: requireClaimReferences(page.claimIds, `page ${page.page}`, claimIds) });
+  }
   if (pages.length !== pageCount || pages.some((page, index) => page.page !== index + 1)) {
     throw new Error(`Project ${projectId} must annotate every page in order`);
   }
 
   if (!Array.isArray(dossier.commonQuestions)) throw new Error("Invalid common questions");
-  const commonQuestions: CommonQuestion[] = dossier.commonQuestions.map((value) => {
+  const commonQuestions: CommonQuestion[] = [];
+  for (let index = 0; index < dossier.commonQuestions.length; index += 1) {
+    const value = dossier.commonQuestions[index];
     const question = requireRecord(value, "common question");
     requireKeys(question, ["question", "locale", "intents", "preferredClaimIds"], "common question");
     const text = requireNonEmptyString(question.question, "common question");
     if (question.locale !== "zh" && question.locale !== "en") throw new Error(`Invalid locale for question ${text}`);
-    return { question: text, locale: question.locale, intents: requireIntentArray(question.intents, `intents for question ${text}`), preferredClaimIds: requireClaimReferences(question.preferredClaimIds, `question ${text}`, claimIds) };
-  });
+    commonQuestions.push({ question: text, locale: question.locale, intents: requireIntentArray(question.intents, `intents for question ${text}`), preferredClaimIds: requireClaimReferences(question.preferredClaimIds, `question ${text}`, claimIds) });
+  }
   requireNormalizedUnique(commonQuestions.map(({ question }) => question), "common questions");
 
   const referenced = new Set<string>([...Object.values(sectionClaims).flat(), ...pages.flatMap((page) => page.claimIds), ...commonQuestions.flatMap((question) => question.preferredClaimIds)]);

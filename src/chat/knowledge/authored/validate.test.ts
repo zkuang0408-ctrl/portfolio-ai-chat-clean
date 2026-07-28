@@ -199,4 +199,25 @@ describe("validateProjectDossier", () => {
     const dossier = minimalDossier();
     expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], evidence: [{ sourceId: "another-project", page: 1 }] }] })).toThrow();
   });
+
+  test("copies validated intent arrays instead of retaining caller-owned arrays", () => {
+    const dossier = minimalDossier();
+    const sourceIntents = ["overview"];
+    const candidate = { ...dossier, claims: [{ ...dossier.claims[0], intents: sourceIntents }] };
+    const validated = validate(candidate);
+    sourceIntents.push("problem");
+    expect(validated.claims[0]?.intents).toStrictEqual(["overview"]);
+  });
+
+  test("rejects sparse intent arrays", () => {
+    const dossier = minimalDossier();
+    const sparseIntents = new Array<string>(1);
+    expect(() => validate({ ...dossier, claims: [{ ...dossier.claims[0], intents: sparseIntents }] })).toThrow();
+  });
+
+  test("rejects punctuation-only aliases and questions", () => {
+    const dossier = minimalDossier();
+    expect(() => validate({ ...dossier, aliases: ["---"] })).toThrow();
+    expect(() => validate({ ...dossier, commonQuestions: [{ ...dossier.commonQuestions[0], question: "???" }] })).toThrow();
+  });
 });
