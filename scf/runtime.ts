@@ -84,6 +84,13 @@ export function createScfRuntime(
           category,
         }));
       },
+      runtimeFailure: ({ stage, requestId }) => {
+        console.warn(JSON.stringify({
+          event: "portfolio_chat_runtime_failure",
+          stage,
+          ...(requestId ? { requestId } : {}),
+        }));
+      },
     }),
     allowedOrigins,
   };

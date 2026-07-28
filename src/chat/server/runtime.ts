@@ -35,6 +35,8 @@ const MAX_VISITOR_DAY_LIMIT = 10_000;
 const MAX_VISITOR_MINUTE_LIMIT = 1_000;
 const MAX_COOLDOWN_SECONDS = 3_600;
 const noopMetrics: ChatMetricsSink = { record() {} };
+const noopRuntimeFailure:
+  ChatHandlerDependencies["runtimeFailure"] = () => {};
 
 export interface RuntimeFactories {
   readonly createRetriever: (index: GeneratedKnowledgeIndex) => Retriever;
@@ -55,6 +57,8 @@ export interface RuntimeOptions {
   readonly providerFailure?: (
     category: DeepSeekProviderErrorCategory | "unknown",
   ) => void;
+  readonly runtimeFailure?:
+    ChatHandlerDependencies["runtimeFailure"];
 }
 
 export interface ChatRuntime {
@@ -267,6 +271,8 @@ export function createRuntime(options: RuntimeOptions): ChatRuntime {
       requestId: options.requestId ?? (() => globalThis.crypto.randomUUID()),
       metrics: options.metrics ?? noopMetrics,
       providerFailure: options.providerFailure ?? (() => {}),
+      runtimeFailure:
+        options.runtimeFailure ?? noopRuntimeFailure,
     };
     return {
       enabled: true,

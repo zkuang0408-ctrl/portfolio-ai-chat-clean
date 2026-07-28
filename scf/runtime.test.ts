@@ -18,6 +18,9 @@ vi.mock("../src/chat/server/runtime.js", () => ({
 }));
 
 import { createScfRuntime } from "./runtime";
+import type {
+  ChatRuntimeFailure,
+} from "../src/chat/server/chat-handler";
 
 const environment = {
   CHAT_ENABLED: "true",
@@ -39,6 +42,9 @@ type RuntimeOptionsCapture = {
   readonly allowedOrigins?: readonly string[];
   readonly ipAddress?: (request: Request) => string | undefined;
   readonly providerFailure?: (category: string) => void;
+  readonly runtimeFailure?: (
+    failure: ChatRuntimeFailure,
+  ) => void;
 };
 
 beforeEach(() => {
@@ -125,6 +131,32 @@ describe("createScfRuntime", () => {
         event: "portfolio_chat_upstream_failure",
         category: "network",
       }));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("logs runtime failures with fixed non-sensitive fields only", () => {
+    createScfRuntime(environment);
+    const options =
+      mocks.createRuntime.mock.calls[0]?.[0] as RuntimeOptionsCapture;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      options.runtimeFailure?.({
+        stage: "rate_limit",
+        requestId:
+          "16f2b048-89dc-11f1-9f14-525400ea158b",
+      });
+      expect(warn).toHaveBeenCalledWith(JSON.stringify({
+        event: "portfolio_chat_runtime_failure",
+        stage: "rate_limit",
+        requestId:
+          "16f2b048-89dc-11f1-9f14-525400ea158b",
+      }));
+      const logged = warn.mock.calls.flat().join("\n");
+      expect(logged).not.toContain("redis-token");
+      expect(logged).not.toContain("tokenhub-test-key");
+      expect(logged).not.toContain("203.0.113.8");
     } finally {
       warn.mockRestore();
     }
