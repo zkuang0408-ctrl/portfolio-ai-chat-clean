@@ -1159,6 +1159,41 @@ describe("UroSense authored dossier", () => {
     });
   });
 
+  test("keeps bilingual installation and form-structure entry points normalized unique", () => {
+    expect(urosense.commonQuestions).toHaveLength(14);
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "UroSense如何安装在坐便器上",
+    )).toMatchObject({
+      locale: "zh",
+      intents: ["form", "interaction"],
+      preferredClaimIds: ["urosense.installation"],
+    });
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "How is UroSense installed on a toilet?",
+    )).toMatchObject({
+      locale: "en",
+      intents: ["form", "interaction"],
+      preferredClaimIds: ["urosense.installation"],
+    });
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "UroSense的附件形态与结构如何设计",
+    )).toMatchObject({
+      locale: "zh",
+      intents: ["form", "architecture"],
+      preferredClaimIds: ["urosense.structure"],
+    });
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "How are UroSense's attachment form and structure designed?",
+    )).toMatchObject({
+      locale: "en",
+      intents: ["form", "architecture"],
+      preferredClaimIds: ["urosense.structure"],
+    });
+    const normalizedQuestions = urosense.commonQuestions.map(({ question }) =>
+      question.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]/gu, ""));
+    expect(new Set(normalizedQuestions).size).toBe(normalizedQuestions.length);
+  });
+
   test("backlinks every evidence page to its claim", () => {
     expectEvidencePagesBacklinked(urosense);
   });

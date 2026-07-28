@@ -425,6 +425,8 @@
     { "question": "UroSense遵循哪些设计原则", "locale": "zh", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
     { "question": "What design principles guide UroSense?", "locale": "en", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
     { "question": "UroSense的附件形态与结构如何设计", "locale": "zh", "intents": ["form", "architecture"], "preferredClaimIds": ["urosense.structure"] },
+    { "question": "How are UroSense's attachment form and structure designed?", "locale": "en", "intents": ["form", "architecture"], "preferredClaimIds": ["urosense.structure"] },
+    { "question": "UroSense如何安装在坐便器上", "locale": "zh", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
     { "question": "How is UroSense installed on a toilet?", "locale": "en", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
     { "question": "UroSense未来可能扩展什么", "locale": "zh", "intents": ["value"], "preferredClaimIds": ["urosense.future"] },
     { "question": "What future possibilities does UroSense propose?", "locale": "en", "intents": ["value"], "preferredClaimIds": ["urosense.future"] }
