@@ -297,7 +297,7 @@
       "informationDensity": "high",
       "visualSummary": "新疆地图与多条景观专线构成路线示例，底部文字说明 2035 年约一小时短途航程中的第一人称沉浸体验构想。",
       "entities": ["新疆地图", "景观专线", "2035", "短途航程", "智能终端", "AR"],
-      "relationships": ["景点路线把移动与观景结合", "智能终端与 AR 叠加真实和虚拟南宋景观示例", "约一小时航程限定体验尺度"],
+      "relationships": ["景点路线把移动与观景结合", "新疆地图上的喀什—阿克苏、伊宁—那拉提、喀纳斯—富蕴、乌鲁木齐—吐鲁番等路线以及阿勒泰地区等可见地点，共同构成短途沉浸飞行场景示例", "约一小时航程限定体验尺度"],
       "claimIds": ["first-fly.overview", "first-fly.concept", "first-fly.contribution.concept"]
     },
     {

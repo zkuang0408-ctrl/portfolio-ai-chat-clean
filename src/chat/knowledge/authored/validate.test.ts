@@ -1136,6 +1136,18 @@ describe("First Fly authored dossier", () => {
     expect(publicText).not.toMatch(/已(部署|落地|投入运营|完成验证)|经过验证/);
   });
 
+  test("describes page eleven as Xinjiang and Altay route semantics without Southern Song content", () => {
+    const pageEleven = firstFly.pages.find(({ page }) => page === 11);
+    const visibleSemantics = [
+      pageEleven?.visualSummary,
+      ...(pageEleven?.entities ?? []),
+      ...(pageEleven?.relationships ?? []),
+    ].join("\n");
+    expect(visibleSemantics).not.toContain("南宋");
+    expect(visibleSemantics).toContain("新疆");
+    expect(visibleSemantics).toContain("阿勒泰");
+  });
+
   test("indexes only intent-aligned public claims and covers the system in comparison", () => {
     expectPublicSectionClaimReferences(firstFly);
     expect(firstFly.sectionClaims.comparison).toEqual(expect.arrayContaining([
