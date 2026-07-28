@@ -15,6 +15,13 @@ import {
   stableSerialize,
   validateGeneratedIndex,
 } from "../src/chat/knowledge/build-index";
+import { buildAuthoredChunks } from "../src/chat/knowledge/authored/build-authored-chunks";
+import {
+  authoredGlossary,
+  authoredProjects,
+  buildIntentAliases,
+  buildPageKnowledgeMap,
+} from "../src/chat/knowledge/authored";
 import { knowledgeSources } from "../src/chat/knowledge/manifest";
 import { createPdfOcrRun } from "../src/chat/knowledge/ocr";
 import { extractPdfPages } from "../src/chat/knowledge/pdf-extractor";
@@ -33,6 +40,13 @@ const INDEX_PATH = resolve(
 const HELP =
   "Usage: npm run knowledge:generate | npm run knowledge:verify\n" +
   "The underlying CLI accepts exactly one of --generate or --verify.";
+const pageKnowledge = buildPageKnowledgeMap(authoredProjects);
+const intentAliases = buildIntentAliases(authoredGlossary);
+const authoredChunks = buildAuthoredChunks(authoredProjects);
+const authoredDigest = sha256(stableSerialize({
+  projects: authoredProjects,
+  glossary: authoredGlossary,
+}));
 
 async function readSourceFile(source: KnowledgeSource): Promise<Buffer> {
   if (!source.filePath) {
@@ -112,6 +126,10 @@ async function generate(): Promise<void> {
     knowledgeSources,
     pagesBySource,
     sourceDigests,
+    authoredChunks,
+    pageKnowledge,
+    intentAliases,
+    authoredDigest,
   );
   const serialized = stableSerialize(index);
   assertPrivacySafe(serialized);
@@ -124,7 +142,7 @@ async function generate(): Promise<void> {
 
   for (const source of knowledgeSources) {
     const pages = pagesBySource.get(source.id) ?? [];
-    const chunks = chunkExtractedPages(source, pages);
+    const chunks = chunkExtractedPages(source, pages, pageKnowledge);
     const nativePages = pages.filter(({ method }) => method === "pdf-text").length;
     const ocrPages = pages.filter(({ method }) => method === "ocr").length;
     const structuredPages = pages.filter(
@@ -139,7 +157,7 @@ async function generate(): Promise<void> {
     );
   }
   console.log(
-    `Generated knowledge index: sources=${knowledgeSources.length} chunks=${index.chunks.length}`,
+    `Generated knowledge index: sources=${knowledgeSources.length} raw=${index.chunks.length - authoredChunks.length} authored=${authoredChunks.length} chunks=${index.chunks.length}`,
   );
 }
 
@@ -164,12 +182,16 @@ async function verify(): Promise<void> {
     candidate,
     knowledgeSources,
     await currentSourceDigests(),
+    authoredChunks,
+    pageKnowledge,
+    intentAliases,
+    authoredDigest,
   );
   if (stableSerialize(index) !== serialized) {
     throw new Error("Generated knowledge index is not deterministically serialized");
   }
   console.log(
-    `Verified knowledge index: sources=${knowledgeSources.length} chunks=${index.chunks.length}`,
+    `Verified knowledge index: sources=${knowledgeSources.length} raw=${index.chunks.length - authoredChunks.length} authored=${authoredChunks.length} chunks=${index.chunks.length}`,
   );
 }
 

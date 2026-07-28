@@ -33,6 +33,12 @@ function chunk(sourceId: string, page: number): KnowledgeChunk {
     tags: ["design"],
     citationLabel: `${sourceId.toUpperCase()} · P.${String(page).padStart(2, "0")}`,
     publicHref: `/documents/${sourceId}.pdf#page=${page}`,
+    knowledgeKind: "source-excerpt",
+    intents: [],
+    informationDensity: "medium",
+    pageRole: "project-evidence",
+    evidencePages: [page],
+    questionAliases: [],
   };
 }
 

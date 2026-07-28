@@ -22,11 +22,111 @@ import {
 } from "./build-index";
 
 import type {
+  AuthoredClaimKnowledgeChunk,
   ExtractedPage,
   GeneratedKnowledgeIndex,
   KnowledgeChunk,
   KnowledgeSource,
 } from "./types";
+import type {
+  KnowledgeIntent,
+  PageKnowledge,
+} from "./authored/types";
+
+const ALL_INTENTS = [
+  "overview",
+  "problem",
+  "research",
+  "solution",
+  "architecture",
+  "interaction",
+  "technology",
+  "form",
+  "value",
+  "comparison",
+  "contribution",
+] as const satisfies readonly KnowledgeIntent[];
+const AUTHORED_DIGEST = "b".repeat(64);
+
+function intentAliases(): Readonly<Record<KnowledgeIntent, readonly string[]>> {
+  return Object.fromEntries(
+    ALL_INTENTS.map((intent) => [intent, [`${intent} alias`]]),
+  ) as unknown as Readonly<Record<KnowledgeIntent, readonly string[]>>;
+}
+
+function pageKnowledge(
+  projectId: string,
+  pageNumber: number,
+  overrides: Partial<PageKnowledge> = {},
+): PageKnowledge {
+  return {
+    page: pageNumber,
+    role: pageNumber === 1 ? "overview" : "detail",
+    informationDensity: pageNumber === 1 ? "high" : "low",
+    visualSummary: "Synthetic page",
+    entities: [],
+    relationships: [],
+    claimIds: [],
+    ...overrides,
+  };
+}
+
+function pageKnowledgeMap(
+  projectId = "project",
+  pageCount = 2,
+): ReadonlyMap<string, PageKnowledge> {
+  return new Map(
+    Array.from({ length: pageCount }, (_, index) => {
+      const pageNumber = index + 1;
+      return [
+        `${projectId}:p${pageNumber}`,
+        pageKnowledge(projectId, pageNumber),
+      ] as const;
+    }),
+  );
+}
+
+function pageKnowledgeForSources(
+  sources: readonly KnowledgeSource[],
+): ReadonlyMap<string, PageKnowledge> {
+  const result = new Map<string, PageKnowledge>();
+  for (const source of sources) {
+    if (source.kind !== "project-pdf" || !source.projectId) continue;
+    for (const [key, value] of pageKnowledgeMap(
+      source.projectId,
+      source.pageCount ?? 0,
+    )) {
+      result.set(key, value);
+    }
+  }
+  return result;
+}
+
+function authoredDocumentChunk(
+  overrides: Partial<AuthoredClaimKnowledgeChunk> = {},
+): AuthoredClaimKnowledgeChunk {
+  return {
+    id: "project:claim:overview",
+    sourceId: "project",
+    projectId: "project",
+    page: 1,
+    title: "Project Title",
+    text: "Authored project overview",
+    terms: ["authored", "project", "overview"],
+    aliases: ["Project Alias"],
+    tags: ["AI Product"],
+    citationLabel: "Project Title · p. 1",
+    publicHref: "/projects/pdfs/project.pdf",
+    knowledgeKind: "authored-claim",
+    intents: ["overview"],
+    informationDensity: "high",
+    pageRole: "overview",
+    provenance: "document_fact",
+    evidencePages: [1],
+    questionAliases: [],
+    ...overrides,
+  } as AuthoredClaimKnowledgeChunk;
+}
 
 function projectSource(
   overrides: Partial<KnowledgeSource> = {},
@@ -62,24 +162,310 @@ function validChunk(overrides: Partial<KnowledgeChunk> = {}): KnowledgeChunk {
     tags: ["AI Product"],
     citationLabel: "Project Title · p. 1",
     publicHref: "/projects/pdfs/project.pdf",
+    knowledgeKind: "source-excerpt",
+    intents: [],
+    informationDensity: "high",
+    pageRole: "overview",
+    evidencePages: [1],
+    questionAliases: [],
     ...overrides,
-  };
+  } as KnowledgeChunk;
 }
 
 function canonicalIndex(
   sources: readonly KnowledgeSource[],
   pagesBySource: ReadonlyMap<string, readonly ExtractedPage[]>,
 ): GeneratedKnowledgeIndex {
-  return buildKnowledgeIndex(
+  return buildIndex(
     sources,
     pagesBySource,
     Object.fromEntries(sources.map(({ id }) => [id, "a".repeat(64)])),
   );
 }
 
+function buildIndex(
+  sources: readonly KnowledgeSource[],
+  pagesBySource: ReadonlyMap<string, readonly ExtractedPage[]>,
+  digests: Readonly<Record<string, string>>,
+): GeneratedKnowledgeIndex {
+  return buildKnowledgeIndex(
+    sources,
+    pagesBySource,
+    digests,
+    [],
+    pageKnowledgeForSources(sources),
+    intentAliases(),
+    AUTHORED_DIGEST,
+  );
+}
+
+function validateIndex(
+  candidate: unknown,
+  sources: readonly KnowledgeSource[],
+  digests: Readonly<Record<string, string>>,
+): GeneratedKnowledgeIndex {
+  return validateGeneratedIndex(
+    candidate,
+    sources,
+    digests,
+    [],
+    pageKnowledgeForSources(sources),
+    intentAliases(),
+    AUTHORED_DIGEST,
+  );
+}
+
 function mutableCopy<T>(value: T): T {
   return structuredClone(value);
 }
+
+describe("knowledge index v2 contract", () => {
+  test("publishes exact v2 keys with canonical raw metadata before authored claims", () => {
+    const source = projectSource({ pageCount: 1 });
+    const aliases = intentAliases();
+    const authored = authoredDocumentChunk();
+    const index = buildKnowledgeIndex(
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+      [authored],
+      pageKnowledgeMap("project", 1),
+      aliases,
+      AUTHORED_DIGEST,
+    );
+
+    expect(Object.keys(index).sort()).toEqual([
+      "authoredDigest",
+      "chunks",
+      "intentAliases",
+      "sourceDigests",
+      "version",
+    ]);
+    expect(index.version).toBe(2);
+    expect(index.authoredDigest).toBe(AUTHORED_DIGEST);
+    expect(index.intentAliases).toEqual(aliases);
+    expect(index.chunks.map(({ id }) => id)).toEqual([
+      "project:p1:c0",
+      "project:claim:overview",
+    ]);
+    expect(index.chunks[0]).toMatchObject({
+      knowledgeKind: "source-excerpt",
+      intents: [],
+      informationDensity: "high",
+      pageRole: "overview",
+      evidencePages: [1],
+      questionAliases: [],
+    });
+    expect(index.chunks[0]).not.toHaveProperty("provenance");
+  });
+
+  test("assigns fixed medium profile and resume metadata without provenance", () => {
+    const profileSource: KnowledgeSource = {
+      id: "profile",
+      kind: "profile",
+      title: "Public Profile",
+      aliases: [],
+      tags: [],
+      publicHref: "#about",
+      structuredText: "Structured public profile content",
+    };
+    const resumeSource: KnowledgeSource = {
+      id: "resume",
+      kind: "resume",
+      title: "Public Resume",
+      aliases: [],
+      tags: [],
+      filePath: "public/resume.pdf",
+      publicHref: "/resume.pdf",
+      pageCount: 1,
+    };
+    const index = buildKnowledgeIndex(
+      [profileSource, resumeSource],
+      new Map([
+        [profileSource.id, [
+          { page: 1, text: profileSource.structuredText!, method: "structured" },
+        ]],
+        [resumeSource.id, [page(1, "Resume content")]],
+      ]),
+      { profile: "a".repeat(64), resume: "c".repeat(64) },
+      [],
+      new Map(),
+      intentAliases(),
+      AUTHORED_DIGEST,
+    );
+
+    expect(index.chunks).toEqual([
+      expect.objectContaining({
+        sourceId: "profile",
+        informationDensity: "medium",
+        pageRole: "profile",
+      }),
+      expect.objectContaining({
+        sourceId: "resume",
+        informationDensity: "medium",
+        pageRole: "resume",
+      }),
+    ]);
+    expect(index.chunks.every((chunk) => !("provenance" in chunk))).toBe(true);
+  });
+
+  test("rejects duplicate raw/authored IDs and candidate provenance", () => {
+    const source = projectSource({ pageCount: 1 });
+    const common = [
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+    ] as const;
+    const metadata = [
+      pageKnowledgeMap("project", 1),
+      intentAliases(),
+      AUTHORED_DIGEST,
+    ] as const;
+
+    expect(() =>
+      buildKnowledgeIndex(
+        ...common,
+        [authoredDocumentChunk({ id: "project:p1:c0" })],
+        ...metadata,
+      ),
+    ).toThrow("Duplicate knowledge chunk ID: project:p1:c0");
+    expect(() =>
+      buildKnowledgeIndex(
+        ...common,
+        [
+          authoredDocumentChunk(),
+          authoredDocumentChunk(),
+        ],
+        ...metadata,
+      ),
+    ).toThrow("Duplicate knowledge chunk ID: project:claim:overview");
+    expect(() =>
+      buildKnowledgeIndex(
+        ...common,
+        [
+          authoredDocumentChunk({
+            provenance: "candidate_contribution",
+          } as unknown as Partial<AuthoredClaimKnowledgeChunk>),
+        ],
+        ...metadata,
+      ),
+    ).toThrow(/candidate/i);
+  });
+
+  test("accepts an owner-confirmed authored claim with no page", () => {
+    const source = projectSource({ pageCount: 1 });
+    const owner = authoredDocumentChunk({
+      id: "project:claim:owner",
+      citationLabel: "Project Title · Owner-confirmed",
+      provenance: "owner_statement",
+      pageRole: "owner-confirmed",
+      evidencePages: [],
+    } as Partial<AuthoredClaimKnowledgeChunk>);
+    delete (owner as { page?: number }).page;
+    const index = buildKnowledgeIndex(
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+      [owner],
+      pageKnowledgeMap("project", 1),
+      intentAliases(),
+      AUTHORED_DIGEST,
+    );
+
+    expect(index.chunks.at(-1)).toMatchObject({
+      provenance: "owner_statement",
+      pageRole: "owner-confirmed",
+      evidencePages: [],
+    });
+    expect(index.chunks.at(-1)).not.toHaveProperty("page");
+  });
+
+  test("preserves authored dossier aliases that differ from manifest aliases", () => {
+    const source = projectSource({ pageCount: 1 });
+    const authored = authoredDocumentChunk({
+      aliases: ["Dossier-specific alias"],
+    });
+
+    const index = buildKnowledgeIndex(
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+      [authored],
+      pageKnowledgeMap("project", 1),
+      intentAliases(),
+      AUTHORED_DIGEST,
+    );
+
+    expect(index.chunks.at(-1)?.aliases).toEqual(["Dossier-specific alias"]);
+  });
+
+  test("preserves an authored dossier title that differs from its manifest title", () => {
+    const source = projectSource({ pageCount: 1 });
+    const authored = authoredDocumentChunk({
+      title: "Dossier Project Title",
+      citationLabel: "Dossier Project Title · p. 1",
+    });
+
+    const index = buildKnowledgeIndex(
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+      [authored],
+      pageKnowledgeMap("project", 1),
+      intentAliases(),
+      AUTHORED_DIGEST,
+    );
+
+    expect(index.chunks.at(-1)?.title).toBe("Dossier Project Title");
+    expect(index.chunks.at(-1)?.citationLabel).toBe(
+      "Dossier Project Title · p. 1",
+    );
+  });
+
+  test("strictly validates v2 index metadata, all 11 intents, and authored digest drift", () => {
+    const source = projectSource({ pageCount: 1 });
+    const authored = authoredDocumentChunk();
+    const aliases = intentAliases();
+    const index = buildKnowledgeIndex(
+      [source],
+      new Map([[source.id, [page(1, "Searchable project content")]]]),
+      { project: "a".repeat(64) },
+      [authored],
+      pageKnowledgeMap("project", 1),
+      aliases,
+      AUTHORED_DIGEST,
+    );
+    const validate = (candidate: unknown, currentAuthoredDigest = AUTHORED_DIGEST) =>
+      validateGeneratedIndex(
+        candidate,
+        [source],
+        { project: "a".repeat(64) },
+        [authored],
+        pageKnowledgeMap("project", 1),
+        aliases,
+        currentAuthoredDigest,
+      );
+
+    expect(() => validate(index)).not.toThrow();
+    expect(() => validate({ ...index, extra: true })).toThrow(/keys/i);
+    expect(() => validate({ ...index, authoredDigest: "invalid" })).toThrow(
+      /authored digest/i,
+    );
+    expect(() => validate(index, "c".repeat(64))).toThrow(
+      /authored.*digest.*mismatch/i,
+    );
+    const { contribution: _removed, ...missingIntent } = aliases;
+    expect(() =>
+      validate({ ...index, intentAliases: missingIntent }),
+    ).toThrow(/intent aliases/i);
+    expect(() =>
+      validate({
+        ...index,
+        intentAliases: { ...aliases, extra: [] },
+      }),
+    ).toThrow(/intent aliases/i);
+  });
+});
 
 describe("page-bounded chunk generation", () => {
   test("never crosses a page and keeps deterministic page-local IDs", () => {
@@ -90,6 +476,7 @@ describe("page-bounded chunk generation", () => {
     const chunks = chunkExtractedPages(
       source,
       [page(1, firstPage), page(2, secondPage)],
+      pageKnowledgeMap(),
       { chunkCharacters: 1_200, overlapCharacters: 150 },
     );
 
@@ -127,7 +514,7 @@ describe("page-bounded chunk generation", () => {
     expect(
       chunkExtractedPages(source, [
         { page: 1, text: source.structuredText!, method: "structured" },
-      ]),
+      ], new Map()),
     ).toEqual([
       expect.objectContaining({
         id: "profile:p1:c0",
@@ -146,7 +533,11 @@ describe("page-bounded chunk generation", () => {
       publicHref: "/projects/pdfs/inkseat.pdf",
     });
 
-    expect(chunkExtractedPages(source, [page(2, "Page two content")])).toEqual([
+    expect(chunkExtractedPages(
+      source,
+      [page(2, "Page two content")],
+      pageKnowledgeMap("inkseat", 2),
+    )).toEqual([
       expect.objectContaining({
         id: "inkseat:p2:c0",
         sourceId: "inkseat",
@@ -162,7 +553,7 @@ describe("page-bounded chunk generation", () => {
     const source = projectSource({ pageCount: 1 });
     const chunks = chunkExtractedPages(source, [
       page(1, `${"A".repeat(1_199)} ${"B".repeat(200)}`),
-    ]);
+    ], pageKnowledgeMap("project", 1));
 
     expect(chunks).toHaveLength(2);
     expect(Array.from(chunks[0]!.text)).toHaveLength(1_199);
@@ -172,10 +563,12 @@ describe("page-bounded chunk generation", () => {
       Array.from(chunks[1]!.text).slice(0, 150).join(""),
     );
     expect(() =>
-      validateGeneratedIndex(
+      validateIndex(
         {
-          version: 1,
+          version: 2,
           sourceDigests: { project: "a".repeat(64) },
+          authoredDigest: AUTHORED_DIGEST,
+          intentAliases: intentAliases(),
           chunks,
         },
         [source],
@@ -214,7 +607,7 @@ describe("knowledge validation", () => {
     const source = projectSource();
 
     expect(() =>
-      buildKnowledgeIndex(
+      buildIndex(
         [source, { ...source }],
         new Map([[source.id, [page(1, "Content")]]]),
         { project: "a".repeat(64) },
@@ -226,13 +619,15 @@ describe("knowledge validation", () => {
     const source = projectSource();
     const chunk = validChunk();
     const index: GeneratedKnowledgeIndex = {
-      version: 1,
+      version: 2,
       sourceDigests: { project: "a".repeat(64) },
+      authoredDigest: AUTHORED_DIGEST,
+      intentAliases: intentAliases(),
       chunks: [chunk, { ...chunk }],
     };
 
     expect(() =>
-      validateGeneratedIndex(index, [source], {
+      validateIndex(index, [source], {
         project: "a".repeat(64),
       }),
     ).toThrow("Duplicate knowledge chunk ID: project:p1:c0");
@@ -242,7 +637,7 @@ describe("knowledge validation", () => {
     const source = projectSource({ pageCount: 1, visualPages: [1] });
 
     expect(() =>
-      buildKnowledgeIndex(
+      buildIndex(
         [source],
         new Map([[source.id, [page(1, "   ")]]]),
         { project: "a".repeat(64) },
@@ -253,7 +648,7 @@ describe("knowledge validation", () => {
   test("allows an empty visual page when the source has other content", () => {
     const source = projectSource({ visualPages: [1] });
 
-    const index = buildKnowledgeIndex(
+    const index = buildIndex(
       [source],
       new Map([[source.id, [page(1, ""), page(2, "Useful content")]]]),
       { project: "a".repeat(64) },
@@ -266,7 +661,7 @@ describe("knowledge validation", () => {
     const source = projectSource();
 
     expect(() =>
-      buildKnowledgeIndex(
+      buildIndex(
         [source],
         new Map([[source.id, [page(1, "  \n "), page(2, "Useful content")]]]),
         { project: "a".repeat(64) },
@@ -276,7 +671,7 @@ describe("knowledge validation", () => {
 
   test("rejects invalid page counts, page numbers, and viewer targets", () => {
     expect(() =>
-      buildKnowledgeIndex(
+      buildIndex(
         [projectSource({ pageCount: 3 })],
         new Map([
           ["project", [page(1, "One"), page(2, "Two")]],
@@ -286,10 +681,12 @@ describe("knowledge validation", () => {
     ).toThrow("Knowledge source project page count mismatch");
 
     expect(() =>
-      validateGeneratedIndex(
+      validateIndex(
         {
-          version: 1,
+          version: 2,
           sourceDigests: { project: "a".repeat(64) },
+          authoredDigest: AUTHORED_DIGEST,
+          intentAliases: intentAliases(),
           chunks: [validChunk({ page: 3, id: "project:p3:c0" })],
         },
         [projectSource()],
@@ -298,10 +695,12 @@ describe("knowledge validation", () => {
     ).toThrow("Invalid page for knowledge chunk project:p3:c0");
 
     expect(() =>
-      validateGeneratedIndex(
+      validateIndex(
         {
-          version: 1,
+          version: 2,
           sourceDigests: { project: "a".repeat(64) },
+          authoredDigest: AUTHORED_DIGEST,
+          intentAliases: intentAliases(),
           chunks: [validChunk({ publicHref: "/unexpected.pdf" })],
         },
         [projectSource()],
@@ -319,8 +718,14 @@ describe("knowledge validation", () => {
       validChunk({ tags: [2] as unknown as readonly string[] }),
     ]) {
       expect(() =>
-        validateGeneratedIndex(
-          { version: 1, sourceDigests: digest, chunks: [chunk] },
+        validateIndex(
+          {
+            version: 2,
+            sourceDigests: digest,
+            authoredDigest: AUTHORED_DIGEST,
+            intentAliases: intentAliases(),
+            chunks: [chunk],
+          },
           [source],
           digest,
         ),
@@ -345,7 +750,7 @@ describe("knowledge validation", () => {
         chunks: index.chunks.map(({ title: _removed, ...chunk }) => chunk),
       },
     ]) {
-      expect(() => validateGeneratedIndex(candidate, [source], digest)).toThrow();
+      expect(() => validateIndex(candidate, [source], digest)).toThrow();
     }
   });
 
@@ -375,7 +780,7 @@ describe("knowledge validation", () => {
     for (const mutation of mutations) {
       const copy = mutableCopy(index);
       const candidate = { ...copy, chunks: [{ ...copy.chunks[0]!, ...mutation }] };
-      expect(() => validateGeneratedIndex(candidate, [source], digest)).toThrow();
+      expect(() => validateIndex(candidate, [source], digest)).toThrow();
     }
 
     const sourceWithoutProject = projectSource({
@@ -389,13 +794,13 @@ describe("knowledge validation", () => {
       new Map([[sourceWithoutProject.id, [page(1, "Synthetic resume content")]]]),
     );
     const forgedPresence = mutableCopy(withoutProject) as unknown as {
-      version: 1;
+      version: 2;
       sourceDigests: Record<string, string>;
       chunks: Array<Record<string, unknown>>;
     };
     forgedPresence.chunks[0]!.projectId = undefined;
     expect(() =>
-      validateGeneratedIndex(forgedPresence, [sourceWithoutProject], {
+      validateIndex(forgedPresence, [sourceWithoutProject], {
         resume: "a".repeat(64),
       }),
     ).toThrow();
@@ -412,7 +817,7 @@ describe("knowledge validation", () => {
     for (const text of [" Canonical synthetic content ", "Replacement content"]) {
       const copy = mutableCopy(index);
       const candidate = { ...copy, chunks: [{ ...copy.chunks[0]!, text }] };
-      expect(() => validateGeneratedIndex(candidate, [source], digest)).toThrow();
+      expect(() => validateIndex(candidate, [source], digest)).toThrow();
     }
   });
 
@@ -435,7 +840,7 @@ describe("knowledge validation", () => {
       [index.chunks[0]!, index.chunks[0]!, index.chunks[1]!, index.chunks[2]!],
     ]) {
       expect(() =>
-        validateGeneratedIndex({ ...index, chunks }, [first, second], digests),
+        validateIndex({ ...index, chunks }, [first, second], digests),
       ).toThrow();
     }
   });
@@ -463,7 +868,7 @@ describe("knowledge validation", () => {
       },
       ...tooLongCopy.chunks.slice(1),
     ] };
-    expect(() => validateGeneratedIndex(tooLong, [source], digest)).toThrow();
+    expect(() => validateIndex(tooLong, [source], digest)).toThrow();
 
     const badOverlapCopy = mutableCopy(index);
     const alteredText = `B${badOverlapCopy.chunks[1]!.text.slice(1)}`;
@@ -478,7 +883,7 @@ describe("knowledge validation", () => {
       },
       badOverlapCopy.chunks[2]!,
     ] };
-    expect(() => validateGeneratedIndex(badOverlap, [source], digest)).toThrow();
+    expect(() => validateIndex(badOverlap, [source], digest)).toThrow();
 
     const shortMiddleCopy = mutableCopy(index);
     const shortenedText = shortMiddleCopy.chunks[1]!.text.slice(0, -1);
@@ -493,7 +898,7 @@ describe("knowledge validation", () => {
       },
       shortMiddleCopy.chunks[2]!,
     ] };
-    expect(() => validateGeneratedIndex(shortMiddle, [source], digest)).toThrow();
+    expect(() => validateIndex(shortMiddle, [source], digest)).toThrow();
 
     const earlyBoundaryCopy = mutableCopy(index);
     const earlyFirstText = earlyBoundaryCopy.chunks[0]!.text.slice(0, -1);
@@ -519,7 +924,7 @@ describe("knowledge validation", () => {
       ],
     };
     expect(() =>
-      validateGeneratedIndex(earlyBoundary, [source], digest),
+      validateIndex(earlyBoundary, [source], digest),
     ).toThrow();
   });
 });

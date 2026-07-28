@@ -31,11 +31,10 @@ export interface KnowledgeSource {
   readonly visualPages?: readonly number[];
 }
 
-export interface KnowledgeChunk {
+interface KnowledgeChunkBase {
   readonly id: string;
   readonly sourceId: string;
   readonly projectId?: string;
-  readonly page?: number;
   readonly title: string;
   readonly text: string;
   readonly terms: readonly string[];
@@ -43,17 +42,21 @@ export interface KnowledgeChunk {
   readonly tags: readonly string[];
   readonly citationLabel: string;
   readonly publicHref: string;
-  /**
-   * Optional during the v1-to-v2 transition. Legacy generated source excerpts
-   * intentionally retain their existing serialized shape.
-   */
-  readonly knowledgeKind?: KnowledgeKind;
-  readonly intents?: readonly KnowledgeIntent[];
-  readonly informationDensity?: PageInformationDensity;
-  readonly pageRole?: string;
-  readonly provenance?: PublishedClaimProvenance;
-  readonly evidencePages?: readonly number[];
-  readonly questionAliases?: readonly string[];
+  readonly knowledgeKind: KnowledgeKind;
+  readonly intents: readonly KnowledgeIntent[];
+  readonly informationDensity: PageInformationDensity;
+  readonly pageRole: string;
+  readonly evidencePages: readonly number[];
+  readonly questionAliases: readonly string[];
+}
+
+export interface SourceExcerptKnowledgeChunk extends KnowledgeChunkBase {
+  readonly page: number;
+  readonly knowledgeKind: "source-excerpt";
+  readonly intents: readonly [];
+  readonly provenance?: never;
+  readonly evidencePages: readonly [number];
+  readonly questionAliases: readonly [];
 }
 
 interface AuthoredClaimKnowledgeChunkBase {
@@ -94,8 +97,16 @@ export type AuthoredClaimKnowledgeChunk =
   | DocumentAuthoredClaimKnowledgeChunk
   | OwnerAuthoredClaimKnowledgeChunk;
 
+export type KnowledgeChunk =
+  | SourceExcerptKnowledgeChunk
+  | AuthoredClaimKnowledgeChunk;
+
 export interface GeneratedKnowledgeIndex {
-  readonly version: 1;
+  readonly version: 2;
   readonly sourceDigests: Readonly<Record<string, string>>;
+  readonly authoredDigest: string;
+  readonly intentAliases: Readonly<
+    Record<KnowledgeIntent, readonly string[]>
+  >;
   readonly chunks: readonly KnowledgeChunk[];
 }

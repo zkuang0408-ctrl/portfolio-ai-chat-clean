@@ -19,6 +19,12 @@ function result(number: number): SearchResult {
     tags: ["product"],
     citationLabel: `Project ${number}, page ${number}`,
     publicHref: `/documents/project.pdf#page=${number}`,
+    knowledgeKind: "source-excerpt",
+    intents: [],
+    informationDensity: "medium",
+    pageRole: "project-evidence",
+    evidencePages: [number],
+    questionAliases: [],
   };
   return { chunk, score: 20 - number };
 }

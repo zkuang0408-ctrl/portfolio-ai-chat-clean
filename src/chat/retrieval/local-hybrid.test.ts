@@ -3,18 +3,36 @@ import { describe, expect, test } from "vitest";
 import { buildTerms } from "../knowledge/terms";
 import type {
   GeneratedKnowledgeIndex,
-  KnowledgeChunk,
+  SourceExcerptKnowledgeChunk,
 } from "../knowledge/types";
 import { createLocalHybridRetriever } from "./local-hybrid";
 
-function chunk(overrides: Partial<KnowledgeChunk> = {}): KnowledgeChunk {
+const INTENT_ALIASES = {
+  overview: [],
+  problem: [],
+  research: [],
+  solution: [],
+  architecture: [],
+  interaction: [],
+  technology: [],
+  form: [],
+  value: [],
+  comparison: [],
+  contribution: [],
+} as const;
+
+function chunk(
+  overrides: Partial<SourceExcerptKnowledgeChunk> = {},
+): SourceExcerptKnowledgeChunk {
   const title = overrides.title ?? "Portfolio case study";
   const text = overrides.text ?? "A product design case study.";
   const aliases = overrides.aliases ?? [];
   const tags = overrides.tags ?? ["product"];
+  const page = overrides.page ?? 1;
   return {
     id: overrides.id ?? "source:p1:c0",
     sourceId: overrides.sourceId ?? "source",
+    page,
     title,
     text,
     terms: overrides.terms ?? buildTerms([title, ...aliases, ...tags, text].join(" ")),
@@ -23,12 +41,25 @@ function chunk(overrides: Partial<KnowledgeChunk> = {}): KnowledgeChunk {
     citationLabel: overrides.citationLabel ?? title,
     publicHref: overrides.publicHref ?? "/portfolio/source",
     ...(overrides.projectId ? { projectId: overrides.projectId } : {}),
-    ...(overrides.page ? { page: overrides.page } : {}),
+    knowledgeKind: "source-excerpt",
+    intents: [],
+    informationDensity: overrides.informationDensity ?? "medium",
+    pageRole: overrides.pageRole ?? "profile",
+    evidencePages: [page],
+    questionAliases: [],
   };
 }
 
-function index(chunks: readonly KnowledgeChunk[]): GeneratedKnowledgeIndex {
-  return { version: 1, sourceDigests: {}, chunks };
+function index(
+  chunks: readonly SourceExcerptKnowledgeChunk[],
+): GeneratedKnowledgeIndex {
+  return {
+    version: 2,
+    sourceDigests: {},
+    authoredDigest: "a".repeat(64),
+    intentAliases: INTENT_ALIASES,
+    chunks,
+  };
 }
 
 describe("local hybrid retriever", () => {
