@@ -492,20 +492,19 @@ Run:
 ```powershell
 npx.cmd tsc --noEmit
 npm.cmd run build
-npm.cmd run check:client-secrets
-npm.cmd run verify:knowledge
-npm.cmd run verify:portfolio
+npm.cmd run knowledge:verify
+npm.cmd run portfolio-pages:verify
 ```
 
-Expected: TypeScript and Vite succeed; the client bundle contains no server secrets; knowledge and portfolio manifests verify.
+Expected: TypeScript and Vite succeed; the `build` script's client-bundle boundary check finds no server secrets; knowledge and portfolio manifests verify.
 
 - [ ] **Step 3: Rebuild and verify the Tencent package**
 
 Run:
 
 ```powershell
-npm.cmd run build:scf
-npm.cmd run verify:scf-package
+npm.cmd run scf:build
+npm.cmd run scf:verify
 ```
 
 Expected: `output/portfolio-chat-scf.zip` contains only executable `scf_bootstrap` and bundled `index.mjs`, and the verifier exits with code 0.
