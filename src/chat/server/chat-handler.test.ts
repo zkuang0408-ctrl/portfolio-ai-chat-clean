@@ -11,6 +11,7 @@ import {
   handleChat,
   type ChatHandlerDependencies,
   type ChatMetric,
+  type ChatRuntimeFailure,
 } from "./chat-handler";
 
 const encoder = new TextEncoder();
@@ -99,18 +100,30 @@ function dependencies(options: {
   rateResult?: { allowed: boolean; resetAt: number };
   metrics?: ChatMetric[];
   providerFailures?: string[];
+  runtimeFailures?: ChatRuntimeFailure[];
+  ipAddress?: string;
+  rateLimitError?: Error;
+  retrievalError?: Error;
+  runtimeFailureThrows?: boolean;
   allowedOrigins?: readonly string[];
 } = {}): ChatHandlerDependencies {
   const retriever: Retriever = {
-    search: vi.fn(async () =>
-      (options.results ?? [chunk("inkseat", 8)]).map((item, index) => ({
+    search: vi.fn(async () => {
+      if (options.retrievalError) throw options.retrievalError;
+      return (options.results ?? [chunk("inkseat", 8)]).map((item, index) => ({
         chunk: item,
         score: 20 - index,
-      })),
-    ),
+      }));
+    }),
   };
   const rateLimit: RateLimitStore = {
-    consume: vi.fn(async () => options.rateResult ?? { allowed: true, resetAt: fixedNow + 3_000 }),
+    consume: vi.fn(async () => {
+      if (options.rateLimitError) throw options.rateLimitError;
+      return options.rateResult ?? {
+        allowed: true,
+        resetAt: fixedNow + 3_000,
+      };
+    }),
   };
   return {
     retriever,
@@ -124,7 +137,7 @@ function dependencies(options: {
     rateLimit,
     rateLimitSalt: "a-safe-test-salt-that-is-at-least-32-bytes-long",
     profileFacts: ["赵实旷是同济大学工业设计学生。"],
-    ipAddress: () => "203.0.113.8",
+    ipAddress: () => options.ipAddress ?? "203.0.113.8",
     clock: () => fixedNow,
     requestId: () => "request_12345678",
     metrics: {
@@ -134,6 +147,12 @@ function dependencies(options: {
     },
     providerFailure(category) {
       options.providerFailures?.push(category);
+    },
+    runtimeFailure(failure) {
+      if (options.runtimeFailureThrows) {
+        throw new Error("diagnostic sink failed");
+      }
+      options.runtimeFailures?.push(failure);
     },
     allowedOrigins: options.allowedOrigins,
   };
@@ -563,6 +582,70 @@ describe("handleChat", () => {
     const response = await handleChat(request(), deps);
 
     expect((await readEvents(response)).at(-1)?.event).toBe("done");
+  });
+
+  test.each([
+    [
+      "visitor_identity",
+      { ipAddress: "" },
+    ],
+    [
+      "rate_limit",
+      { rateLimitError: new Error("redis unavailable") },
+    ],
+    [
+      "retrieval",
+      { retrievalError: new Error("retriever unavailable") },
+    ],
+  ] as const)(
+    "records a safe %s runtime failure",
+    async (stage, options) => {
+      const runtimeFailures: ChatRuntimeFailure[] = [];
+      const response = await handleChat(
+        request(undefined, {
+          headers: {
+            "x-scf-request-id":
+              "16f2b048-89dc-11f1-9f14-525400ea158b",
+          },
+        }),
+        dependencies({ ...options, runtimeFailures }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toMatchObject({
+        error: { code: "internal_error", retryable: true },
+      });
+      expect(runtimeFailures).toEqual([{
+        stage,
+        requestId: "16f2b048-89dc-11f1-9f14-525400ea158b",
+      }]);
+    },
+  );
+
+  test("does not classify request validation failures as runtime failures", async () => {
+    const runtimeFailures: ChatRuntimeFailure[] = [];
+    const response = await handleChat(
+      request({ message: "" }),
+      dependencies({ runtimeFailures }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(runtimeFailures).toEqual([]);
+  });
+
+  test("a failing runtime diagnostic sink cannot replace the public error", async () => {
+    const response = await handleChat(
+      request(),
+      dependencies({
+        rateLimitError: new Error("redis unavailable"),
+        runtimeFailureThrows: true,
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: { code: "internal_error", retryable: true },
+    });
   });
 
   test.each(["success", "no_result", "rejected", "rate_limited"] as const)(

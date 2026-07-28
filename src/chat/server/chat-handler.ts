@@ -42,6 +42,16 @@ export interface ChatMetricsSink {
   record(metric: ChatMetric): void | Promise<void>;
 }
 
+export type ChatRuntimeFailureStage =
+  | "visitor_identity"
+  | "rate_limit"
+  | "retrieval";
+
+export interface ChatRuntimeFailure {
+  readonly stage: ChatRuntimeFailureStage;
+  readonly requestId?: string;
+}
+
 export interface ChatHandlerDependencies {
   readonly retriever: Retriever;
   readonly provider: ChatProvider;
@@ -55,6 +65,9 @@ export interface ChatHandlerDependencies {
   metrics: ChatMetricsSink;
   readonly providerFailure: (
     category: DeepSeekProviderErrorCategory | "unknown",
+  ) => void;
+  readonly runtimeFailure: (
+    failure: ChatRuntimeFailure,
   ) => void;
 }
 
@@ -122,6 +135,17 @@ function recordMetric(
     void Promise.resolve(sink.record(metric)).catch(() => {});
   } catch {
     // Observability must never change the public assistant outcome.
+  }
+}
+
+function recordRuntimeFailure(
+  sink: ChatHandlerDependencies["runtimeFailure"],
+  failure: ChatRuntimeFailure,
+): void {
+  try {
+    sink(failure);
+  } catch {
+    // Diagnostics must never change the public assistant outcome.
   }
 }
 
@@ -471,6 +495,7 @@ export async function handleChat(
     return jsonError("method_not_allowed", 405, false, { allow: "POST" });
   }
 
+  let runtimeStage: ChatRuntimeFailureStage | undefined;
   try {
     const declaredLength = contentLength(request);
     validateChatRequestContext({
@@ -491,6 +516,7 @@ export async function handleChat(
       bodyBytes: body.bodyBytes,
     });
     const parsed = parseChatBody(parseJson(body.text));
+    runtimeStage = "visitor_identity";
     const rawIp = dependencies.ipAddress(request);
     if (typeof rawIp !== "string" || rawIp.length === 0) {
       throw new Error("visitor identity unavailable");
@@ -499,6 +525,7 @@ export async function handleChat(
       rawIp,
       dependencies.rateLimitSalt,
     );
+    runtimeStage = "rate_limit";
     const rate = await dependencies.rateLimit.consume({
       visitorKey,
       now: startedAt,
@@ -515,10 +542,12 @@ export async function handleChat(
       });
     }
 
+    runtimeStage = "retrieval";
     const results = await dependencies.retriever.search(parsed.message, {
       locale: parsed.locale,
       limit: 8,
     });
+    runtimeStage = undefined;
     return sseResponse(
       createAnswerStream({
         locale: parsed.locale,
@@ -533,6 +562,16 @@ export async function handleChat(
     );
   } catch (error) {
     const validation = error instanceof ChatValidationError ? error : undefined;
+    if (!validation && runtimeStage) {
+      const platformRequestId =
+        request.headers.get("x-scf-request-id") ?? undefined;
+      recordRuntimeFailure(dependencies.runtimeFailure, {
+        stage: runtimeStage,
+        ...(platformRequestId
+          ? { requestId: platformRequestId }
+          : {}),
+      });
+    }
     cancelStreamBestEffort(request.body);
     recordMetric(dependencies.metrics, {
       status: validation ? "rejected" : "failure",
