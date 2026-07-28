@@ -1,16 +1,27 @@
-import { knowledgeSources } from "../manifest";
-import { buildTerms } from "../terms";
+import {
+  assertPrivacySafe,
+  stableSerialize,
+} from "../build-index.js";
+import { knowledgeSources } from "../manifest.js";
+import { buildTerms } from "../terms.js";
 import type {
   AuthoredClaimKnowledgeChunk,
   DocumentAuthoredClaimKnowledgeChunk,
   KnowledgeSource,
   OwnerAuthoredClaimKnowledgeChunk,
-} from "../types";
+} from "../types.js";
 import type {
   AuthoredProjectDossier,
   KnowledgeClaim,
   PageKnowledge,
-} from "./types";
+} from "./types.js";
+
+interface ValidatedProjectSource extends KnowledgeSource {
+  readonly kind: "project-pdf";
+  readonly projectId: string;
+  readonly pageCount: number;
+  readonly publicHref: string;
+}
 
 function cleanText(value: string): string {
   return value.normalize("NFKC").replace(/\s+/gu, " ").trim();
@@ -34,8 +45,11 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value);
 }
 
-function resolveManifestSource(projectId: string): KnowledgeSource {
-  const matches = knowledgeSources.filter(
+function resolveManifestSource(
+  projectId: string,
+  sources: readonly KnowledgeSource[],
+): ValidatedProjectSource {
+  const matches = sources.filter(
     (source) => source.kind === "project-pdf" && source.id === projectId,
   );
   if (matches.length !== 1) {
@@ -56,6 +70,16 @@ function resolveManifestSource(projectId: string): KnowledgeSource {
       `Project ${projectId} manifest has an invalid public viewer target`,
     );
   }
+  const pageCount = source.pageCount;
+  if (
+    typeof pageCount !== "number"
+    || !Number.isInteger(pageCount)
+    || pageCount < 1
+  ) {
+    throw new Error(
+      `Project ${projectId} manifest has an invalid page count`,
+    );
+  }
 
   const normalizedTags = new Set<string>();
   for (const tag of source.tags) {
@@ -65,7 +89,13 @@ function resolveManifestSource(projectId: string): KnowledgeSource {
     }
     normalizedTags.add(key);
   }
-  return source;
+  return {
+    ...source,
+    kind: "project-pdf",
+    projectId,
+    pageCount,
+    publicHref: source.publicHref,
+  };
 }
 
 function buildQuestionAliases(
@@ -91,6 +121,7 @@ function buildQuestionAliases(
 function resolveEvidencePages(
   dossier: AuthoredProjectDossier,
   claim: KnowledgeClaim,
+  maximumPage: number,
 ): {
   readonly evidencePages: readonly number[];
   readonly anchor: PageKnowledge;
@@ -106,7 +137,7 @@ function resolveEvidencePages(
     if (
       !Number.isInteger(item.page)
       || item.page < 1
-      || item.page > dossier.pageCount
+      || item.page > maximumPage
     ) {
       throw new Error(`Claim ${claim.id} has an invalid evidence page`);
     }
@@ -151,7 +182,7 @@ function buildTermsForClaim(
 
 function buildClaimChunk(
   dossier: AuthoredProjectDossier,
-  source: KnowledgeSource,
+  source: ValidatedProjectSource,
   claim: KnowledgeClaim,
 ): AuthoredClaimKnowledgeChunk {
   const text = cleanText(claim.text);
@@ -168,7 +199,7 @@ function buildClaimChunk(
     terms: [...buildTermsForClaim(dossier, claim, text, questionAliases)],
     aliases: [...dossier.aliases],
     tags: [...source.tags],
-    publicHref: source.publicHref!,
+    publicHref: source.publicHref,
     knowledgeKind: "authored-claim",
     intents: [...claim.intents],
     informationDensity: "high",
@@ -197,7 +228,11 @@ function buildClaimChunk(
     throw new Error(`Claim ${claim.id} has invalid public provenance`);
   }
 
-  const { evidencePages, anchor } = resolveEvidencePages(dossier, claim);
+  const { evidencePages, anchor } = resolveEvidencePages(
+    dossier,
+    claim,
+    source.pageCount,
+  );
   return {
     ...common,
     page: anchor.page,
@@ -210,12 +245,18 @@ function buildClaimChunk(
 
 export function buildAuthoredChunks(
   dossiers: readonly AuthoredProjectDossier[],
+  sources: readonly KnowledgeSource[] = knowledgeSources,
 ): readonly AuthoredClaimKnowledgeChunk[] {
   const chunks: AuthoredClaimKnowledgeChunk[] = [];
   const stableIds = new Set<string>();
 
   for (const dossier of dossiers) {
-    const source = resolveManifestSource(dossier.projectId);
+    const source = resolveManifestSource(dossier.projectId, sources);
+    if (dossier.pageCount !== source.pageCount) {
+      throw new Error(
+        `Project ${dossier.projectId} page count mismatch: expected ${source.pageCount}, actual ${dossier.pageCount}`,
+      );
+    }
     for (const claim of dossier.claims) {
       if (!claim.public || claim.provenance === "candidate_contribution") {
         continue;
@@ -225,6 +266,7 @@ export function buildAuthoredChunks(
         throw new Error(`Duplicate authored knowledge chunk ID: ${chunk.id}`);
       }
       stableIds.add(chunk.id);
+      assertPrivacySafe(stableSerialize(chunk));
       chunks.push(deepFreeze(chunk));
     }
   }

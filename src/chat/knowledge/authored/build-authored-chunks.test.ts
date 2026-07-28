@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { normalizeKnowledgeText } from "../build-index";
 import { knowledgeSources } from "../manifest";
 import { buildTerms } from "../terms";
+import type { KnowledgeSource } from "../types";
 import { authoredProjects } from "./index";
 import { buildAuthoredChunks } from "./build-authored-chunks";
 import type {
@@ -20,6 +21,15 @@ function replaceClaim(
     claims: dossier.claims.map((claim) =>
       claim.id === claimId ? replace(claim) : claim),
   };
+}
+
+function inkseatManifestSource(
+  overrides: Partial<KnowledgeSource> = {},
+): KnowledgeSource {
+  const source = knowledgeSources.find(
+    (candidate) => candidate.id === "inkseat",
+  )!;
+  return { ...source, ...overrides };
 }
 
 describe("buildAuthoredChunks", () => {
@@ -304,5 +314,117 @@ describe("buildAuthoredChunks", () => {
     expect(() => buildAuthoredChunks([documentWithoutEvidence])).toThrow(
       /inkseat\.overview.*requires evidence/i,
     );
+  });
+
+  test.each([
+    {
+      field: "claim text",
+      dossier: () => replaceClaim(
+        authoredProjects[0]!,
+        "inkseat.overview",
+        (claim) => ({
+          ...claim,
+          text: `${claim.text} Phone: 202-555-0100`,
+        }),
+      ),
+      sources: undefined,
+    },
+    {
+      field: "dossier title",
+      dossier: () => ({
+        ...authoredProjects[0]!,
+        title: "INKSeat Phone: 202-555-0101",
+      }),
+      sources: undefined,
+    },
+    {
+      field: "dossier alias",
+      dossier: () => ({
+        ...authoredProjects[0]!,
+        aliases: [...authoredProjects[0]!.aliases, "PRIVATE_ADDRESS"],
+      }),
+      sources: undefined,
+    },
+    {
+      field: "common question",
+      dossier: () => ({
+        ...authoredProjects[0]!,
+        commonQuestions: authoredProjects[0]!.commonQuestions.map(
+          (question, index) => index === 0
+            ? {
+                ...question,
+                question: "Contact private-test@example.invalid",
+              }
+            : question,
+        ),
+      }),
+      sources: undefined,
+    },
+    {
+      field: "manifest tag",
+      dossier: () => authoredProjects[0]!,
+      sources: [
+        inkseatManifestSource({
+          tags: ["Safe test tag", "private-test@example.invalid"],
+        }),
+      ],
+    },
+  ] satisfies readonly {
+    readonly field: string;
+    readonly dossier: () => AuthoredProjectDossier;
+    readonly sources: readonly KnowledgeSource[] | undefined;
+  }[])("rejects private data injected through $field", ({ dossier, sources }) => {
+    expect(() => buildAuthoredChunks(
+      [dossier()],
+      sources,
+    )).toThrow("Private contact data detected");
+  });
+
+  test("rejects a dossier page count that exceeds its manifest contract", () => {
+    const inkseat = authoredProjects[0]!;
+    const dossier = replaceClaim(
+      {
+        ...inkseat,
+        pageCount: 19,
+        pages: [
+          ...inkseat.pages,
+          {
+            page: 19,
+            role: "synthetic-overflow",
+            informationDensity: "high",
+            visualSummary: "Synthetic test-only overflow page.",
+            entities: ["synthetic"],
+            relationships: ["tests manifest bounds"],
+            claimIds: ["inkseat.overview"],
+          },
+        ],
+      },
+      "inkseat.overview",
+      (claim) => ({
+        ...claim,
+        evidence: [
+          ...claim.evidence,
+          { sourceId: "inkseat", page: 19 },
+        ],
+      }),
+    );
+
+    expect(() => buildAuthoredChunks([dossier])).toThrow(
+      "Project inkseat page count mismatch: expected 18, actual 19",
+    );
+  });
+
+  test("rejects missing and invalid manifest page counts", () => {
+    const source = inkseatManifestSource();
+    const { pageCount: _pageCount, ...withoutPageCount } = source;
+
+    expect(() => buildAuthoredChunks(
+      [authoredProjects[0]!],
+      [withoutPageCount],
+    )).toThrow(/inkseat.*manifest.*page count/i);
+    expect(() => buildAuthoredChunks(
+      [authoredProjects[0]!],
+      [inkseatManifestSource({ pageCount: 0 })],
+    )).toThrow(/inkseat.*manifest.*page count/i);
   });
 });
