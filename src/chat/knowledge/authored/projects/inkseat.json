@@ -1,0 +1,946 @@
+{
+  "projectId": "inkseat",
+  "title": "INKSeat",
+  "aliases": [
+    "ink seat",
+    "电子纸座椅显示系统",
+    "智能内容推送系统",
+    "窄体机经济舱显示终端"
+  ],
+  "oneLine": "面向窄体机经济舱、尤其无 IFE 或去 IFE 场景的电子纸显示与智能内容推送系统。",
+  "pageCount": 18,
+  "claims": [
+    {
+      "id": "inkseat.overview",
+      "text": "INKSeat 是面向窄体机经济舱、尤其无 IFE 或去 IFE 场景的电子纸显示系统；它呈现航程信息、服务推荐和个性化商业内容，延展航空公司的机上信息触点，并支持 BYOD 场景下的座椅体验。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 1
+        }
+      ],
+      "intents": [
+        "overview",
+        "solution"
+      ],
+      "topics": [
+        "电子纸显示系统",
+        "窄体机经济舱",
+        "BYOD",
+        "个性化内容推送"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.problem",
+      "text": "BYOD 与 IFE 形态转移可能移除座位级屏幕，也随之失去可动态更新、可定向、可衡量的机上信息与广告触点；现有印刷物料和个人设备渠道分别存在更新与衡量困难、打扰乘客或影响客舱品质等取舍。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 3
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 4
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 5
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 6
+        }
+      ],
+      "intents": [
+        "problem",
+        "research"
+      ],
+      "topics": [
+        "客舱趋势",
+        "机上广告",
+        "座位级触点",
+        "渠道取舍"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.solution",
+      "text": "方案在完整座椅背 IFE 与纯 BYOD 客舱之间增加一层轻量、低功耗、低干扰的信息显示层，用于承载航程、服务与商业内容。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 1
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 6
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 7
+        }
+      ],
+      "intents": [
+        "solution",
+        "value"
+      ],
+      "topics": [
+        "轻量显示层",
+        "低功耗",
+        "低干扰",
+        "BYOD"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.feasibility",
+      "text": "彩色电子纸不是最便宜的媒介，但页面将它定位为适合经济舱中平静、低频、低功耗的信息层；其慢刷新特性也意味着它不适合视频或高频交互。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 7
+        }
+      ],
+      "intents": [
+        "technology",
+        "value"
+      ],
+      "topics": [
+        "彩色电子纸",
+        "低频信息",
+        "低功耗",
+        "媒介取舍"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.architecture",
+      "text": "系统概念中，乘客数据进入带内置智能体的智能推送后台；推荐把航空公司平台内容连接到座椅背显示终端及可能的购买路径，预期价值包括优化乘客体验和支持辅营收入。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 8
+        }
+      ],
+      "intents": [
+        "architecture",
+        "comparison"
+      ],
+      "topics": [
+        "智能推送后台",
+        "航空公司平台",
+        "座椅背终端",
+        "购买路径"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.explainability",
+      "text": "推荐示例使用可解释的航程、订单和情境信号，例如行李、同行状态、值机时间与已查看信息；同时明确排除敏感或无法解释的推断，例如根据座位号推断性格或偏好。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 9
+        }
+      ],
+      "intents": [
+        "architecture",
+        "technology"
+      ],
+      "topics": [
+        "可解释推荐",
+        "航程信号",
+        "订单信号",
+        "敏感属性边界"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.content-system",
+      "text": "方案模拟构建商业与目的地内容库和乘客画像来支持后台推荐；登机、起飞、餐前与落地等选定阶段显示航程、服务和安全等固定信息，商业内容则可围绕旅程节点推送。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 10
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 11
+        }
+      ],
+      "intents": [
+        "architecture",
+        "interaction"
+      ],
+      "topics": [
+        "模拟内容库",
+        "乘客画像",
+        "固定信息页面",
+        "旅程内容推送"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.form",
+      "text": "造型与结构方案协调座椅、电子纸屏和个人设备的观看关系，以自然视线和互不干扰为目标，并整合可调头枕、抽拉侧桌、储物网袋、充电口以及银灰、冷白、深蓝与橙红点缀的 CMF 选择。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 15
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 16
+        }
+      ],
+      "intents": [
+        "form",
+        "interaction"
+      ],
+      "topics": [
+        "视线关系",
+        "PED 支架",
+        "座椅结构",
+        "CMF"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.journey",
+      "text": "全航程蓝图协调乘客、机组、餐饮服务、品牌广告与连接系统，从清晰信息和安全优先、低打扰服务，推进到餐饮服务推广以及目的地广告与转化，并由旅程数据层、机组决策、Wi-Fi 指令和本地终端调用衔接各阶段。",
+      "provenance": "document_fact",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 17
+        }
+      ],
+      "intents": [
+        "interaction",
+        "value",
+        "comparison"
+      ],
+      "topics": [
+        "全航程蓝图",
+        "客舱服务",
+        "目的地广告",
+        "旅程数据层"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.core-contributor",
+      "text": "据作品所有者确认，赵实旷（Zhao Shikuang）是 INKSeat 团队项目的核心贡献者，完成了其中相当大一部分工作；这不表示他是唯一设计者或项目负责人。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "团队贡献",
+        "核心贡献者",
+        "所有者陈述"
+      ],
+      "public": true
+    },
+    {
+      "id": "inkseat.contribution.system-analysis",
+      "text": "候选贡献，尚待本人确认：可能参与客舱趋势、广告触点矛盾与市场缺口的系统分析。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 3
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 4
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 5
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 6
+        }
+      ],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "系统分析",
+        "设计机会",
+        "市场缺口"
+      ],
+      "public": false
+    },
+    {
+      "id": "inkseat.contribution.information-architecture",
+      "text": "候选贡献，尚待本人确认：可能参与系统、内容与全航程触点的信息架构表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 8
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 10
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 11
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 17
+        }
+      ],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "信息架构",
+        "内容层级",
+        "旅程触点"
+      ],
+      "public": false
+    },
+    {
+      "id": "inkseat.contribution.recommendation-logic",
+      "text": "候选贡献，尚待本人确认：可能参与智能推送与可解释推荐逻辑的梳理和表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 8
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 9
+        }
+      ],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "推荐逻辑",
+        "可解释性",
+        "智能推送"
+      ],
+      "public": false
+    },
+    {
+      "id": "inkseat.contribution.terminal-interface",
+      "text": "候选贡献，尚待本人确认：可能参与电子纸终端、固定内容页面与座椅背界面的视觉表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        {
+          "sourceId": "inkseat",
+          "page": 11
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 15
+        },
+        {
+          "sourceId": "inkseat",
+          "page": 16
+        }
+      ],
+      "intents": [
+        "contribution"
+      ],
+      "topics": [
+        "终端界面",
+        "固定内容页面",
+        "座椅背显示"
+      ],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": [
+      "inkseat.overview"
+    ],
+    "problem": [
+      "inkseat.problem"
+    ],
+    "research": [
+      "inkseat.problem",
+      "inkseat.feasibility"
+    ],
+    "solution": [
+      "inkseat.overview",
+      "inkseat.solution"
+    ],
+    "architecture": [
+      "inkseat.architecture",
+      "inkseat.explainability",
+      "inkseat.content-system"
+    ],
+    "interaction": [
+      "inkseat.content-system",
+      "inkseat.form",
+      "inkseat.journey"
+    ],
+    "technology": [
+      "inkseat.feasibility",
+      "inkseat.explainability"
+    ],
+    "form": [
+      "inkseat.form"
+    ],
+    "value": [
+      "inkseat.solution",
+      "inkseat.feasibility",
+      "inkseat.architecture",
+      "inkseat.journey"
+    ],
+    "comparison": [
+      "inkseat.architecture",
+      "inkseat.journey"
+    ],
+    "contribution": [
+      "inkseat.core-contributor",
+      "inkseat.contribution.system-analysis",
+      "inkseat.contribution.information-architecture",
+      "inkseat.contribution.recommendation-logic",
+      "inkseat.contribution.terminal-interface"
+    ]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "项目封面以座椅正反面渲染和中英设计说明概括 INKSeat：座椅背上方嵌入电子纸航程信息屏，并说明其面向无 IFE 或去 IFE 的窄体机经济舱。",
+      "entities": [
+        "INKSeat",
+        "窄体机经济舱座椅",
+        "电子纸显示屏",
+        "BYOD",
+        "航程与商业内容"
+      ],
+      "relationships": [
+        "电子纸屏嵌入座椅背上部",
+        "显示系统为无 IFE 或去 IFE 客舱补充信息触点",
+        "内容推送与 BYOD 座椅体验并行"
+      ],
+      "claimIds": [
+        "inkseat.overview",
+        "inkseat.solution"
+      ]
+    },
+    {
+      "page": 2,
+      "role": "contents",
+      "informationDensity": "low",
+      "visualSummary": "客舱场景渲染上叠加四个章节入口：设计机会、系统架构、智能内容推送系统、造型与结构。",
+      "entities": [
+        "客舱渲染",
+        "设计机会",
+        "系统架构",
+        "智能内容推送系统",
+        "造型与结构"
+      ],
+      "relationships": [
+        "四个章节共同组织项目叙事",
+        "带电子纸屏的座椅列作为目录背景"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 3,
+      "role": "cabin-trend",
+      "informationDensity": "high",
+      "visualSummary": "客舱趋势页用矩阵、航司案例和门户界面展示窄体机经济舱从座椅背娱乐屏向个人设备与联网门户迁移的趋势。",
+      "entities": [
+        "座椅背屏幕",
+        "个人设备",
+        "BYOD",
+        "机上娱乐门户",
+        "窄体机经济舱"
+      ],
+      "relationships": [
+        "Wi-Fi 与座椅供电推动娱乐体验向个人设备迁移",
+        "联网能力把本地客舱门户连接到个人设备",
+        "座椅级屏幕触点在轻量化趋势中减少"
+      ],
+      "claimIds": [
+        "inkseat.problem"
+      ]
+    },
+    {
+      "page": 4,
+      "role": "in-flight-advertising",
+      "informationDensity": "high",
+      "visualSummary": "页面对比静态客舱广告与可定向、可更新、可衡量的旅程媒体网络，并指出无座椅背屏幕时会失去座位级广告数字化机会。",
+      "entities": [
+        "静态客舱广告",
+        "旅程媒体网络",
+        "座椅背媒介",
+        "个人设备",
+        "座位级广告"
+      ],
+      "relationships": [
+        "静态物料难以动态更新和衡量",
+        "旅程媒体网络跨越居家、机场、机上与到达后阶段",
+        "移除 IFE 屏幕会削弱座位级数字触点"
+      ],
+      "claimIds": [
+        "inkseat.problem"
+      ]
+    },
+    {
+      "page": 5,
+      "role": "contradiction-analysis",
+      "informationDensity": "high",
+      "visualSummary": "矛盾分析页比较把商业内容转入个人设备与继续使用传统印刷物料的优劣，并提出在自然视线落点增加轻量数字显示层的设计问题。",
+      "entities": [
+        "个人设备广告",
+        "传统物料",
+        "IFE 商业内容",
+        "自然视线落点",
+        "轻量数字显示"
+      ],
+      "relationships": [
+        "个人设备内容可更新但可能打扰乘客",
+        "传统物料曝光更久但更新慢且不可衡量",
+        "新的座椅背信息层试图兼顾定向更新与客舱品质"
+      ],
+      "claimIds": [
+        "inkseat.problem"
+      ]
+    },
+    {
+      "page": 6,
+      "role": "market-gap",
+      "informationDensity": "high",
+      "visualSummary": "市场缺口页把航空公司与乘客需求映射到硬件、功耗、商业触点、品牌、低干扰、个人设备支持和航程信息，并将 INKSeat 放在座椅背 IFE 与纯 BYOD 之间。",
+      "entities": [
+        "航空公司需求",
+        "乘客需求",
+        "静态客舱媒介",
+        "无线 IFE 与 BYOD",
+        "INKSeat",
+        "座椅背 IFE"
+      ],
+      "relationships": [
+        "航空公司需求连接硬件、功耗与商业信息触点",
+        "乘客需求连接品牌、低干扰、个人设备与航程信息",
+        "INKSeat 被定位为介于纯 BYOD 和完整 IFE 之间的轻量信息界面"
+      ],
+      "claimIds": [
+        "inkseat.problem",
+        "inkseat.solution"
+      ]
+    },
+    {
+      "page": 7,
+      "role": "e-paper-feasibility",
+      "informationDensity": "high",
+      "visualSummary": "可行性页比较 LCD、OLED 与彩色电子纸，强调彩色电子纸虽然不是最便宜的媒介，但适合平静、低频、低功耗的经济舱信息显示。",
+      "entities": [
+        "LCD",
+        "OLED",
+        "彩色电子纸",
+        "低频信息",
+        "慢刷新"
+      ],
+      "relationships": [
+        "彩色电子纸以低功耗和低干扰适配低频信息",
+        "慢刷新限制视频和高频交互",
+        "媒介选择体现成本与客舱信息体验的取舍"
+      ],
+      "claimIds": [
+        "inkseat.solution",
+        "inkseat.feasibility"
+      ]
+    },
+    {
+      "page": 8,
+      "role": "system-architecture",
+      "informationDensity": "high",
+      "visualSummary": "系统架构图连接乘客数据、带智能体的智能推送后台、航空公司自有平台、座椅背显示与购物界面，并把航程、服务和商业信息指向乘客体验与辅营价值。",
+      "entities": [
+        "乘客数据",
+        "智能推送后台",
+        "内置智能体",
+        "航空公司自有平台",
+        "座椅背显示",
+        "购物路径"
+      ],
+      "relationships": [
+        "乘客数据进入智能推送后台",
+        "后台记忆连接平台内容与个性化推荐",
+        "推荐内容通过座椅背终端呈现并可衔接购买路径",
+        "信息触点指向乘客体验与辅营收入"
+      ],
+      "claimIds": [
+        "inkseat.architecture"
+      ]
+    },
+    {
+      "page": 9,
+      "role": "explainable-recommendation",
+      "informationDensity": "high",
+      "visualSummary": "技术原理页以一段上海至首尔的模拟旅程说明可解释推荐边界，并展示航程情境与商业内容语义经机组电脑和无线分发到多块电子纸屏的概念流程。",
+      "entities": [
+        "航程与订单数据",
+        "可解释推荐依据",
+        "不可解释特征",
+        "商业内容语义",
+        "机组电脑",
+        "电子纸终端"
+      ],
+      "relationships": [
+        "航程与订单信号形成可说明的推荐依据",
+        "座位号等信号不得用于性格或偏好推断",
+        "商业内容语义与旅程场景共同进入推荐",
+        "机组电脑经无线链路分发终端内容"
+      ],
+      "claimIds": [
+        "inkseat.explainability"
+      ]
+    },
+    {
+      "page": 10,
+      "role": "content-library-and-personas",
+      "informationDensity": "high",
+      "visualSummary": "页面以大量海报式素材展示一个模拟的商业与目的地内容库，并说明该内容库与乘客画像共同服务于推荐概念。",
+      "entities": [
+        "模拟商业内容库",
+        "目的地内容",
+        "乘客画像",
+        "海报式创意素材"
+      ],
+      "relationships": [
+        "海报式素材构成模拟内容库",
+        "内容库与乘客画像共同支持推荐"
+      ],
+      "claimIds": [
+        "inkseat.content-system"
+      ]
+    },
+    {
+      "page": 11,
+      "role": "backend-and-interface",
+      "informationDensity": "high",
+      "visualSummary": "UI/UX 页展示推送后台和购物平台概念界面，并用时间轴区分固定信息阶段与商业推荐，同时给出航程、目的地、安全和餐饮等电子纸页面样式。",
+      "entities": [
+        "推送后台概念",
+        "购物平台界面",
+        "航程阶段时间轴",
+        "固定信息页面",
+        "商业推荐页面"
+      ],
+      "relationships": [
+        "后台选择座位并触发屏幕内容刷新",
+        "固定阶段展示航程、服务和安全信息",
+        "商业内容在其他旅程节点进入推荐",
+        "购物平台作为内容与购买路径的概念中转界面"
+      ],
+      "claimIds": [
+        "inkseat.content-system"
+      ]
+    },
+    {
+      "page": 12,
+      "role": "demonstration",
+      "informationDensity": "low",
+      "visualSummary": "现场演示照片并列呈现裸露的彩色电子纸模组，屏幕依次显示商业海报、INKSeat 图形和登机欢迎信息。",
+      "entities": [
+        "彩色电子纸模组",
+        "商业海报",
+        "INKSeat 图形",
+        "登机欢迎界面"
+      ],
+      "relationships": [
+        "同一显示模组切换多种静态内容",
+        "演示画面覆盖商业与航程相关信息"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 13,
+      "role": "demonstration",
+      "informationDensity": "medium",
+      "visualSummary": "两张现场照片展示白色座椅背实体样机：上方电子纸屏显示首尔圣水洞目的地内容，下方设置黑色防滑槽和展开的个人设备支撑面。",
+      "entities": [
+        "座椅背实体样机",
+        "电子纸屏",
+        "目的地内容",
+        "防滑槽",
+        "个人设备支撑面"
+      ],
+      "relationships": [
+        "电子纸屏嵌入座椅背上方",
+        "目的地内容在实体终端上显示",
+        "个人设备支撑结构位于屏幕下方"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 14,
+      "role": "demonstration",
+      "informationDensity": "low",
+      "visualSummary": "现场演示分隔页以大幅正面座椅照片呈现深蓝软包、白色框架与扶手造型，没有系统说明或架构信息。",
+      "entities": [
+        "座椅正面",
+        "深蓝软包",
+        "白色框架",
+        "扶手"
+      ],
+      "relationships": [
+        "软包与框架共同呈现座椅正面造型",
+        "画面作为演示章节的视觉过渡"
+      ],
+      "claimIds": []
+    },
+    {
+      "page": 15,
+      "role": "form-and-viewing-relationship",
+      "informationDensity": "high",
+      "visualSummary": "造型与结构页用座椅三视图、PED 支架状态和人体视线示意说明电子纸屏与个人设备的上下分层、自然观看与互不干扰关系。",
+      "entities": [
+        "座椅三视图",
+        "电子纸屏",
+        "个人设备",
+        "PED 支架",
+        "防滑槽",
+        "人体视线"
+      ],
+      "relationships": [
+        "电子纸屏位于个人设备观看区域上方",
+        "PED 支架和防滑槽承托个人设备",
+        "两块显示区域以自然视线和互不干扰为目标"
+      ],
+      "claimIds": [
+        "inkseat.form"
+      ]
+    },
+    {
+      "page": 16,
+      "role": "structure-and-cmf",
+      "informationDensity": "high",
+      "visualSummary": "结构与 CMF 页展示可调头枕、刺绣标识、座垫分区、抽拉侧桌、灰色网袋和充电口，并定义银灰金属、冷白背壳、深蓝织物与橙红标识。",
+      "entities": [
+        "可调头枕",
+        "抽拉侧桌",
+        "灰色网袋",
+        "充电口",
+        "座垫分区",
+        "CMF 色材"
+      ],
+      "relationships": [
+        "头枕、桌板、储物与充电功能整合进座椅结构",
+        "银灰、冷白与深蓝构成主体色材",
+        "橙红刺绣标识形成品牌点缀"
+      ],
+      "claimIds": [
+        "inkseat.form"
+      ]
+    },
+    {
+      "page": 17,
+      "role": "whole-flight-journey",
+      "informationDensity": "high",
+      "visualSummary": "全航程服务蓝图把登机、飞行和离机阶段中的乘客行为、电子纸触点、餐饮与广告、后台数据引擎和支持系统组织为四类核心场景。",
+      "entities": [
+        "乘客",
+        "客舱机组",
+        "餐饮服务",
+        "品牌广告",
+        "Wi-Fi",
+        "旅程数据层",
+        "电子纸终端"
+      ],
+      "relationships": [
+        "清晰信息与安全优先覆盖航程前段",
+        "低干扰提示衔接餐饮与服务推广",
+        "目的地广告在抵达前连接转化",
+        "旅程数据、机组决策、Wi-Fi 指令与终端调用协调内容刷新"
+      ],
+      "claimIds": [
+        "inkseat.journey"
+      ]
+    },
+    {
+      "page": 18,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "结束页以装有 INKSeat 座椅背终端的客舱渲染为背景，并显示致谢文字。",
+      "entities": [
+        "客舱渲染",
+        "INKSeat 座椅背终端",
+        "致谢文字"
+      ],
+      "relationships": [
+        "成排座椅背终端构成最终客舱愿景",
+        "致谢文字结束项目叙事"
+      ],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    {
+      "question": "inkseat是什么作品",
+      "locale": "zh",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "inkseat.overview"
+      ]
+    },
+    {
+      "question": "What is INKSeat?",
+      "locale": "en",
+      "intents": [
+        "overview"
+      ],
+      "preferredClaimIds": [
+        "inkseat.overview"
+      ]
+    },
+    {
+      "question": "INKSeat的系统架构是什么",
+      "locale": "zh",
+      "intents": [
+        "architecture"
+      ],
+      "preferredClaimIds": [
+        "inkseat.architecture"
+      ]
+    },
+    {
+      "question": "How is the INKSeat system architecture organized?",
+      "locale": "en",
+      "intents": [
+        "architecture"
+      ],
+      "preferredClaimIds": [
+        "inkseat.architecture"
+      ]
+    },
+    {
+      "question": "INKSeat解决了什么问题",
+      "locale": "zh",
+      "intents": [
+        "problem"
+      ],
+      "preferredClaimIds": [
+        "inkseat.problem"
+      ]
+    },
+    {
+      "question": "What problem does INKSeat solve?",
+      "locale": "en",
+      "intents": [
+        "problem"
+      ],
+      "preferredClaimIds": [
+        "inkseat.problem"
+      ]
+    },
+    {
+      "question": "INKSeat为什么使用电子纸",
+      "locale": "zh",
+      "intents": [
+        "technology",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "inkseat.feasibility",
+        "inkseat.solution"
+      ]
+    },
+    {
+      "question": "Why does INKSeat use e-paper?",
+      "locale": "en",
+      "intents": [
+        "technology",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "inkseat.feasibility",
+        "inkseat.solution"
+      ]
+    },
+    {
+      "question": "INKSeat如何实现可解释推荐",
+      "locale": "zh",
+      "intents": [
+        "architecture",
+        "technology"
+      ],
+      "preferredClaimIds": [
+        "inkseat.explainability"
+      ]
+    },
+    {
+      "question": "How does INKSeat make recommendations explainable?",
+      "locale": "en",
+      "intents": [
+        "architecture",
+        "technology"
+      ],
+      "preferredClaimIds": [
+        "inkseat.explainability"
+      ]
+    },
+    {
+      "question": "INKSeat如何覆盖整个飞行旅程",
+      "locale": "zh",
+      "intents": [
+        "interaction",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "inkseat.journey"
+      ]
+    },
+    {
+      "question": "How does INKSeat work across the whole flight journey?",
+      "locale": "en",
+      "intents": [
+        "interaction",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "inkseat.journey"
+      ]
+    },
+    {
+      "question": "赵实旷在INKSeat中做了什么",
+      "locale": "zh",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "inkseat.core-contributor"
+      ]
+    },
+    {
+      "question": "What was Zhao Shikuang's contribution to INKSeat?",
+      "locale": "en",
+      "intents": [
+        "contribution"
+      ],
+      "preferredClaimIds": [
+        "inkseat.core-contributor"
+      ]
+    }
+  ]
+}

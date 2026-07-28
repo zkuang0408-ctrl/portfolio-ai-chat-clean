@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import inkseatJson from "./projects/inkseat.json";
 import { validateProjectDossier } from "./validate";
 import type {
   AuthoredProjectDossier,
@@ -219,5 +220,80 @@ describe("validateProjectDossier", () => {
     const dossier = minimalDossier();
     expect(() => validate({ ...dossier, aliases: ["---"] })).toThrow();
     expect(() => validate({ ...dossier, commonQuestions: [{ ...dossier.commonQuestions[0], question: "???" }] })).toThrow();
+  });
+});
+
+describe("INKSeat authored dossier", () => {
+  const inkseat = validateProjectDossier(inkseatJson, {
+    expectedProjectId: "inkseat",
+    expectedPageCount: 18,
+  });
+
+  test("annotates all 18 pages in canonical order", () => {
+    expect(inkseat.pages).toHaveLength(18);
+    expect(inkseat.pages.map(({ page }) => page)).toStrictEqual(
+      Array.from({ length: 18 }, (_, index) => index + 1),
+    );
+    expect(inkseat.pages.find(({ page }) => page === 1)).toMatchObject({
+      role: "overview",
+      informationDensity: "high",
+    });
+    expect(inkseat.pages.find(({ page }) => page === 8)).toMatchObject({
+      role: "system-architecture",
+      informationDensity: "high",
+    });
+    expect(inkseat.pages.find(({ page }) => page === 14)).toMatchObject({
+      role: "demonstration",
+      informationDensity: "low",
+    });
+  });
+
+  test("maps evidence-supported claims to the key overview, architecture, and demonstration pages", () => {
+    expect(inkseat.pages.find(({ page }) => page === 1)?.claimIds).toContain(
+      "inkseat.overview",
+    );
+    expect(inkseat.pages.find(({ page }) => page === 8)?.claimIds).toContain(
+      "inkseat.architecture",
+    );
+    const pageFourteenClaimIds =
+      inkseat.pages.find(({ page }) => page === 14)?.claimIds ?? [];
+    expect(pageFourteenClaimIds).not.toContain("inkseat.overview");
+    expect(pageFourteenClaimIds).not.toContain("inkseat.problem");
+    expect(pageFourteenClaimIds).not.toContain("inkseat.architecture");
+  });
+
+  test("indexes overview, architecture, and comparison sections", () => {
+    expect(inkseat.sectionClaims.overview).toContain("inkseat.overview");
+    expect(inkseat.sectionClaims.architecture).toContain("inkseat.architecture");
+    expect(inkseat.sectionClaims.comparison).toEqual(
+      expect.arrayContaining(["inkseat.architecture", "inkseat.journey"]),
+    );
+    expect(
+      inkseat.claims.find(({ id }) => id === "inkseat.architecture")?.intents,
+    ).toEqual(expect.arrayContaining(["architecture", "comparison"]));
+  });
+
+  test("keeps draft contribution candidates private and identifies the owner-confirmed contribution", () => {
+    const contributionCandidates = inkseat.claims.filter(
+      ({ provenance }) => provenance === "candidate_contribution",
+    );
+    expect(contributionCandidates).toHaveLength(4);
+    expect(contributionCandidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
+    expect(inkseat.claims.find(({ id }) => id === "inkseat.core-contributor")).toMatchObject({
+      provenance: "owner_statement",
+      evidence: [],
+      public: true,
+    });
+  });
+
+  test("routes the two canonical Chinese questions to their preferred claims", () => {
+    expect(inkseat.commonQuestions.find(({ question }) => question === "inkseat是什么作品")).toMatchObject({
+      intents: ["overview"],
+      preferredClaimIds: ["inkseat.overview"],
+    });
+    expect(inkseat.commonQuestions.find(({ question }) => question === "INKSeat的系统架构是什么")).toMatchObject({
+      intents: ["architecture"],
+      preferredClaimIds: ["inkseat.architecture"],
+    });
   });
 });
