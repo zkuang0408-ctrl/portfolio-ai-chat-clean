@@ -52,7 +52,56 @@ function expectPublicSectionClaimReferences(dossier: AuthoredProjectDossier): vo
       const claim = claimsById.get(claimId);
       expect(claim, `${section} section claim ${claimId} resolves`).toBeDefined();
       expect(claim?.public, `${section} section claim ${claimId} is public`).toBe(true);
+      if (intents.includes(section as KnowledgeIntent)) {
+        expect(claim?.intents, `${section} section claim ${claimId} declares its section intent`)
+          .toContain(section);
+      }
     }
+  }
+}
+
+function expectIntentAlignedPublicQuestionClaims(dossier: AuthoredProjectDossier): void {
+  const claimsById = new Map(dossier.claims.map((claim) => [claim.id, claim]));
+  for (const question of dossier.commonQuestions) {
+    const publicPreferredClaims = question.preferredClaimIds
+      .map((claimId) => claimsById.get(claimId))
+      .filter((claim): claim is KnowledgeClaim => claim?.public === true);
+    expect(
+      publicPreferredClaims.some((claim) =>
+        claim.intents.some((intent) => question.intents.includes(intent))),
+      `question "${question.question}" has an intent-aligned public preferred claim`,
+    ).toBe(true);
+  }
+}
+
+function expectConservativeOwnerStatement(
+  dossier: AuthoredProjectDossier,
+  claimId: string,
+): void {
+  const ownerStatement = dossier.claims.find(({ id }) => id === claimId);
+  expect(ownerStatement).toMatchObject({
+    id: claimId,
+    provenance: "owner_statement",
+    evidence: [],
+    intents: ["contribution"],
+    public: true,
+  });
+  expect(ownerStatement?.text).toContain("核心贡献者");
+  expect(ownerStatement?.text).toContain("实质性");
+  expect(ownerStatement?.text).toContain("团队成果");
+  const forbiddenPhrases = [
+    "sole",
+    "lead",
+    "主导",
+    "负责人",
+    "个人完成",
+    "全部完成",
+    "唯一",
+    "独立完成",
+  ];
+  for (const phrase of forbiddenPhrases) {
+    expect(ownerStatement?.text.toLowerCase(), `${claimId} omits "${phrase}"`)
+      .not.toContain(phrase.toLowerCase());
   }
 }
 
@@ -134,6 +183,29 @@ describe("validateProjectDossier", () => {
     expect(() => validate({ ...dossier, pages: [{ ...dossier.pages[0], claimIds: ["missing"] }] })).toThrow();
     expect(() => validate({ ...dossier, sectionClaims: { ...dossier.sectionClaims, overview: ["missing"] } })).toThrow();
     expect(() => validate({ ...dossier, commonQuestions: [{ ...dossier.commonQuestions[0], preferredClaimIds: ["missing"] }] })).toThrow();
+  });
+
+  test("rejects private preferred claims in common questions", () => {
+    const dossier = minimalDossier();
+    const privateClaim = {
+      ...dossier.claims[0],
+      id: "private-claim",
+      provenance: "candidate_contribution" as const,
+      evidence: [],
+      intents: ["contribution"] as const,
+      public: false,
+    };
+    const candidate = {
+      ...dossier,
+      claims: [...dossier.claims, privateClaim],
+      commonQuestions: [{
+        ...dossier.commonQuestions[0],
+        preferredClaimIds: [privateClaim.id],
+      }],
+    };
+    expect(() => validate(candidate)).toThrow(
+      "Common question What is it? cannot reference private claim private-claim",
+    );
   });
 
   test("requires evidence for document claims", () => {
@@ -399,18 +471,42 @@ describe("EMOVUE authored dossier", () => {
       "emovue.packaging",
       "emovue.core-contributor",
     ]);
-    expect(emovue.claims.find(({ id }) => id === "emovue.product")?.evidence).toContainEqual({
-      sourceId: "emovue",
-      page: 8,
-    });
+    expect(emovue.claims.find(({ id }) => id === "emovue.product")?.evidence).toStrictEqual([
+      { sourceId: "emovue", page: 8 },
+      { sourceId: "emovue", page: 9 },
+      { sourceId: "emovue", page: 10 },
+    ]);
+    expect(emovue.claims.find(({ id }) => id === "emovue.product")?.topics).toEqual(
+      expect.arrayContaining([
+        "可调滑轨",
+        "磁吸或结构连接",
+        "PPG/心率",
+        "EDA/皮肤电",
+        "控制板",
+        "麦克风",
+        "相机构件",
+      ]),
+    );
+    expect(emovue.pages.find(({ page }) => page === 9)?.claimIds).toContain(
+      "emovue.product",
+    );
+    expect(emovue.pages.find(({ page }) => page === 10)?.claimIds).toContain(
+      "emovue.product",
+    );
     expect(emovue.claims.find(({ id }) => id === "emovue.technical-prototype")?.evidence).toContainEqual({
       sourceId: "emovue",
       page: 15,
     });
+    expect(emovue.claims.find(({ id }) => id === "emovue.positioning")?.intents)
+      .toContain("value");
   });
 
-  test("indexes only public claims in every section", () => {
+  test("indexes only public claims that declare their section intent", () => {
     expectPublicSectionClaimReferences(emovue);
+  });
+
+  test("routes every question through an intent-aligned public preferred claim", () => {
+    expectIntentAlignedPublicQuestionClaims(emovue);
   });
 
   test("keeps contribution candidates private and the owner statement conservative", () => {
@@ -425,17 +521,7 @@ describe("EMOVUE authored dossier", () => {
       "emovue.contribution.packaging",
     ]);
     expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
-    const ownerStatement = emovue.claims.find(
-      ({ id }) => id === "emovue.core-contributor",
-    );
-    expect(ownerStatement).toMatchObject({
-      provenance: "owner_statement",
-      evidence: [],
-      public: true,
-    });
-    expect(ownerStatement?.text).toContain("核心贡献者");
-    expect(ownerStatement?.text).toContain("实质性");
-    expect(ownerStatement?.text).not.toMatch(/唯一|独立完成|sole|lead/i);
+    expectConservativeOwnerStatement(emovue, "emovue.core-contributor");
   });
 
   test("routes canonical EMOVUE questions to the required claims", () => {
@@ -522,14 +608,33 @@ describe("Fruit & Evolution authored dossier", () => {
       sourceId: "evolution-fruit",
       page: 10,
     });
+    expect(fruit.claims.find(({ id }) => id === "evolution-fruit.system")?.evidence).toStrictEqual([
+      { sourceId: "evolution-fruit", page: 6 },
+      { sourceId: "evolution-fruit", page: 7 },
+      { sourceId: "evolution-fruit", page: 10 },
+      { sourceId: "evolution-fruit", page: 11 },
+      { sourceId: "evolution-fruit", page: 12 },
+      { sourceId: "evolution-fruit", page: 13 },
+    ]);
+    expect(fruit.pages.find(({ page }) => page === 7)?.claimIds).toContain(
+      "evolution-fruit.system",
+    );
     expect(fruit.claims.find(({ id }) => id === "evolution-fruit.parametric-model")?.evidence).toContainEqual({
       sourceId: "evolution-fruit",
       page: 16,
     });
+    expect(fruit.claims.find(({ id }) => id === "evolution-fruit.system")?.intents)
+      .toEqual(expect.arrayContaining(["research", "interaction"]));
+    expect(fruit.claims.find(({ id }) => id === "evolution-fruit.physical-making")?.intents)
+      .toEqual(expect.arrayContaining(["value", "comparison"]));
   });
 
-  test("indexes only public claims in every section", () => {
+  test("indexes only public claims that declare their section intent", () => {
     expectPublicSectionClaimReferences(fruit);
+  });
+
+  test("routes every question through an intent-aligned public preferred claim", () => {
+    expectIntentAlignedPublicQuestionClaims(fruit);
   });
 
   test("keeps contribution candidates private and the owner statement conservative", () => {
@@ -543,17 +648,7 @@ describe("Fruit & Evolution authored dossier", () => {
       "evolution-fruit.contribution.physical-making",
     ]);
     expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
-    const ownerStatement = fruit.claims.find(
-      ({ id }) => id === "evolution-fruit.core-contributor",
-    );
-    expect(ownerStatement).toMatchObject({
-      provenance: "owner_statement",
-      evidence: [],
-      public: true,
-    });
-    expect(ownerStatement?.text).toContain("核心贡献者");
-    expect(ownerStatement?.text).toContain("实质性");
-    expect(ownerStatement?.text).not.toMatch(/唯一|独立完成|sole|lead/i);
+    expectConservativeOwnerStatement(fruit, "evolution-fruit.core-contributor");
   });
 
   test("routes canonical Fruit & Evolution questions to the required claims", () => {

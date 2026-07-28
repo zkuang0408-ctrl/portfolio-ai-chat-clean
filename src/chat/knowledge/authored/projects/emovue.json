@@ -78,7 +78,8 @@
       ],
       "intents": [
         "research",
-        "solution"
+        "solution",
+        "value"
       ],
       "topics": [
         "创作者画像",
@@ -90,12 +91,20 @@
     },
     {
       "id": "emovue.product",
-      "text": "产品页提出读取心率、皮肤电和体温等信号，在情绪波动时自动拍摄，同时提供情绪档案、AI 辅助管理和手动记录模式；3D 扫描与 VR 回忆被表达为未来方向，而非已经验证完成的功能。",
+      "text": "产品概念提出读取心率、皮肤电和体温等信号，在情绪波动时自动拍摄，同时提供情绪档案、AI 辅助管理和手动记录模式。产品细节与爆炸图还以设计标注方式展示可调滑轨、磁吸或结构连接、PPG/心率与 EDA/皮肤电感知部件，以及控制板、麦克风和相机构件；这些构件表达的是概念布局，不等同于已经集成并验证的整机技术实现。3D 扫描与 VR 回忆被表达为未来方向，而非已经验证完成的功能。",
       "provenance": "document_fact",
       "evidence": [
         {
           "sourceId": "emovue",
           "page": 8
+        },
+        {
+          "sourceId": "emovue",
+          "page": 9
+        },
+        {
+          "sourceId": "emovue",
+          "page": 10
         }
       ],
       "intents": [
@@ -108,7 +117,14 @@
         "体温",
         "自动拍摄",
         "情绪档案",
-        "未来 3D/VR 方向"
+        "未来 3D/VR 方向",
+        "可调滑轨",
+        "磁吸或结构连接",
+        "PPG/心率",
+        "EDA/皮肤电",
+        "控制板",
+        "麦克风",
+        "相机构件"
       ],
       "public": true
     },
@@ -520,7 +536,9 @@
       "relationships": [
         "结构与传感细节围绕佩戴、采集、记录和充电分布"
       ],
-      "claimIds": []
+      "claimIds": [
+        "emovue.product"
+      ]
     },
     {
       "page": 10,
@@ -539,7 +557,9 @@
       "relationships": [
         "组件沿颈环两侧形成传感、控制与成像的概念装配关系"
       ],
-      "claimIds": []
+      "claimIds": [
+        "emovue.product"
+      ]
     },
     {
       "page": 11,

@@ -172,7 +172,13 @@ export function validateProjectDossier(candidate: unknown, options: DossierValid
     requireKeys(question, ["question", "locale", "intents", "preferredClaimIds"], "common question");
     const text = requireNonEmptyString(question.question, "common question");
     if (question.locale !== "zh" && question.locale !== "en") throw new Error(`Invalid locale for question ${text}`);
-    commonQuestions.push({ question: text, locale: question.locale, intents: requireIntentArray(question.intents, `intents for question ${text}`), preferredClaimIds: requireClaimReferences(question.preferredClaimIds, `question ${text}`, claimIds) });
+    const preferredClaimIds = requireClaimReferences(question.preferredClaimIds, `question ${text}`, claimIds);
+    for (const claimId of preferredClaimIds) {
+      if (!claims.find((claim) => claim.id === claimId)?.public) {
+        throw new Error(`Common question ${text} cannot reference private claim ${claimId}`);
+      }
+    }
+    commonQuestions.push({ question: text, locale: question.locale, intents: requireIntentArray(question.intents, `intents for question ${text}`), preferredClaimIds });
   }
   requireNormalizedUnique(commonQuestions.map(({ question }) => question), "common questions");
 

@@ -74,12 +74,16 @@
     },
     {
       "id": "evolution-fruit.system",
-      "text": "系统把果实图片、名称、世代数与气候描述作为输入，结合气候知识生成形态和风味描述，再把结果转译为参数化造型指导与可能的配方、风味路线。",
+      "text": "系统把果实图片、名称、世代数与气候描述作为输入，结合气候知识生成形态和风味描述，再把结果转译为参数化造型指导与可能的配方、风味路线。果实—环境概念图同时把气候环境和育种或其他人工因素作为可能影响形态、风味与世代路径的设计变量；这是作品的关系模型，不是经科学验证的因果结论。",
       "provenance": "document_synthesis",
       "evidence": [
         {
           "sourceId": "evolution-fruit",
           "page": 6
+        },
+        {
+          "sourceId": "evolution-fruit",
+          "page": 7
         },
         {
           "sourceId": "evolution-fruit",
@@ -100,14 +104,18 @@
       ],
       "intents": [
         "architecture",
-        "comparison"
+        "comparison",
+        "research",
+        "interaction"
       ],
       "topics": [
         "系统输入",
         "气候知识",
         "形态描述",
         "风味描述",
-        "模型指导"
+        "模型指导",
+        "果实—环境关系",
+        "育种与人工因素"
       ],
       "public": true
     },
@@ -213,7 +221,9 @@
       ],
       "intents": [
         "form",
-        "solution"
+        "solution",
+        "value",
+        "comparison"
       ],
       "topics": [
         "模具制作",
@@ -513,7 +523,9 @@
       "relationships": [
         "环境与人为条件被设想为影响形态和风味的输入因素"
       ],
-      "claimIds": []
+      "claimIds": [
+        "evolution-fruit.system"
+      ]
     },
     {
       "page": 8,
