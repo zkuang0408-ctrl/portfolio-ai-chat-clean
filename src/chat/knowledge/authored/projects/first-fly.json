@@ -1,0 +1,471 @@
+{
+  "projectId": "first-fly",
+  "title": "First Fly",
+  "aliases": [
+    "firstfly",
+    "第一飞行",
+    "沉浸式飞行体验",
+    "immersive flight experience",
+    "第一人称飞行座椅"
+  ],
+  "oneLine": "面向 2035 短途出行的未来沉浸式飞行体验概念，以俯卧第一人称身体姿态、座椅运动反馈和 AR 景观营造飞行感",
+  "pageCount": 28,
+  "claims": [
+    {
+      "id": "first-fly.overview",
+      "text": "First Fly 是面向 2035 年短途出行的未来沉浸式飞行体验概念：它把环形客舱座椅、可在坐姿与俯卧姿态间切换的身体支撑、座椅运动反馈和 AR 景观组织在一起，尝试让乘客以第一人称感受飞行。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 1 },
+        { "sourceId": "first-fly", "page": 10 },
+        { "sourceId": "first-fly", "page": 11 }
+      ],
+      "intents": ["overview", "solution", "value"],
+      "topics": ["2035 短途出行", "未来概念", "沉浸式飞行", "第一人称视角", "环形座椅"],
+      "public": true
+    },
+    {
+      "id": "first-fly.premise",
+      "text": "项目从“想知道飞究竟是什么感觉”的个人愿望切入，并用空中视角、俯卧飞行姿态和虚构飞行画面构成体验前提。",
+      "provenance": "document_synthesis",
+      "evidence": [{ "sourceId": "first-fly", "page": 3 }],
+      "intents": ["problem", "research"],
+      "topics": ["飞行愿望", "第一人称感受", "空中视角", "俯卧姿态"],
+      "public": true
+    },
+    {
+      "id": "first-fly.research",
+      "text": "研究部分围绕 2035 城市与短途出行预测、AR 眼镜与环境感知、客舱空间和人体动作尺度，以及未来飞行服务叙事展开；页面中的市场预测与未来场景属于作品引用和构想，不代表项目已经部署。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 4 },
+        { "sourceId": "first-fly", "page": 5 },
+        { "sourceId": "first-fly", "page": 6 },
+        { "sourceId": "first-fly", "page": 7 },
+        { "sourceId": "first-fly", "page": 8 },
+        { "sourceId": "first-fly", "page": 9 }
+      ],
+      "intents": ["research"],
+      "topics": ["2035 出行", "AR 眼镜", "环境感知", "人体尺度", "客舱空间", "未来场景"],
+      "public": true
+    },
+    {
+      "id": "first-fly.concept",
+      "text": "设计概念面向短途小型电动公务机或类似未来短途飞行场景，以俯卧第一人称体感座椅作为核心物品层，并向人物、故事、场景与世界观扩展；作品设想乘客借助轻量智能终端与 AR 从鸟瞰视角观看沿途景观，在约一小时航程中形成沉浸式体验。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 10 },
+        { "sourceId": "first-fly", "page": 11 }
+      ],
+      "intents": ["solution", "architecture", "interaction", "comparison"],
+      "topics": ["俯卧第一人称座椅", "短途飞行", "AR 景观", "故事场景", "未来世界观"],
+      "public": true
+    },
+    {
+      "id": "first-fly.users",
+      "text": "作品把设想用户分为 18 岁以下青少年、约 25 岁年轻人和退休老年人，并分别强调科普与好奇、追求新奇沉浸体验、以及舒适安全与姿态切换等不同需要。",
+      "provenance": "document_fact",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 12 },
+        { "sourceId": "first-fly", "page": 13 }
+      ],
+      "intents": ["research", "value"],
+      "topics": ["青少年", "年轻人", "退休老年人", "用户需求", "姿态切换"],
+      "public": true
+    },
+    {
+      "id": "first-fly.journey",
+      "text": "用户旅程从登机前的偏好与健康信息设置、装置介绍和安全体验预览，进入飞行中的俯卧模式、座椅联动与 AR 视觉引导，再到离机后的平稳过渡和目的地活动建议。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "first-fly", "page": 14 }],
+      "intents": ["interaction", "value"],
+      "topics": ["登机前", "俯卧模式", "座椅联动", "AR 视觉引导", "离机后"],
+      "public": true
+    },
+    {
+      "id": "first-fly.form",
+      "text": "形态设计从多轮环形座椅草图收敛为椭圆外环、中央姿态切换座椅和环形支撑界面，强调空间利用、舒适与轻量化；页面展示坐姿到俯卧的活动范围、贴合人体曲线的软质座椅、半隐私围合、结构拆解，以及尼龙、聚氨酯记忆棉、轻质镁合金与碳纤维等概念 CMF 标注。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 15 },
+        { "sourceId": "first-fly", "page": 16 },
+        { "sourceId": "first-fly", "page": 17 },
+        { "sourceId": "first-fly", "page": 18 },
+        { "sourceId": "first-fly", "page": 19 },
+        { "sourceId": "first-fly", "page": 20 }
+      ],
+      "intents": ["form", "architecture", "value"],
+      "topics": ["椭圆外环", "俯卧姿态", "空间利用", "舒适性", "轻量化", "CMF"],
+      "public": true
+    },
+    {
+      "id": "first-fly.motion",
+      "text": "运动反馈构想让座椅上下摆动，以身体运动线索配合俯卧姿态提供飞行动感；这是未来概念中的体验机制，没有展示运动参数或工程验证。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "first-fly", "page": 21 }],
+      "intents": ["interaction", "technology", "comparison"],
+      "topics": ["座椅上下摆动", "动感反馈", "俯卧姿态", "概念机制"],
+      "public": true
+    },
+    {
+      "id": "first-fly.ar",
+      "text": "AR 体验构想使用轻便且包裹性较强的小型眼镜，把景区景色、动画效果、文字讲解和“一起飞”视觉叠加到乘客视野中，以景观互动增强第一人称飞行感；页面是体验概念表达，不代表功能已经实现。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "first-fly", "page": 23 }],
+      "intents": ["interaction", "technology", "comparison"],
+      "topics": ["AR 眼镜", "景观互动", "动画效果", "文字讲解", "一起飞"],
+      "public": true
+    },
+    {
+      "id": "first-fly.core-contributor",
+      "text": "据赵实旷本人陈述，赵实旷在 First Fly 团队中为核心贡献者，并承担了较多工作。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": ["contribution"],
+      "topics": ["团队贡献", "核心贡献者", "所有者陈述"],
+      "public": true
+    },
+    {
+      "id": "first-fly.contribution.concept",
+      "text": "候选贡献，尚待本人确认：可能参与第一人称俯卧飞行体验、2035 短途场景与环形座椅概念的构建。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 10 },
+        { "sourceId": "first-fly", "page": 11 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["概念设计", "未来场景", "第一人称体验"],
+      "public": false
+    },
+    {
+      "id": "first-fly.contribution.user-research",
+      "text": "候选贡献，尚待本人确认：可能参与用户分类与青少年、年轻人、退休老年人需求的整理。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 12 },
+        { "sourceId": "first-fly", "page": 13 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["用户研究", "用户分类", "需求整理"],
+      "public": false
+    },
+    {
+      "id": "first-fly.contribution.journey",
+      "text": "候选贡献，尚待本人确认：可能参与登机前、飞行中和离机后的体验旅程设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [{ "sourceId": "first-fly", "page": 14 }],
+      "intents": ["contribution"],
+      "topics": ["用户旅程", "服务触点", "体验流程"],
+      "public": false
+    },
+    {
+      "id": "first-fly.contribution.spatial-form",
+      "text": "候选贡献，尚待本人确认：可能参与环形客舱座椅、姿态切换、空间利用、结构拆解与 CMF 的形式设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 15 },
+        { "sourceId": "first-fly", "page": 16 },
+        { "sourceId": "first-fly", "page": 17 },
+        { "sourceId": "first-fly", "page": 18 },
+        { "sourceId": "first-fly", "page": 19 },
+        { "sourceId": "first-fly", "page": 20 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["空间形式", "姿态切换", "结构设计", "CMF"],
+      "public": false
+    },
+    {
+      "id": "first-fly.contribution.ar-interaction",
+      "text": "候选贡献，尚待本人确认：可能参与座椅动感与 AR 景观、讲解及一起飞效果的交互构想。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "first-fly", "page": 21 },
+        { "sourceId": "first-fly", "page": 23 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["AR 交互", "运动反馈", "景观叠加"],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": ["first-fly.overview"],
+    "problem": ["first-fly.premise"],
+    "research": ["first-fly.premise", "first-fly.research", "first-fly.users"],
+    "solution": ["first-fly.overview", "first-fly.concept"],
+    "architecture": ["first-fly.concept", "first-fly.form"],
+    "interaction": ["first-fly.concept", "first-fly.journey", "first-fly.motion", "first-fly.ar"],
+    "technology": ["first-fly.motion", "first-fly.ar"],
+    "form": ["first-fly.form"],
+    "value": ["first-fly.overview", "first-fly.users", "first-fly.journey", "first-fly.form"],
+    "comparison": ["first-fly.concept", "first-fly.motion", "first-fly.ar"],
+    "contribution": ["first-fly.core-contributor"]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "封面以未来客舱内成排环形座椅的整体渲染、First Fly 中英名称、团队署名和日期呈现项目。",
+      "entities": ["First Fly", "第一飞行", "未来客舱", "环形座椅", "成排布局"],
+      "relationships": ["环形座椅沿客舱纵向排列", "发光轨道连接座椅与客舱空间", "项目名称覆盖整体愿景"],
+      "claimIds": ["first-fly.overview"]
+    },
+    {
+      "page": 2,
+      "role": "premise-divider",
+      "informationDensity": "low",
+      "visualSummary": "黑底过渡页仅在底部写有 Go find your fly dreams。",
+      "entities": ["黑色背景", "Go find your fly dreams"],
+      "relationships": ["短句引出关于飞行梦想的叙事"],
+      "claimIds": []
+    },
+    {
+      "page": 3,
+      "role": "premise",
+      "informationDensity": "high",
+      "visualSummary": "飞行、俯卧人物与空中景观拼贴下方以个人成长回忆说明从童年到成年一直想知道飞是什么感觉。",
+      "entities": ["飞行人物", "俯卧姿态", "空中景观", "飞行梦想", "个人叙事"],
+      "relationships": ["多年龄阶段的愿望连接飞行主题", "第一人称身体姿态与空中景观共同构成体验前提"],
+      "claimIds": ["first-fly.premise"]
+    },
+    {
+      "page": 4,
+      "role": "research-section",
+      "informationDensity": "medium",
+      "visualSummary": "背景调研章节页列出客舱空间与飞行时间限制、人体动作尺度和 2035 飞行方式三项研究方向。",
+      "entities": ["背景调研", "客舱空间", "飞行时间", "人体动作尺度", "2035 飞行"],
+      "relationships": ["三项研究方向共同限定未来飞行体验设计"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 5,
+      "role": "mobility-forecast",
+      "informationDensity": "high",
+      "visualSummary": "两组图表比较 2023 与 2035 欧洲交通方式估计及空中交通市场，并以文字提出公共出行占比增长的预测。",
+      "entities": ["2035 交通预测", "交通方式图表", "空中交通市场", "公共出行"],
+      "relationships": ["预测图表被作品用作 2035 出行情境背景", "公共交通与共享出行连接短途飞行构想"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 6,
+      "role": "ar-landscape",
+      "informationDensity": "medium",
+      "visualSummary": "页面以雷鸟 X2 Lite 和 Meta Aria 2 眼镜图片说明 AI+AR 与多摄环境感知的设备趋势。",
+      "entities": ["AR 眼镜", "雷鸟 X2 Lite", "Meta Aria 2", "多摄环境感知", "AI+AR"],
+      "relationships": ["轻量眼镜作为沉浸视觉的技术参照", "多摄配置连接环境感知能力"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 7,
+      "role": "ergonomics-and-cabin",
+      "informationDensity": "high",
+      "visualSummary": "客舱平面、人体动作范围图和坐姿人体尺寸图共同讨论空间利用最大化、轻量化与舒适性。",
+      "entities": ["客舱平面", "人体动作范围", "坐姿人体尺寸", "空间利用", "轻量化", "舒适性"],
+      "relationships": ["人体尺度约束客舱座椅体量", "空间和动作分析支持姿态设计"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 8,
+      "role": "future-mobility-synthesis",
+      "informationDensity": "high",
+      "visualSummary": "大面积未来出行文本截图上覆盖“让飞行回归飞行本身，如同散步只是散步般自然”的主题句。",
+      "entities": ["未来出行文本", "空中交通", "城市基础设施", "文旅场景", "主题句"],
+      "relationships": ["多类未来场景汇入自然化飞行体验愿景", "主题句概括项目价值取向"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 9,
+      "role": "scene-theme",
+      "informationDensity": "medium",
+      "visualSummary": "场景主题页把戴 AR 眼镜的俯卧乘客与雪山云海景观并置。",
+      "entities": ["俯卧乘客", "AR 眼镜", "雪山", "云海", "场景主题"],
+      "relationships": ["俯卧姿态模拟身体飞行", "AR 设备把乘客与景观连接"],
+      "claimIds": ["first-fly.research"]
+    },
+    {
+      "page": 10,
+      "role": "design-concept",
+      "informationDensity": "high",
+      "visualSummary": "设计概念页用物品、人物、故事、场景和世界观同心层级说明第一人称俯卧飞行装置，并写明短途小型电动公务机与 AR 鸟瞰景观方向。",
+      "entities": ["设计概念", "俯卧飞行装置", "短途小型电动公务机", "AR 鸟瞰景观", "同心概念层"],
+      "relationships": ["核心物品向人物、故事和世界观扩展", "俯卧姿态与 AR 景观共同形成第一人称体验"],
+      "claimIds": ["first-fly.overview", "first-fly.concept", "first-fly.contribution.concept"]
+    },
+    {
+      "page": 11,
+      "role": "route-concept",
+      "informationDensity": "high",
+      "visualSummary": "新疆地图与多条景观专线构成路线示例，底部文字说明 2035 年约一小时短途航程中的第一人称沉浸体验构想。",
+      "entities": ["新疆地图", "景观专线", "2035", "短途航程", "智能终端", "AR"],
+      "relationships": ["景点路线把移动与观景结合", "智能终端与 AR 叠加真实和虚拟南宋景观示例", "约一小时航程限定体验尺度"],
+      "claimIds": ["first-fly.overview", "first-fly.concept", "first-fly.contribution.concept"]
+    },
+    {
+      "page": 12,
+      "role": "users-section",
+      "informationDensity": "low",
+      "visualSummary": "黑底章节分隔页仅标示用户画像、分类和需求。",
+      "entities": ["用户画像", "分类", "需求"],
+      "relationships": ["章节标题引入设想用户分析"],
+      "claimIds": ["first-fly.users", "first-fly.contribution.user-research"]
+    },
+    {
+      "page": 13,
+      "role": "user-groups",
+      "informationDensity": "high",
+      "visualSummary": "三列用户图像分别描述 18 岁以下青少年、约 25 岁年轻人和退休老年人的出行方式与体验偏好。",
+      "entities": ["青少年", "年轻人", "退休老年人", "科普内容", "沉浸体验", "舒适安全"],
+      "relationships": ["不同年龄组对应不同体验需求", "姿态切换和 AR 内容服务多类用户"],
+      "claimIds": ["first-fly.users", "first-fly.contribution.user-research"]
+    },
+    {
+      "page": 14,
+      "role": "journey",
+      "informationDensity": "high",
+      "visualSummary": "用户旅程表按登机前、飞行时和离机后列出思考、行为与情绪，包含个性化设置、装置介绍、俯卧模式、AR 引导和平稳过渡。",
+      "entities": ["用户旅程", "登机前", "飞行时", "离机后", "俯卧模式", "AR 视觉引导"],
+      "relationships": ["准备阶段建立安全与预期", "飞行阶段连接姿态、座椅和 AR", "离机阶段从沉浸体验过渡到目的地活动"],
+      "claimIds": ["first-fly.journey", "first-fly.contribution.journey"]
+    },
+    {
+      "page": 15,
+      "role": "form-iteration",
+      "informationDensity": "medium",
+      "visualSummary": "多轮手绘草图与三维模型展示从舱体式座椅到椭圆环形框架和中央姿态座椅的初步形态迭代。",
+      "entities": ["手绘草图", "三维模型", "椭圆环形框架", "姿态座椅", "形态迭代"],
+      "relationships": ["草图探索围合、支撑与座椅位置", "多个模型逐步收敛为环形结构"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 16,
+      "role": "form-principles",
+      "informationDensity": "medium",
+      "visualSummary": "侧视产品渲染与不同身高人物轮廓并列，强调空间利用最大化、舒适性和轻量化三项形态原则。",
+      "entities": ["产品侧视", "人物尺度", "空间利用", "舒适性", "轻量化"],
+      "relationships": ["椭圆外环包围姿态座椅", "人物尺度用于对照产品体量", "三项原则限定形态"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 17,
+      "role": "posture-and-space",
+      "informationDensity": "high",
+      "visualSummary": "人体动作剪影与三张座椅状态渲染展示从坐姿向前倾、半俯卧到俯卧的姿态切换和活动范围。",
+      "entities": ["人体动作剪影", "坐姿", "前倾姿态", "俯卧姿态", "座椅状态"],
+      "relationships": ["座椅随人体姿态向前展开", "俯卧姿态压缩垂直占用并形成第一人称视角"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 18,
+      "role": "comfort-design",
+      "informationDensity": "medium",
+      "visualSummary": "座椅分件与环形外壳渲染说明曲面贴合、两种姿态自由切换、柔软材质、空间围合和半隐私性。",
+      "entities": ["曲面座椅", "柔软材质", "姿态切换", "环形围合", "半隐私"],
+      "relationships": ["座椅曲面支撑坐姿与俯卧姿态", "环形外壳形成围合空间"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 19,
+      "role": "structure-exploded",
+      "informationDensity": "medium",
+      "visualSummary": "结构拆解图把座椅软包、姿态支撑、椭圆外环、底座与发光部件分离展示，并以轻量化为主题。",
+      "entities": ["结构拆解", "座椅软包", "姿态支撑", "椭圆外环", "底座", "发光部件"],
+      "relationships": ["座椅组件与环形框架分层装配", "拆解表达轻量化结构意图"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 20,
+      "role": "cmf",
+      "informationDensity": "high",
+      "visualSummary": "CMF 页在座椅和框架分件渲染旁标注尼龙、聚氨酯记忆棉、轻质镁合金外壳、碳纤维内壳及蓝灰白配色。",
+      "entities": ["尼龙", "聚氨酯记忆棉", "轻质镁合金", "碳纤维", "蓝灰白配色"],
+      "relationships": ["软质材料对应人体接触区域", "轻质材料对应内外框架", "配色连接座椅与未来客舱视觉"],
+      "claimIds": ["first-fly.form", "first-fly.contribution.spatial-form"]
+    },
+    {
+      "page": 21,
+      "role": "motion-and-ar",
+      "informationDensity": "high",
+      "visualSummary": "结构功能与智能构想页在左侧标示座椅上下摆动提供动感反馈，右侧用第一人称云海画面提出 AR 一起飞与科普讲解。",
+      "entities": ["座椅上下摆动", "动感反馈", "AR 技术", "第一人称云海", "一起飞", "科普讲解"],
+      "relationships": ["座椅运动提供身体动感", "AR 画面提供视觉飞行线索", "身体与视觉反馈共同营造飞行体验"],
+      "claimIds": ["first-fly.motion", "first-fly.contribution.ar-interaction"]
+    },
+    {
+      "page": 22,
+      "role": "motion-study",
+      "informationDensity": "low",
+      "visualSummary": "两张产品侧视渲染上下排列，展示座椅与环形框架的两个相近运动状态；右侧留有空白内容区。",
+      "entities": ["产品侧视", "座椅状态", "环形框架", "空白内容区"],
+      "relationships": ["两张渲染对比座椅运动前后位置"],
+      "claimIds": []
+    },
+    {
+      "page": 23,
+      "role": "ar-experience",
+      "informationDensity": "high",
+      "visualSummary": "三步视觉流程从小型 AR 眼镜进入景区景色互动与动画文字讲解，再进入云端第一人称“一起飞”效果。",
+      "entities": ["小型 AR 眼镜", "景区景色", "动画效果", "文字讲解", "一起飞效果"],
+      "relationships": ["AR 眼镜承载景观互动", "视觉叠加从信息讲解过渡到第一人称飞行画面"],
+      "claimIds": ["first-fly.ar", "first-fly.contribution.ar-interaction"]
+    },
+    {
+      "page": 24,
+      "role": "cabin-layout",
+      "informationDensity": "medium",
+      "visualSummary": "俯视客舱渲染把环形座椅交错排列在中央波形过道两侧，并叠加人物通行剪影说明空间利用。",
+      "entities": ["客舱俯视", "环形座椅", "波形过道", "人物通行剪影"],
+      "relationships": ["座椅沿过道两侧交错布置", "中央波形过道组织乘客通行"],
+      "claimIds": []
+    },
+    {
+      "page": 25,
+      "role": "dimensions",
+      "informationDensity": "high",
+      "visualSummary": "三视图和俯视客舱布局标示产品约 210 cm 长、158 cm 高、68 cm 宽及内部座椅相关尺寸。",
+      "entities": ["三视图", "产品尺寸", "客舱俯视", "环形座椅"],
+      "relationships": ["尺寸图约束产品占用空间", "俯视布局展示多座椅在客舱中的排列"],
+      "claimIds": []
+    },
+    {
+      "page": 26,
+      "role": "cabin-render",
+      "informationDensity": "medium",
+      "visualSummary": "整体渲染页用一张横向客舱全景和三张局部视图展示成排环形座椅、发光轨道与舱内通道。",
+      "entities": ["整体客舱渲染", "环形座椅", "发光轨道", "舱内通道", "侧向视图"],
+      "relationships": ["座椅沿客舱纵向重复排列", "蓝白灯带统一座椅与内饰视觉"],
+      "claimIds": []
+    },
+    {
+      "page": 27,
+      "role": "cabin-detail",
+      "informationDensity": "low",
+      "visualSummary": "四张竖幅局部渲染聚焦环形框架、座椅正背面、顶部圆形灯和客舱照明细节。",
+      "entities": ["环形框架", "座椅", "顶部灯", "客舱照明", "局部渲染"],
+      "relationships": ["局部视角展示座椅与客舱灯光关系"],
+      "claimIds": []
+    },
+    {
+      "page": 28,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "黑底结束页显示 FIRST FLY、项目图标、Thank you for listening 和组别文字。",
+      "entities": ["FIRST FLY", "项目图标", "Thank you for listening"],
+      "relationships": ["品牌名称与致谢文字结束项目叙事"],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    { "question": "First Fly是什么作品", "locale": "zh", "intents": ["overview"], "preferredClaimIds": ["first-fly.overview"] },
+    { "question": "What is First Fly?", "locale": "en", "intents": ["overview"], "preferredClaimIds": ["first-fly.overview"] },
+    { "question": "First Fly如何营造飞行体验", "locale": "zh", "intents": ["solution", "interaction"], "preferredClaimIds": ["first-fly.concept", "first-fly.motion", "first-fly.ar"] },
+    { "question": "How does First Fly create a sense of flight?", "locale": "en", "intents": ["solution", "interaction"], "preferredClaimIds": ["first-fly.concept", "first-fly.motion", "first-fly.ar"] },
+    { "question": "First Fly设想怎样的2035短途出行", "locale": "zh", "intents": ["overview", "solution"], "preferredClaimIds": ["first-fly.overview", "first-fly.concept"] },
+    { "question": "What 2035 short-trip future does First Fly imagine?", "locale": "en", "intents": ["overview", "solution"], "preferredClaimIds": ["first-fly.overview", "first-fly.concept"] },
+    { "question": "First Fly面向哪些设想用户", "locale": "zh", "intents": ["research", "value"], "preferredClaimIds": ["first-fly.users"] },
+    { "question": "Who are First Fly's intended users?", "locale": "en", "intents": ["research", "value"], "preferredClaimIds": ["first-fly.users"] },
+    { "question": "First Fly的座椅形态如何设计", "locale": "zh", "intents": ["form", "architecture"], "preferredClaimIds": ["first-fly.form"] },
+    { "question": "How is the First Fly seat form designed?", "locale": "en", "intents": ["form", "architecture"], "preferredClaimIds": ["first-fly.form"] },
+    { "question": "First Fly的完整体验旅程是什么", "locale": "zh", "intents": ["interaction", "value"], "preferredClaimIds": ["first-fly.journey"] },
+    { "question": "What is the complete First Fly experience journey?", "locale": "en", "intents": ["interaction", "value"], "preferredClaimIds": ["first-fly.journey"] }
+  ]
+}

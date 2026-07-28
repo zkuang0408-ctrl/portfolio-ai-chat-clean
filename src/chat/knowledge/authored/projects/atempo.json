@@ -1,0 +1,377 @@
+{
+  "projectId": "atempo",
+  "title": "Atempo",
+  "aliases": [
+    "a tempo",
+    "桌面节律交互系统",
+    "desktop rhythm interaction system",
+    "缓律"
+  ],
+  "oneLine": "利用桌面充电过渡窗口、呼吸与灯光反馈帮助用户从任务状态切换至恢复状态的桌面节律交互系统",
+  "pageCount": 20,
+  "claims": [
+    {
+      "id": "atempo.overview",
+      "text": "Atempo 是一个桌面节律交互系统概念：它利用任务结束后把设备放回桌面充电的过渡窗口，以非接触呼吸感知、双弧运动与环境灯光反馈，帮助用户从任务状态转向恢复状态。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "atempo", "page": 1 },
+        { "sourceId": "atempo", "page": 8 }
+      ],
+      "intents": ["overview", "solution", "value"],
+      "topics": ["桌面节律交互", "充电过渡窗口", "非接触呼吸感知", "环境灯光反馈"],
+      "public": true
+    },
+    {
+      "id": "atempo.problem",
+      "text": "作品将高认知负荷任务结束后仍停留在工作或学习惯性、未自动进入恢复状态，归纳为值得设计介入的状态切换问题；页面引用的研究用于说明设计背景，不应外推为本作品自身的效果验证。",
+      "provenance": "document_synthesis",
+      "evidence": [{ "sourceId": "atempo", "page": 4 }],
+      "intents": ["problem", "research"],
+      "topics": ["任务惯性", "心理抽离", "恢复过渡", "设计背景"],
+      "public": true
+    },
+    {
+      "id": "atempo.opportunity",
+      "text": "项目把 Atempo 定位在环境感知与实时引导之间：不要求长期佩戴或主动训练，而是把桌面充电停留、设备归位、双弧靠近和稳定光场组织成一次低门槛的恢复流程。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "atempo", "page": 6 },
+        { "sourceId": "atempo", "page": 7 }
+      ],
+      "intents": ["problem", "research", "value"],
+      "topics": ["竞品矩阵", "介入窗口", "低门槛流程", "桌面充电"],
+      "public": true
+    },
+    {
+      "id": "atempo.scenario",
+      "text": "典型场景面向大学生和青年上班族：在高强度学习、工作或创作后回到桌面，把设备放上充电底座，依次经历呼吸显影、双弧靠近、节律同步和回稳陪伴。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "atempo", "page": 10 }],
+      "intents": ["research", "interaction"],
+      "topics": ["大学生", "青年上班族", "桌面场景", "回稳陪伴"],
+      "public": true
+    },
+    {
+      "id": "atempo.interaction",
+      "text": "交互流程分为进入与唤醒、感知与采样、节律映射与引导、回稳确认与陪伴四阶段：底座唤醒后采集短时呼吸并建立基线，系统生成目标慢呼吸并通过弧线关系持续反馈，接近目标后转入稳定光场。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "atempo", "page": 11 }],
+      "intents": ["interaction", "solution"],
+      "topics": ["四阶段流程", "呼吸采样", "节律映射", "回稳光场"],
+      "public": true
+    },
+    {
+      "id": "atempo.biofeedback",
+      "text": "作品中的设计依据把呼吸视为低门槛的节律入口，并采用 0.1 Hz（约每分钟 6 次呼吸）作为目标节奏参考，同时以中等至中高视觉复杂度组织弧形灯光；这些内容是作品选取交互参数的理论依据，不代表 Atempo 已完成医疗或临床层面的功效验证。",
+      "provenance": "document_synthesis",
+      "evidence": [{ "sourceId": "atempo", "page": 12 }],
+      "intents": ["research", "technology", "interaction"],
+      "topics": ["0.1 Hz", "目标呼吸节奏", "生物反馈设计依据", "视觉复杂度"],
+      "public": true
+    },
+    {
+      "id": "atempo.data-translation",
+      "text": "数据转译逻辑包含四层：毫米波雷达感知胸腔微动并估计呼吸频率与稳定性；系统比较当前节律与 0.1 Hz 目标的距离和趋势；当前呼吸映射为动态弧线、目标节律映射为稳定弧线，并以错位、速度和距离表达靠近程度；当波动减小且持续接近目标时，弧线趋于同步并进入稳定光效。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "atempo", "page": 13 }],
+      "intents": ["architecture", "interaction", "technology", "comparison"],
+      "topics": ["呼吸波动", "目标差值", "双弧相位", "稳定反馈", "数据转译"],
+      "public": true
+    },
+    {
+      "id": "atempo.technology",
+      "text": "技术路径图以 LD6002 毫米波呼吸雷达读取存在、速率和信号强度，经滤波与状态机处理后估计呼吸相位，再由相位模型驱动钟摆式机械运动，并通过 ESP32-S3 控制 COB 灯带与灯光引擎；这是作品展示的模块与控制方案，不等同于已经完成整机性能验证。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "atempo", "page": 15 }],
+      "intents": ["technology", "architecture"],
+      "topics": ["毫米波雷达", "滤波与状态机", "相位模型", "ESP32-S3", "灯光引擎", "COB 灯带"],
+      "public": true
+    },
+    {
+      "id": "atempo.form",
+      "text": "产品呈现把圆形竖向节律显示面置于桌面充电底座上，以同心分段弧槽承载灯光和相位变化，底座前方的渐变相位灯槽显示呼吸趋动与同步状态；用户旅程图把靠近、捕捉呼吸、生成相位、钟摆同步、情绪反馈和节律沉淀串联起来。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "atempo", "page": 17 },
+        { "sourceId": "atempo", "page": 18 }
+      ],
+      "intents": ["form", "interaction", "value"],
+      "topics": ["桌面充电底座", "竖向节律显示面", "同心弧槽", "相位灯槽", "用户旅程"],
+      "public": true
+    },
+    {
+      "id": "atempo.core-contributor",
+      "text": "据赵实旷本人陈述，赵实旷在 Atempo 团队中为核心贡献者，并承担了较多工作。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": ["contribution"],
+      "topics": ["团队贡献", "核心贡献者", "所有者陈述"],
+      "public": true
+    },
+    {
+      "id": "atempo.contribution.research",
+      "text": "候选贡献，尚待本人确认：可能参与任务后恢复、竞品矩阵与桌面介入窗口的研究整理。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "atempo", "page": 4 },
+        { "sourceId": "atempo", "page": 6 },
+        { "sourceId": "atempo", "page": 7 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["研究整理", "竞品分析", "介入窗口"],
+      "public": false
+    },
+    {
+      "id": "atempo.contribution.interaction",
+      "text": "候选贡献，尚待本人确认：可能参与场景定义与四阶段呼吸反馈流程设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "atempo", "page": 10 },
+        { "sourceId": "atempo", "page": 11 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["场景定义", "交互流程", "呼吸反馈"],
+      "public": false
+    },
+    {
+      "id": "atempo.contribution.data-translation",
+      "text": "候选贡献，尚待本人确认：可能参与从呼吸信号到目标差值、双弧相位与稳定反馈的数据转译表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [{ "sourceId": "atempo", "page": 13 }],
+      "intents": ["contribution"],
+      "topics": ["数据转译", "双弧相位", "反馈逻辑"],
+      "public": false
+    },
+    {
+      "id": "atempo.contribution.technology-prototype",
+      "text": "候选贡献，尚待本人确认：可能参与雷达感知、相位控制、机械摆动和灯光模块的技术原型方案。",
+      "provenance": "candidate_contribution",
+      "evidence": [{ "sourceId": "atempo", "page": 15 }],
+      "intents": ["contribution"],
+      "topics": ["技术原型", "雷达感知", "相位控制", "灯光模块"],
+      "public": false
+    },
+    {
+      "id": "atempo.contribution.form-design",
+      "text": "候选贡献，尚待本人确认：可能参与桌面底座、竖向节律显示面及弧形灯槽的外观与形式设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "atempo", "page": 17 },
+        { "sourceId": "atempo", "page": 18 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["外观设计", "桌面底座", "弧形灯槽"],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": ["atempo.overview"],
+    "problem": ["atempo.problem", "atempo.opportunity"],
+    "research": ["atempo.problem", "atempo.opportunity", "atempo.scenario", "atempo.biofeedback"],
+    "solution": ["atempo.overview", "atempo.interaction"],
+    "architecture": ["atempo.data-translation", "atempo.technology"],
+    "interaction": ["atempo.scenario", "atempo.interaction", "atempo.biofeedback", "atempo.data-translation", "atempo.form"],
+    "technology": ["atempo.biofeedback", "atempo.data-translation", "atempo.technology"],
+    "form": ["atempo.form"],
+    "value": ["atempo.overview", "atempo.opportunity", "atempo.form"],
+    "comparison": ["atempo.data-translation"],
+    "contribution": ["atempo.core-contributor"]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "封面以蓝白渐变、产品局部特写和中英副标题定义 Atempo 为基于非接触呼吸感知与环境式生物反馈的桌面节律交互系统。",
+      "entities": ["Atempo", "缓律", "桌面设备", "非接触呼吸感知", "环境式生物反馈"],
+      "relationships": ["产品名称连接桌面节律定位", "设备局部呈现圆形节律显示面与渐变灯槽"],
+      "claimIds": ["atempo.overview"]
+    },
+    {
+      "page": 2,
+      "role": "contents",
+      "informationDensity": "low",
+      "visualSummary": "目录列出研究背景、设计机会、交互机制、技术实现和产品呈现五个章节及其子题。",
+      "entities": ["研究背景", "设计机会", "交互机制", "技术实现", "产品呈现"],
+      "relationships": ["五个章节按问题、机制、实现和呈现组织项目叙事"],
+      "claimIds": []
+    },
+    {
+      "page": 3,
+      "role": "research-section",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变分隔页仅标示第一章研究背景。",
+      "entities": ["研究背景", "章节编号 01"],
+      "relationships": ["章节标题引入问题研究"],
+      "claimIds": []
+    },
+    {
+      "page": 4,
+      "role": "problem",
+      "informationDensity": "high",
+      "visualSummary": "问题页以文字、研究曲线和引用说明任务结束并不等于恢复开始，并把心理抽离与任务后几分钟的过渡窗口连接起来。",
+      "entities": ["任务结束", "恢复状态", "心理抽离", "研究曲线", "过渡窗口"],
+      "relationships": ["任务惯性阻碍恢复开始", "心理抽离被作品用作设计背景", "任务后几分钟形成介入窗口"],
+      "claimIds": ["atempo.problem", "atempo.contribution.research"]
+    },
+    {
+      "page": 5,
+      "role": "opportunity-section",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变分隔页仅标示第二章设计机会。",
+      "entities": ["设计机会", "章节编号 02"],
+      "relationships": ["章节标题从研究问题转入机会分析"],
+      "claimIds": []
+    },
+    {
+      "page": 6,
+      "role": "competitive-analysis",
+      "informationDensity": "high",
+      "visualSummary": "竞品矩阵以场景嵌入度和反馈路径为坐标，对比环境感知、情绪回稳、监测复盘和训练干预产品，并标出 Atempo 的设计机会。",
+      "entities": ["竞品矩阵", "场景嵌入度", "反馈路径", "Atempo", "环境感知产品", "训练干预产品"],
+      "relationships": ["Atempo 位于较高场景嵌入和实时引导区域", "设计机会把生物反馈放入桌面充电场景", "灯光与节律关系承担低刺激反馈"],
+      "claimIds": ["atempo.opportunity", "atempo.contribution.research"]
+    },
+    {
+      "page": 7,
+      "role": "intervention-window",
+      "informationDensity": "high",
+      "visualSummary": "介入窗口页说明桌面充电停留是自然状态切换节点，并用充电停留、设备归位、双弧靠近和稳定光场构成低门槛恢复流程。",
+      "entities": ["桌面充电停留", "设备归位", "双弧靠近", "稳定光场", "状态收束"],
+      "relationships": ["充电提供自然停留时间", "设备归位形成进入仪式", "双弧和光场把呼吸节律可视化"],
+      "claimIds": ["atempo.opportunity", "atempo.contribution.research"]
+    },
+    {
+      "page": 8,
+      "role": "product-definition",
+      "informationDensity": "high",
+      "visualSummary": "产品定义页以设备渲染和界面状态卡说明 Atempo 不做情绪识别，而把充电停留转化为呼吸回稳过程。",
+      "entities": ["Atempo 设备", "桌面充电底座", "圆形显示面", "呼吸状态卡", "相位同步"],
+      "relationships": ["充电停留触发节律交互", "圆形显示面呈现呼吸与目标节律关系", "状态卡描述平稳、同步和波动"],
+      "claimIds": ["atempo.overview"]
+    },
+    {
+      "page": 9,
+      "role": "interaction-section",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变分隔页仅标示第三章交互机制。",
+      "entities": ["交互机制", "章节编号 03"],
+      "relationships": ["章节标题引入场景、流程和数据逻辑"],
+      "claimIds": []
+    },
+    {
+      "page": 10,
+      "role": "scenario",
+      "informationDensity": "high",
+      "visualSummary": "场景定义页用四格故事板、目标用户和典型情景说明任务结束后回到桌面充电，再经历呼吸显影与回稳陪伴。",
+      "entities": ["大学生", "青年上班族", "四格故事板", "充电停留", "回稳陪伴"],
+      "relationships": ["目标用户在任务后回到桌面", "充电动作连接呼吸显影", "双弧与光场伴随节律回稳"],
+      "claimIds": ["atempo.scenario", "atempo.contribution.interaction"]
+    },
+    {
+      "page": 11,
+      "role": "interaction-flow",
+      "informationDensity": "high",
+      "visualSummary": "四栏流程图从设备放置与唤醒开始，经过呼吸采样、基线与稳定性判断、目标节律映射和持续视觉引导，最终进入回稳光场。",
+      "entities": ["进入与唤醒", "感知与采样", "节律映射与引导", "回稳确认与陪伴", "决策节点"],
+      "relationships": ["设备唤醒进入待机监测", "稳定信号进入相位生成", "双弧关系反馈节律距离", "接近目标后进入稳定反馈"],
+      "claimIds": ["atempo.interaction", "atempo.contribution.interaction"]
+    },
+    {
+      "page": 12,
+      "role": "biofeedback-rationale",
+      "informationDensity": "high",
+      "visualSummary": "理论依据页并列呼吸调节、0.1 Hz 目标节奏和分形视觉复杂度研究，用于解释慢呼吸与弧形灯光参数的设计选择。",
+      "entities": ["呼吸引导", "0.1 Hz", "每分钟约 6 次呼吸", "分形复杂度", "研究文献"],
+      "relationships": ["呼吸被选作低门槛节律入口", "0.1 Hz 被作品用作目标节奏参考", "中等视觉复杂度用于平衡吸引与低刺激"],
+      "claimIds": ["atempo.biofeedback"]
+    },
+    {
+      "page": 13,
+      "role": "data-translation",
+      "informationDensity": "high",
+      "visualSummary": "数据转译页明确四层链路：呼吸波动输入、与 0.1 Hz 的目标差值、动态与稳定双弧的相位错位、以及趋于同步后的稳定光效。",
+      "entities": ["呼吸信号", "目标差值", "动态弧线", "稳定弧线", "回稳光效"],
+      "relationships": ["雷达输入估计节律与稳定性", "当前节律与目标节律比较", "相位错位表达靠近趋势", "持续接近目标触发稳定反馈"],
+      "claimIds": ["atempo.data-translation", "atempo.contribution.data-translation"]
+    },
+    {
+      "page": 14,
+      "role": "technology-section",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变分隔页仅标示第四章技术实现。",
+      "entities": ["技术实现", "章节编号 04"],
+      "relationships": ["章节标题从交互逻辑转入模块方案"],
+      "claimIds": []
+    },
+    {
+      "page": 15,
+      "role": "technology-architecture",
+      "informationDensity": "high",
+      "visualSummary": "爆炸技术路径图在产品结构周围标注毫米波雷达、滤波与状态机、相位估计、钟摆模型、灯光引擎、ESP32-S3、COB 灯带和电源驱动。",
+      "entities": ["LD6002 毫米波雷达", "滤波与状态机", "相位模型", "ESP32-S3", "COB 灯带", "灯光引擎", "机械摆动"],
+      "relationships": ["雷达数据进入滤波与状态机", "呼吸频率累积为相位", "相位模型驱动摆动", "主控协调机械与灯光反馈"],
+      "claimIds": ["atempo.technology", "atempo.contribution.technology-prototype"]
+    },
+    {
+      "page": 16,
+      "role": "product-section",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变分隔页仅标示第五章产品呈现。",
+      "entities": ["产品呈现", "章节编号 05"],
+      "relationships": ["章节标题引入用户旅程和外观形式"],
+      "claimIds": []
+    },
+    {
+      "page": 17,
+      "role": "user-journey",
+      "informationDensity": "high",
+      "visualSummary": "呼吸相位钟摆用户旅程图把靠近设备、捕捉呼吸、生成相位、钟摆同步、情绪反馈和节律沉淀与底层技术链路并列。",
+      "entities": ["用户旅程", "靠近设备", "捕捉呼吸", "生成相位", "钟摆同步", "节律沉淀"],
+      "relationships": ["用户行为与产品响应一一对应", "LD6002、ESP32-S3、相位估计和灯光引擎贯穿旅程", "同步反馈逐步转为低刺激陪伴"],
+      "claimIds": ["atempo.form", "atempo.contribution.form-design"]
+    },
+    {
+      "page": 18,
+      "role": "form-and-appearance",
+      "informationDensity": "high",
+      "visualSummary": "外观与形式页展示桌面充电底座、前部渐变相位灯槽、竖向同心弧形节律显示面，以及产品正侧后视渲染。",
+      "entities": ["桌面充电底座", "渐变相位灯槽", "竖向节律显示面", "同心弧槽", "产品多视图"],
+      "relationships": ["底座承托竖向显示面", "前部灯槽显示同步状态", "分段弧槽把呼吸相位转化为柔和光线"],
+      "claimIds": ["atempo.form", "atempo.contribution.form-design"]
+    },
+    {
+      "page": 19,
+      "role": "citations",
+      "informationDensity": "high",
+      "visualSummary": "参考文献页列出任务后反刍、心理抽离、生物反馈、慢呼吸与分形视觉设计相关来源。",
+      "entities": ["参考文献", "心理抽离研究", "生物反馈研究", "慢呼吸研究", "分形设计研究"],
+      "relationships": ["多类文献共同支撑作品的研究与参数选择背景"],
+      "claimIds": []
+    },
+    {
+      "page": 20,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "蓝白渐变结束页显示 THANK YOU、团队署名和日期。",
+      "entities": ["THANK YOU", "团队署名", "日期"],
+      "relationships": ["致谢文字结束项目叙事"],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    { "question": "Atempo是什么作品", "locale": "zh", "intents": ["overview"], "preferredClaimIds": ["atempo.overview"] },
+    { "question": "What is Atempo?", "locale": "en", "intents": ["overview"], "preferredClaimIds": ["atempo.overview"] },
+    { "question": "Atempo如何把呼吸变成反馈", "locale": "zh", "intents": ["interaction", "architecture"], "preferredClaimIds": ["atempo.biofeedback", "atempo.data-translation"] },
+    { "question": "How does Atempo turn breathing into feedback?", "locale": "en", "intents": ["interaction", "architecture"], "preferredClaimIds": ["atempo.biofeedback", "atempo.data-translation"] },
+    { "question": "Atempo解决什么任务后恢复问题", "locale": "zh", "intents": ["problem"], "preferredClaimIds": ["atempo.problem", "atempo.opportunity"] },
+    { "question": "What post-task recovery problem does Atempo address?", "locale": "en", "intents": ["problem"], "preferredClaimIds": ["atempo.problem", "atempo.opportunity"] },
+    { "question": "Atempo的技术架构是什么", "locale": "zh", "intents": ["technology", "architecture"], "preferredClaimIds": ["atempo.technology", "atempo.data-translation"] },
+    { "question": "How is Atempo's technical architecture organized?", "locale": "en", "intents": ["technology", "architecture"], "preferredClaimIds": ["atempo.technology", "atempo.data-translation"] },
+    { "question": "Atempo的外观和桌面形式如何设计", "locale": "zh", "intents": ["form"], "preferredClaimIds": ["atempo.form"] },
+    { "question": "How is Atempo's desktop form designed?", "locale": "en", "intents": ["form"], "preferredClaimIds": ["atempo.form"] },
+    { "question": "赵实旷在Atempo中做了什么", "locale": "zh", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] },
+    { "question": "What was Zhao Shikuang's contribution to Atempo?", "locale": "en", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] }
+  ]
+}

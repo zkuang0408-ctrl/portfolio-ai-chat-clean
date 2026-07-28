@@ -1,0 +1,424 @@
+{
+  "projectId": "urosense",
+  "title": "UroSense",
+  "aliases": [
+    "uro sense",
+    "智能尿量检测附件",
+    "urine measurement attachment",
+    "自主尿量检测装置"
+  ],
+  "oneLine": "心内科病房场景下尽量保护隐私、减少人工转移的自主尿量检测附件概念",
+  "pageCount": 25,
+  "claims": [
+    {
+      "id": "urosense.overview",
+      "text": "UroSense 是面向医院心内科病房场景的智能尿量检测附件概念，尝试让有自主如厕能力的患者在尽量保护隐私、减少人工转移的前提下完成尿量收集、计量与概念性数据归档。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "urosense", "page": 1 },
+        { "sourceId": "urosense", "page": 9 },
+        { "sourceId": "urosense", "page": 10 }
+      ],
+      "intents": ["overview", "solution", "value"],
+      "topics": ["心内科病房", "尿量检测附件", "隐私", "自主使用", "概念设计"],
+      "public": true
+    },
+    {
+      "id": "urosense.research",
+      "text": "作品记录了医院调研中与病房仪器、线缆、用药、尿量记录等相关的观察，并把 24 小时尿量作为心衰照护场景中的关注指标；展示的调研条目和排尿日记示例属于项目研究材料，不构成临床统计或验证。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "urosense", "page": 3 },
+        { "sourceId": "urosense", "page": 4 },
+        { "sourceId": "urosense", "page": 5 }
+      ],
+      "intents": ["research"],
+      "topics": ["医院调研", "心内科病房", "24 小时尿量", "排尿日记", "项目观察"],
+      "public": true
+    },
+    {
+      "id": "urosense.problem",
+      "text": "项目把现有尿量记录流程中的兼顾困难、漏测漏记和无效数据，以及把尿液从尿壶或尿袋倒入量杯所增加的转移、清洁与心理负担，归纳为主要问题；页面还区分了可自主活动患者与卧床导尿患者的不同情境。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "urosense", "page": 6 },
+        { "sourceId": "urosense", "page": 7 },
+        { "sourceId": "urosense", "page": 8 }
+      ],
+      "intents": ["problem", "research"],
+      "topics": ["漏测漏记", "人工转移", "量杯测量", "心理负担", "患者情境"],
+      "public": true
+    },
+    {
+      "id": "urosense.principles",
+      "text": "项目提出三个设计原则：尽量保护隐私、支持患者自主使用，并减少对既有如厕习惯的打扰。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "urosense", "page": 9 }],
+      "intents": ["research", "solution", "value"],
+      "topics": ["隐私保护", "自主使用", "低打扰", "生活习惯"],
+      "public": true
+    },
+    {
+      "id": "urosense.structure",
+      "text": "结构概念把可拆卸易清洗漏斗与载重板、坐便器适配底板、带识别区和显示端的扶手、流量计、电源与数据连接组织为一套附件，并以螺丝固定和腕带识别作为页面标示的连接方式。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "urosense", "page": 12 }],
+      "intents": ["architecture", "technology", "form"],
+      "topics": ["可拆卸漏斗", "载重板", "扶手", "流量计", "腕带识别", "坐便器适配"],
+      "public": true
+    },
+    {
+      "id": "urosense.measurement-flow",
+      "text": "概念使用流程为：患者扶住扶手，识别区读取身份腕带；尿液进入漏斗并通过内置流量计，流动带动磁铁齿轮产生电信号；信号传到扶手端计算并显示尿量；患者离开后，页面设想把带时间和患者关联的信息上传至医院系统，随后可拆下漏斗清洗。该流程表达的是系统架构概念，不代表测量精度或医院系统接入已经验证。",
+      "provenance": "document_synthesis",
+      "evidence": [
+        { "sourceId": "urosense", "page": 14 },
+        { "sourceId": "urosense", "page": 16 }
+      ],
+      "intents": ["architecture", "interaction", "technology", "solution", "comparison"],
+      "topics": ["腕带识别", "漏斗", "流量计", "磁铁齿轮", "尿量显示", "概念数据上传", "清洗"],
+      "public": true
+    },
+    {
+      "id": "urosense.installation",
+      "text": "安装呈现把 UroSense 主体作为坐便器附件放置在便圈区域并保留前部开口，体现免改造式搭载意图；页面是概念渲染，没有展示多型号适配或安装可靠性验证。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "urosense", "page": 21 }],
+      "intents": ["interaction", "form"],
+      "topics": ["安装方式", "坐便器附件", "前部开口", "概念渲染"],
+      "public": true
+    },
+    {
+      "id": "urosense.future",
+      "text": "作品把其他排泄物检测产品的搭载平台、新的人机交互手段、更多体征整合和新的应用场景列为未来可能性，而非已经实现或验证的功能。",
+      "provenance": "document_fact",
+      "evidence": [{ "sourceId": "urosense", "page": 23 }],
+      "intents": ["value"],
+      "topics": ["未来可能性", "排泄物检测平台", "人机交互", "体征整合", "应用场景"],
+      "public": true
+    },
+    {
+      "id": "urosense.core-contributor",
+      "text": "据赵实旷本人陈述，赵实旷在 UroSense 团队中为核心贡献者，并承担了较多工作。",
+      "provenance": "owner_statement",
+      "evidence": [],
+      "intents": ["contribution"],
+      "topics": ["团队贡献", "核心贡献者", "所有者陈述"],
+      "public": true
+    },
+    {
+      "id": "urosense.contribution.field-research",
+      "text": "候选贡献，尚待本人确认：可能参与医院现场观察、问题条目和尿量记录材料的研究整理。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "urosense", "page": 3 },
+        { "sourceId": "urosense", "page": 4 },
+        { "sourceId": "urosense", "page": 5 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["现场研究", "医院观察", "问题整理"],
+      "public": false
+    },
+    {
+      "id": "urosense.contribution.system-architecture",
+      "text": "候选贡献，尚待本人确认：可能参与漏斗、载重板、扶手、流量计和坐便器适配关系的系统架构表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "urosense", "page": 12 },
+        { "sourceId": "urosense", "page": 13 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["系统架构", "部件关系", "爆炸图"],
+      "public": false
+    },
+    {
+      "id": "urosense.contribution.measurement-flow",
+      "text": "候选贡献，尚待本人确认：可能参与身份识别、尿液收集、流量信号、尿量显示与概念上传的测量流程设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "urosense", "page": 14 },
+        { "sourceId": "urosense", "page": 16 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["测量流程", "流量信号", "数据归档"],
+      "public": false
+    },
+    {
+      "id": "urosense.contribution.installation",
+      "text": "候选贡献，尚待本人确认：可能参与附件在坐便器上的放置与安装方式表达。",
+      "provenance": "candidate_contribution",
+      "evidence": [{ "sourceId": "urosense", "page": 21 }],
+      "intents": ["contribution"],
+      "topics": ["附件安装", "坐便器适配", "使用场景"],
+      "public": false
+    },
+    {
+      "id": "urosense.contribution.form-design",
+      "text": "候选贡献，尚待本人确认：可能参与环形底板、侧向扶手、漏斗和整体附件造型的形式设计。",
+      "provenance": "candidate_contribution",
+      "evidence": [
+        { "sourceId": "urosense", "page": 17 },
+        { "sourceId": "urosense", "page": 18 },
+        { "sourceId": "urosense", "page": 19 },
+        { "sourceId": "urosense", "page": 20 }
+      ],
+      "intents": ["contribution"],
+      "topics": ["形式设计", "附件造型", "尺寸表达"],
+      "public": false
+    }
+  ],
+  "sectionClaims": {
+    "overview": ["urosense.overview"],
+    "problem": ["urosense.problem"],
+    "research": ["urosense.research", "urosense.problem", "urosense.principles"],
+    "solution": ["urosense.overview", "urosense.principles", "urosense.measurement-flow"],
+    "architecture": ["urosense.structure", "urosense.measurement-flow"],
+    "interaction": ["urosense.measurement-flow", "urosense.installation"],
+    "technology": ["urosense.structure", "urosense.measurement-flow"],
+    "form": ["urosense.structure", "urosense.installation"],
+    "value": ["urosense.overview", "urosense.principles", "urosense.future"],
+    "comparison": ["urosense.measurement-flow"],
+    "contribution": ["urosense.core-contributor"]
+  },
+  "pages": [
+    {
+      "page": 1,
+      "role": "overview",
+      "informationDensity": "high",
+      "visualSummary": "封面以坐便器附件正视和侧视渲染、UroSense 标识及“医院心内科病房场景下的智能尿量检测附件”副标题定义项目。",
+      "entities": ["UroSense", "坐便器", "尿量检测附件", "扶手显示端", "心内科病房"],
+      "relationships": ["附件覆盖坐便器便圈区域", "侧向扶手连接识别和显示端", "副标题限定医院心内科场景"],
+      "claimIds": ["urosense.overview"]
+    },
+    {
+      "page": 2,
+      "role": "design-origin-section",
+      "informationDensity": "low",
+      "visualSummary": "白底章节分隔页标示第一部分设计起点。",
+      "entities": ["PART.1", "设计起点", "UroSense 标识"],
+      "relationships": ["章节页引入研究与问题背景"],
+      "claimIds": []
+    },
+    {
+      "page": 3,
+      "role": "field-research",
+      "informationDensity": "high",
+      "visualSummary": "医院剖面示意与七条调研结果并列，涵盖复苏仪器、线缆、药盒、尿量检测、止血器、床上活动和心电电极等观察。",
+      "entities": ["医院场景", "调研结果", "尿量检测", "病房仪器", "线缆", "患者"],
+      "relationships": ["现场观察汇总多类病房设备问题", "尿量检测被列为研究焦点之一"],
+      "claimIds": ["urosense.research", "urosense.contribution.field-research"]
+    },
+    {
+      "page": 4,
+      "role": "research-focus",
+      "informationDensity": "high",
+      "visualSummary": "页面重复调研条目并用箭头聚焦“心衰—24 小时尿量—关键体征”的研究切入点。",
+      "entities": ["心衰", "24 小时尿量", "关键体征", "医院调研条目"],
+      "relationships": ["项目从多类调研问题中聚焦尿量记录", "24 小时尿量被作品视为心衰场景关注指标"],
+      "claimIds": ["urosense.research", "urosense.contribution.field-research"]
+    },
+    {
+      "page": 5,
+      "role": "urine-diary",
+      "informationDensity": "high",
+      "visualSummary": "排尿日记示例以时间、尿量、事件与液体摄入表格展示人工记录格式，并在页脚给出示例性分析说明。",
+      "entities": ["排尿日记", "排尿时间", "尿量", "事件", "液体摄入"],
+      "relationships": ["尿量与时间和摄入事件共同记录", "表格体现人工记录的信息负担"],
+      "claimIds": ["urosense.research", "urosense.contribution.field-research"]
+    },
+    {
+      "page": 6,
+      "role": "workflow-problem",
+      "informationDensity": "medium",
+      "visualSummary": "护士形象旁列出兼顾不到、自行小便、忘测漏测和数据无效四个尿量记录问题。",
+      "entities": ["护士", "兼顾不到", "自行小便", "忘测漏测", "无效数据"],
+      "relationships": ["人工照护负担与自主排尿共同造成记录缺口", "漏测漏记降低数据完整性"],
+      "claimIds": ["urosense.problem"]
+    },
+    {
+      "page": 7,
+      "role": "transfer-problem",
+      "informationDensity": "high",
+      "visualSummary": "尿袋照片与说明指出传统准确测量通常需要刻度尿壶或收集后倒入量杯，对仍可活动的患者增加额外心理负担。",
+      "entities": ["尿袋", "刻度尿壶", "量杯", "尿液转移", "患者心理负担"],
+      "relationships": ["尿液需经容器转移才能读数", "转移和测量打断自主如厕", "额外操作增加负担"],
+      "claimIds": ["urosense.problem"]
+    },
+    {
+      "page": 8,
+      "role": "patient-context",
+      "informationDensity": "high",
+      "visualSummary": "饼图和文字区分自由活动、卧床和 ICU 情境，强调项目关注仍有自主排尿能力但活动范围受限的患者。",
+      "entities": ["自由活动患者", "卧床患者", "ICU", "尿袋计尿", "活动范围"],
+      "relationships": ["不同患者状态对应不同计尿方式", "项目将自主活动患者作为主要情境"],
+      "claimIds": ["urosense.problem"]
+    },
+    {
+      "page": 9,
+      "role": "design-principles",
+      "informationDensity": "medium",
+      "visualSummary": "大字引号列出保护隐私、自主使用和不打扰生活习惯三项尿液测量装置原则。",
+      "entities": ["隐私", "自主使用", "生活习惯", "尿液测量装置"],
+      "relationships": ["三项原则共同限定概念方向", "低打扰与自主使用回应前述问题"],
+      "claimIds": ["urosense.overview", "urosense.principles"]
+    },
+    {
+      "page": 10,
+      "role": "concept-introduction",
+      "informationDensity": "low",
+      "visualSummary": "深色章节页标示第二部分 UroSense，并再次写出保护隐私、自主使用和低打扰的定位。",
+      "entities": ["PART.2", "UroSense", "隐私", "自主使用", "低打扰"],
+      "relationships": ["三项原则汇入产品概念章节"],
+      "claimIds": ["urosense.overview"]
+    },
+    {
+      "page": 11,
+      "role": "concept-positioning",
+      "informationDensity": "medium",
+      "visualSummary": "坐便器侧视渲染旁以“智能、无感、省心”概括附件概念。",
+      "entities": ["坐便器", "UroSense 附件", "智能", "无感", "省心"],
+      "relationships": ["附件从便圈延伸出侧向扶手", "三个关键词概括概念体验"],
+      "claimIds": []
+    },
+    {
+      "page": 12,
+      "role": "product-structure",
+      "informationDensity": "high",
+      "visualSummary": "分解结构图标注可拆卸易清洗漏斗、载重板、碳钢板坐便器适配、扶手、识别上传供电端、螺丝固定和流量计连接。",
+      "entities": ["漏斗", "载重板", "适配底板", "扶手", "识别区", "流量计", "供电与数据线"],
+      "relationships": ["漏斗与流量计一体化收集尿液", "载重板承托并适配坐便器", "扶手集成识别、显示和供电"],
+      "claimIds": ["urosense.structure", "urosense.contribution.system-architecture"]
+    },
+    {
+      "page": 13,
+      "role": "exploded-structure",
+      "informationDensity": "high",
+      "visualSummary": "坐便器和附件爆炸图标出总开关、识别区、电池、接线柱、接线头、信号线、流量计与膨胀螺栓等部件。",
+      "entities": ["总开关", "识别区", "电池", "接线柱", "信号线", "流量计", "膨胀螺栓"],
+      "relationships": ["识别与供电部件位于侧向扶手", "信号线连接漏斗流量计与显示端", "附件结构叠加在坐便器上"],
+      "claimIds": ["urosense.contribution.system-architecture"]
+    },
+    {
+      "page": 14,
+      "role": "measurement-flow",
+      "informationDensity": "high",
+      "visualSummary": "六步使用流程说明腕带识别、正常排尿、漏斗与流量计采集、磁铁齿轮电信号、扶手端计算显示、离开后概念性上传及后期清洁。",
+      "entities": ["身份腕带", "扶手", "漏斗", "流量计", "磁铁齿轮", "尿量显示", "医院系统", "清洁"],
+      "relationships": ["扶手识别患者腕带", "尿液流动驱动流量计信号", "扶手端计算并显示尿量", "页面设想测量记录上传归档"],
+      "claimIds": ["urosense.measurement-flow", "urosense.contribution.measurement-flow"]
+    },
+    {
+      "page": 15,
+      "role": "cleaning-scenario",
+      "informationDensity": "low",
+      "visualSummary": "线描插画以人物用水冲洗坐便器附件表现后期清洁情境。",
+      "entities": ["清洁人员", "冲洗工具", "UroSense 附件", "坐便器"],
+      "relationships": ["可拆洗部件在使用后接受冲洗"],
+      "claimIds": []
+    },
+    {
+      "page": 16,
+      "role": "measurement-flow",
+      "informationDensity": "high",
+      "visualSummary": "页面再次完整呈现六步测量与清洁流程，突出从腕带识别到流量信号、扶手显示和概念上传的闭环。",
+      "entities": ["腕带识别", "排尿", "流量信号", "尿量计算", "数据上传", "清洗"],
+      "relationships": ["身份、尿量和时间在概念流程中关联", "患者离开后结束测量", "漏斗可在后期清洁"],
+      "claimIds": ["urosense.measurement-flow", "urosense.contribution.measurement-flow"]
+    },
+    {
+      "page": 17,
+      "role": "reference-products",
+      "informationDensity": "medium",
+      "visualSummary": "页面汇集多种坐便器尿液收集容器参考图、适配轮廓草图和堆叠形态，作为附件形态探索。",
+      "entities": ["尿液收集容器", "坐便器适配参考", "轮廓草图", "堆叠形态"],
+      "relationships": ["参考产品比较便圈内的收集方式", "轮廓草图提炼非对称开口"],
+      "claimIds": ["urosense.contribution.form-design"]
+    },
+    {
+      "page": 18,
+      "role": "form-render",
+      "informationDensity": "low",
+      "visualSummary": "深色背景上以俯视渲染展示环形底板、中央漏斗和侧向扶手的整体形式。",
+      "entities": ["环形底板", "中央漏斗", "侧向扶手", "俯视渲染"],
+      "relationships": ["漏斗位于便圈开口下方", "扶手从底板后侧向前延伸"],
+      "claimIds": ["urosense.contribution.form-design"]
+    },
+    {
+      "page": 19,
+      "role": "dimension-drawing",
+      "informationDensity": "medium",
+      "visualSummary": "俯视工程图标示附件整体长度 473、上部长度 424、内圈宽度 200 和相关宽度尺寸。",
+      "entities": ["俯视工程图", "整体尺寸", "内圈尺寸", "扶手"],
+      "relationships": ["尺寸线约束附件与坐便器开口关系"],
+      "claimIds": ["urosense.contribution.form-design"]
+    },
+    {
+      "page": 20,
+      "role": "dimension-drawing",
+      "informationDensity": "medium",
+      "visualSummary": "侧视工程图标示底板、漏斗和扶手的高度与厚度关系。",
+      "entities": ["侧视工程图", "底板", "漏斗", "扶手高度"],
+      "relationships": ["漏斗位于底板下方", "扶手通过转轴结构抬升"],
+      "claimIds": ["urosense.contribution.form-design"]
+    },
+    {
+      "page": 21,
+      "role": "installation",
+      "informationDensity": "medium",
+      "visualSummary": "安装方式页以坐便器渲染展示附件覆盖便圈并在前部留出开口的放置状态。",
+      "entities": ["安装方式", "坐便器", "环形附件", "前部开口"],
+      "relationships": ["附件叠放在坐便器便圈区域", "前部开口保留进出空间"],
+      "claimIds": ["urosense.installation", "urosense.contribution.installation"]
+    },
+    {
+      "page": 22,
+      "role": "future-section",
+      "informationDensity": "low",
+      "visualSummary": "深色分隔页标示第三部分展望未来。",
+      "entities": ["PART.3", "展望未来"],
+      "relationships": ["章节页从当前概念转向未来方向"],
+      "claimIds": []
+    },
+    {
+      "page": 23,
+      "role": "future-directions",
+      "informationDensity": "medium",
+      "visualSummary": "未来方向页提出排泄物检测产品搭载平台、新人机交互、更多体征整合和应用场景四类开放问题。",
+      "entities": ["排泄物检测平台", "人机交互", "更多体征", "应用场景", "UroSense 渲染"],
+      "relationships": ["四个问题作为后续探索方向", "产品渲染仅作为未来讨论背景"],
+      "claimIds": ["urosense.future"]
+    },
+    {
+      "page": 24,
+      "role": "form-detail",
+      "informationDensity": "low",
+      "visualSummary": "紫色线框式近景呈现漏斗底部曲面与周围结构网格。",
+      "entities": ["漏斗曲面", "线框网格", "产品结构近景"],
+      "relationships": ["线框强调漏斗从宽口向下收束的曲面"],
+      "claimIds": []
+    },
+    {
+      "page": 25,
+      "role": "closing",
+      "informationDensity": "low",
+      "visualSummary": "结束页以坐在装有 UroSense 的坐便器上的思考者雕塑和“谢谢大家”结束展示。",
+      "entities": ["谢谢大家", "思考者雕塑", "坐便器", "UroSense"],
+      "relationships": ["幽默场景渲染结束项目叙事"],
+      "claimIds": []
+    }
+  ],
+  "commonQuestions": [
+    { "question": "UroSense是什么作品", "locale": "zh", "intents": ["overview"], "preferredClaimIds": ["urosense.overview"] },
+    { "question": "What is UroSense?", "locale": "en", "intents": ["overview"], "preferredClaimIds": ["urosense.overview"] },
+    { "question": "UroSense如何完成尿量测量", "locale": "zh", "intents": ["architecture", "interaction"], "preferredClaimIds": ["urosense.measurement-flow", "urosense.structure"] },
+    { "question": "How does UroSense measure urine volume?", "locale": "en", "intents": ["architecture", "interaction"], "preferredClaimIds": ["urosense.measurement-flow", "urosense.structure"] },
+    { "question": "UroSense试图解决什么问题", "locale": "zh", "intents": ["problem"], "preferredClaimIds": ["urosense.problem"] },
+    { "question": "What problem does UroSense aim to address?", "locale": "en", "intents": ["problem"], "preferredClaimIds": ["urosense.problem"] },
+    { "question": "UroSense遵循哪些设计原则", "locale": "zh", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
+    { "question": "What design principles guide UroSense?", "locale": "en", "intents": ["solution", "value"], "preferredClaimIds": ["urosense.principles"] },
+    { "question": "UroSense如何安装在坐便器上", "locale": "zh", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
+    { "question": "How is UroSense installed on a toilet?", "locale": "en", "intents": ["form", "interaction"], "preferredClaimIds": ["urosense.installation"] },
+    { "question": "UroSense未来可能扩展什么", "locale": "zh", "intents": ["value"], "preferredClaimIds": ["urosense.future"] },
+    { "question": "What future possibilities does UroSense propose?", "locale": "en", "intents": ["value"], "preferredClaimIds": ["urosense.future"] }
+  ]
+}

@@ -1,7 +1,10 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import atempoJson from "./projects/atempo.json";
 import emovueJson from "./projects/emovue.json";
 import evolutionFruitJson from "./projects/evolution-fruit.json";
+import firstFlyJson from "./projects/first-fly.json";
 import inkseatJson from "./projects/inkseat.json";
+import urosenseJson from "./projects/urosense.json";
 import { validateProjectDossier } from "./validate";
 import type {
   AuthoredProjectDossier,
@@ -100,6 +103,41 @@ function expectConservativeOwnerStatement(
     "独立完成",
   ];
   for (const phrase of forbiddenPhrases) {
+    expect(ownerStatement?.text.toLowerCase(), `${claimId} omits "${phrase}"`)
+      .not.toContain(phrase.toLowerCase());
+  }
+}
+
+function expectEvidencePagesBacklinked(dossier: AuthoredProjectDossier): void {
+  const pagesByNumber = new Map(dossier.pages.map((page) => [page.page, page]));
+  for (const claim of dossier.claims) {
+    for (const evidence of claim.evidence) {
+      expect(
+        pagesByNumber.get(evidence.page)?.claimIds,
+        `${claim.id} is backlinked from evidence page ${evidence.page}`,
+      ).toContain(claim.id);
+    }
+  }
+}
+
+function expectConservativeCoreContributor(
+  dossier: AuthoredProjectDossier,
+  claimId: string,
+): void {
+  const ownerStatement = dossier.claims.find(({ id }) => id === claimId);
+  expect(ownerStatement).toMatchObject({
+    id: claimId,
+    provenance: "owner_statement",
+    evidence: [],
+    intents: ["contribution"],
+    public: true,
+  });
+  expect(ownerStatement?.text).toContain("赵实旷");
+  expect(ownerStatement?.text).toContain("核心贡献者");
+  expect(ownerStatement?.text).toContain("承担了较多工作");
+  for (const phrase of [
+    "sole", "lead", "主导", "负责人", "个人完成", "全部完成", "唯一", "独立完成",
+  ]) {
     expect(ownerStatement?.text.toLowerCase(), `${claimId} omits "${phrase}"`)
       .not.toContain(phrase.toLowerCase());
   }
@@ -664,5 +702,481 @@ describe("Fruit & Evolution authored dossier", () => {
         "evolution-fruit.parametric-model",
       ],
     });
+  });
+});
+
+describe("Atempo authored dossier", () => {
+  const atempo = validateProjectDossier(atempoJson, {
+    expectedProjectId: "atempo",
+    expectedPageCount: 20,
+  });
+
+  test("keeps the approved identity and complete canonical page map", () => {
+    expect(atempo).toMatchObject({
+      projectId: "atempo",
+      title: "Atempo",
+      oneLine: "利用桌面充电过渡窗口、呼吸与灯光反馈帮助用户从任务状态切换至恢复状态的桌面节律交互系统",
+      pageCount: 20,
+    });
+    expect(atempo.aliases).toEqual(expect.arrayContaining([
+      "a tempo",
+      "桌面节律交互系统",
+      "desktop rhythm interaction system",
+    ]));
+    expect(
+      atempo.pages.map(({ page, role, informationDensity }) => [
+        page,
+        role,
+        informationDensity,
+      ]),
+    ).toStrictEqual([
+      [1, "overview", "high"],
+      [2, "contents", "low"],
+      [3, "research-section", "low"],
+      [4, "problem", "high"],
+      [5, "opportunity-section", "low"],
+      [6, "competitive-analysis", "high"],
+      [7, "intervention-window", "high"],
+      [8, "product-definition", "high"],
+      [9, "interaction-section", "low"],
+      [10, "scenario", "high"],
+      [11, "interaction-flow", "high"],
+      [12, "biofeedback-rationale", "high"],
+      [13, "data-translation", "high"],
+      [14, "technology-section", "low"],
+      [15, "technology-architecture", "high"],
+      [16, "product-section", "low"],
+      [17, "user-journey", "high"],
+      [18, "form-and-appearance", "high"],
+      [19, "citations", "high"],
+      [20, "closing", "low"],
+    ]);
+  });
+
+  test("publishes exactly the approved claims and page-anchored evidence", () => {
+    expect(atempo.claims.filter(({ public: isPublic }) => isPublic).map(({ id }) => id))
+      .toStrictEqual([
+        "atempo.overview",
+        "atempo.problem",
+        "atempo.opportunity",
+        "atempo.scenario",
+        "atempo.interaction",
+        "atempo.biofeedback",
+        "atempo.data-translation",
+        "atempo.technology",
+        "atempo.form",
+        "atempo.core-contributor",
+      ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.overview")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 1 },
+      { sourceId: "atempo", page: 8 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.problem")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 4 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.opportunity")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 6 },
+      { sourceId: "atempo", page: 7 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.scenario")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 10 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.interaction")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 11 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.biofeedback")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 12 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.data-translation")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 13 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.technology")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 15 },
+    ]);
+    expect(atempo.claims.find(({ id }) => id === "atempo.form")?.evidence).toStrictEqual([
+      { sourceId: "atempo", page: 17 },
+      { sourceId: "atempo", page: 18 },
+    ]);
+    expect(atempo.pages.find(({ page }) => page === 13)?.claimIds)
+      .toContain("atempo.data-translation");
+  });
+
+  test("keeps the biofeedback rationale and technology description conservative", () => {
+    const biofeedback = atempo.claims.find(({ id }) => id === "atempo.biofeedback");
+    expect(biofeedback?.text).toContain("作品中的设计依据");
+    expect(biofeedback?.text).toContain("0.1 Hz");
+    expect(biofeedback?.text).not.toMatch(/医疗有效|临床有效|治疗|已证明/);
+    expect(atempo.claims.find(({ id }) => id === "atempo.technology")?.topics)
+      .toEqual(expect.arrayContaining([
+        "毫米波雷达",
+        "滤波与状态机",
+        "相位模型",
+        "ESP32-S3",
+        "灯光引擎",
+      ]));
+  });
+
+  test("indexes only intent-aligned public claims and covers data translation in comparison", () => {
+    expectPublicSectionClaimReferences(atempo);
+    expect(atempo.sectionClaims).toEqual(expect.objectContaining({
+      comparison: expect.arrayContaining(["atempo.data-translation"]),
+    }));
+    expect(atempo.claims.find(({ id }) => id === "atempo.data-translation")?.intents)
+      .toEqual(expect.arrayContaining(["architecture", "comparison"]));
+  });
+
+  test("keeps exact private contribution candidates and a conservative owner statement", () => {
+    const candidates = atempo.claims.filter(
+      ({ provenance }) => provenance === "candidate_contribution",
+    );
+    expect(candidates.map(({ id }) => id)).toStrictEqual([
+      "atempo.contribution.research",
+      "atempo.contribution.interaction",
+      "atempo.contribution.data-translation",
+      "atempo.contribution.technology-prototype",
+      "atempo.contribution.form-design",
+    ]);
+    expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
+    expectConservativeCoreContributor(atempo, "atempo.core-contributor");
+  });
+
+  test("routes at least twelve unique questions through aligned public claims", () => {
+    expect(atempo.commonQuestions.length).toBeGreaterThanOrEqual(12);
+    expectIntentAlignedPublicQuestionClaims(atempo);
+    expect(atempo.commonQuestions.find(({ question }) => question === "Atempo是什么作品"))
+      .toMatchObject({
+        intents: ["overview"],
+        preferredClaimIds: ["atempo.overview"],
+      });
+    expect(atempo.commonQuestions.find(
+      ({ question }) => question === "Atempo如何把呼吸变成反馈",
+    )).toMatchObject({
+      intents: ["interaction", "architecture"],
+      preferredClaimIds: ["atempo.biofeedback", "atempo.data-translation"],
+    });
+  });
+
+  test("backlinks every evidence page to its claim", () => {
+    expectEvidencePagesBacklinked(atempo);
+  });
+});
+
+describe("UroSense authored dossier", () => {
+  const urosense = validateProjectDossier(urosenseJson, {
+    expectedProjectId: "urosense",
+    expectedPageCount: 25,
+  });
+
+  test("keeps the approved identity and complete canonical page map", () => {
+    expect(urosense).toMatchObject({
+      projectId: "urosense",
+      title: "UroSense",
+      oneLine: "心内科病房场景下尽量保护隐私、减少人工转移的自主尿量检测附件概念",
+      pageCount: 25,
+    });
+    expect(urosense.aliases).toEqual(expect.arrayContaining([
+      "uro sense",
+      "智能尿量检测附件",
+      "urine measurement attachment",
+    ]));
+    expect(
+      urosense.pages.map(({ page, role, informationDensity }) => [
+        page,
+        role,
+        informationDensity,
+      ]),
+    ).toStrictEqual([
+      [1, "overview", "high"],
+      [2, "design-origin-section", "low"],
+      [3, "field-research", "high"],
+      [4, "research-focus", "high"],
+      [5, "urine-diary", "high"],
+      [6, "workflow-problem", "medium"],
+      [7, "transfer-problem", "high"],
+      [8, "patient-context", "high"],
+      [9, "design-principles", "medium"],
+      [10, "concept-introduction", "low"],
+      [11, "concept-positioning", "medium"],
+      [12, "product-structure", "high"],
+      [13, "exploded-structure", "high"],
+      [14, "measurement-flow", "high"],
+      [15, "cleaning-scenario", "low"],
+      [16, "measurement-flow", "high"],
+      [17, "reference-products", "medium"],
+      [18, "form-render", "low"],
+      [19, "dimension-drawing", "medium"],
+      [20, "dimension-drawing", "medium"],
+      [21, "installation", "medium"],
+      [22, "future-section", "low"],
+      [23, "future-directions", "medium"],
+      [24, "form-detail", "low"],
+      [25, "closing", "low"],
+    ]);
+  });
+
+  test("publishes exactly the approved claims and page-anchored evidence", () => {
+    expect(urosense.claims.filter(({ public: isPublic }) => isPublic).map(({ id }) => id))
+      .toStrictEqual([
+        "urosense.overview",
+        "urosense.research",
+        "urosense.problem",
+        "urosense.principles",
+        "urosense.structure",
+        "urosense.measurement-flow",
+        "urosense.installation",
+        "urosense.future",
+        "urosense.core-contributor",
+      ]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.overview")?.evidence)
+      .toStrictEqual([
+        { sourceId: "urosense", page: 1 },
+        { sourceId: "urosense", page: 9 },
+        { sourceId: "urosense", page: 10 },
+      ]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.research")?.evidence)
+      .toStrictEqual([
+        { sourceId: "urosense", page: 3 },
+        { sourceId: "urosense", page: 4 },
+        { sourceId: "urosense", page: 5 },
+      ]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.problem")?.evidence)
+      .toStrictEqual([
+        { sourceId: "urosense", page: 6 },
+        { sourceId: "urosense", page: 7 },
+        { sourceId: "urosense", page: 8 },
+      ]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.principles")?.evidence)
+      .toStrictEqual([{ sourceId: "urosense", page: 9 }]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.structure")?.evidence)
+      .toStrictEqual([{ sourceId: "urosense", page: 12 }]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.measurement-flow")?.evidence)
+      .toStrictEqual([
+        { sourceId: "urosense", page: 14 },
+        { sourceId: "urosense", page: 16 },
+      ]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.installation")?.evidence)
+      .toStrictEqual([{ sourceId: "urosense", page: 21 }]);
+    expect(urosense.claims.find(({ id }) => id === "urosense.future")?.evidence)
+      .toStrictEqual([{ sourceId: "urosense", page: 23 }]);
+    expect(urosense.pages.find(({ page }) => page === 14)?.claimIds)
+      .toContain("urosense.measurement-flow");
+  });
+
+  test("keeps medical and future claims at concept level", () => {
+    const publicText = urosense.claims
+      .filter(({ public: isPublic }) => isPublic)
+      .map(({ text }) => text)
+      .join("\n");
+    expect(publicText).not.toMatch(
+      /已经?通过临床验证|测量精度.{0,8}(达到|为)|医疗器械(批准|获批)|已(部署|落地|投入临床)/,
+    );
+    expect(urosense.claims.find(({ id }) => id === "urosense.future")?.text)
+      .toContain("未来可能性");
+  });
+
+  test("indexes only intent-aligned public claims and covers measurement flow in comparison", () => {
+    expectPublicSectionClaimReferences(urosense);
+    expect(urosense.sectionClaims.comparison)
+      .toContain("urosense.measurement-flow");
+    expect(urosense.claims.find(({ id }) => id === "urosense.measurement-flow")?.intents)
+      .toEqual(expect.arrayContaining(["architecture", "comparison"]));
+  });
+
+  test("keeps exact private contribution candidates and a conservative owner statement", () => {
+    const candidates = urosense.claims.filter(
+      ({ provenance }) => provenance === "candidate_contribution",
+    );
+    expect(candidates.map(({ id }) => id)).toStrictEqual([
+      "urosense.contribution.field-research",
+      "urosense.contribution.system-architecture",
+      "urosense.contribution.measurement-flow",
+      "urosense.contribution.installation",
+      "urosense.contribution.form-design",
+    ]);
+    expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
+    expectConservativeCoreContributor(urosense, "urosense.core-contributor");
+  });
+
+  test("routes at least twelve unique questions through aligned public claims", () => {
+    expect(urosense.commonQuestions.length).toBeGreaterThanOrEqual(12);
+    expectIntentAlignedPublicQuestionClaims(urosense);
+    expect(urosense.commonQuestions.find(({ question }) => question === "UroSense是什么作品"))
+      .toMatchObject({
+        intents: ["overview"],
+        preferredClaimIds: ["urosense.overview"],
+      });
+    expect(urosense.commonQuestions.find(
+      ({ question }) => question === "UroSense如何完成尿量测量",
+    )).toMatchObject({
+      intents: ["architecture", "interaction"],
+      preferredClaimIds: ["urosense.measurement-flow", "urosense.structure"],
+    });
+  });
+
+  test("backlinks every evidence page to its claim", () => {
+    expectEvidencePagesBacklinked(urosense);
+  });
+});
+
+describe("First Fly authored dossier", () => {
+  const firstFly = validateProjectDossier(firstFlyJson, {
+    expectedProjectId: "first-fly",
+    expectedPageCount: 28,
+  });
+
+  test("keeps the approved identity and complete canonical page map", () => {
+    expect(firstFly).toMatchObject({
+      projectId: "first-fly",
+      title: "First Fly",
+      oneLine: "面向 2035 短途出行的未来沉浸式飞行体验概念，以俯卧第一人称身体姿态、座椅运动反馈和 AR 景观营造飞行感",
+      pageCount: 28,
+    });
+    expect(firstFly.aliases).toEqual(expect.arrayContaining([
+      "firstfly",
+      "第一飞行",
+      "沉浸式飞行体验",
+      "immersive flight experience",
+    ]));
+    expect(
+      firstFly.pages.map(({ page, role, informationDensity }) => [
+        page,
+        role,
+        informationDensity,
+      ]),
+    ).toStrictEqual([
+      [1, "overview", "high"],
+      [2, "premise-divider", "low"],
+      [3, "premise", "high"],
+      [4, "research-section", "medium"],
+      [5, "mobility-forecast", "high"],
+      [6, "ar-landscape", "medium"],
+      [7, "ergonomics-and-cabin", "high"],
+      [8, "future-mobility-synthesis", "high"],
+      [9, "scene-theme", "medium"],
+      [10, "design-concept", "high"],
+      [11, "route-concept", "high"],
+      [12, "users-section", "low"],
+      [13, "user-groups", "high"],
+      [14, "journey", "high"],
+      [15, "form-iteration", "medium"],
+      [16, "form-principles", "medium"],
+      [17, "posture-and-space", "high"],
+      [18, "comfort-design", "medium"],
+      [19, "structure-exploded", "medium"],
+      [20, "cmf", "high"],
+      [21, "motion-and-ar", "high"],
+      [22, "motion-study", "low"],
+      [23, "ar-experience", "high"],
+      [24, "cabin-layout", "medium"],
+      [25, "dimensions", "high"],
+      [26, "cabin-render", "medium"],
+      [27, "cabin-detail", "low"],
+      [28, "closing", "low"],
+    ]);
+  });
+
+  test("publishes exactly the approved claims and page-anchored evidence", () => {
+    expect(firstFly.claims.filter(({ public: isPublic }) => isPublic).map(({ id }) => id))
+      .toStrictEqual([
+        "first-fly.overview",
+        "first-fly.premise",
+        "first-fly.research",
+        "first-fly.concept",
+        "first-fly.users",
+        "first-fly.journey",
+        "first-fly.form",
+        "first-fly.motion",
+        "first-fly.ar",
+        "first-fly.core-contributor",
+      ]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.overview")?.evidence)
+      .toStrictEqual([
+        { sourceId: "first-fly", page: 1 },
+        { sourceId: "first-fly", page: 10 },
+        { sourceId: "first-fly", page: 11 },
+      ]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.premise")?.evidence)
+      .toStrictEqual([{ sourceId: "first-fly", page: 3 }]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.research")?.evidence)
+      .toStrictEqual(Array.from({ length: 6 }, (_, index) => ({
+        sourceId: "first-fly",
+        page: index + 4,
+      })));
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.concept")?.evidence)
+      .toStrictEqual([
+        { sourceId: "first-fly", page: 10 },
+        { sourceId: "first-fly", page: 11 },
+      ]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.users")?.evidence)
+      .toStrictEqual([
+        { sourceId: "first-fly", page: 12 },
+        { sourceId: "first-fly", page: 13 },
+      ]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.journey")?.evidence)
+      .toStrictEqual([{ sourceId: "first-fly", page: 14 }]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.form")?.evidence)
+      .toStrictEqual(Array.from({ length: 6 }, (_, index) => ({
+        sourceId: "first-fly",
+        page: index + 15,
+      })));
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.motion")?.evidence)
+      .toStrictEqual([{ sourceId: "first-fly", page: 21 }]);
+    expect(firstFly.claims.find(({ id }) => id === "first-fly.ar")?.evidence)
+      .toStrictEqual([{ sourceId: "first-fly", page: 23 }]);
+    expect(firstFly.pages.find(({ page }) => page === 10)?.claimIds)
+      .toContain("first-fly.concept");
+  });
+
+  test("keeps the 2035 experience explicitly conceptual", () => {
+    const publicText = firstFly.claims
+      .filter(({ public: isPublic }) => isPublic)
+      .map(({ text }) => text)
+      .join("\n");
+    expect(publicText).toContain("未来概念");
+    expect(publicText).not.toMatch(/已(部署|落地|投入运营|完成验证)|经过验证/);
+  });
+
+  test("indexes only intent-aligned public claims and covers the system in comparison", () => {
+    expectPublicSectionClaimReferences(firstFly);
+    expect(firstFly.sectionClaims.comparison).toEqual(expect.arrayContaining([
+      "first-fly.concept",
+      "first-fly.motion",
+      "first-fly.ar",
+    ]));
+  });
+
+  test("keeps exact private contribution candidates and a conservative owner statement", () => {
+    const candidates = firstFly.claims.filter(
+      ({ provenance }) => provenance === "candidate_contribution",
+    );
+    expect(candidates.map(({ id }) => id)).toStrictEqual([
+      "first-fly.contribution.concept",
+      "first-fly.contribution.user-research",
+      "first-fly.contribution.journey",
+      "first-fly.contribution.spatial-form",
+      "first-fly.contribution.ar-interaction",
+    ]);
+    expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
+    expectConservativeCoreContributor(firstFly, "first-fly.core-contributor");
+  });
+
+  test("routes at least twelve unique questions through aligned public claims", () => {
+    expect(firstFly.commonQuestions.length).toBeGreaterThanOrEqual(12);
+    expectIntentAlignedPublicQuestionClaims(firstFly);
+    expect(firstFly.commonQuestions.find(({ question }) => question === "First Fly是什么作品"))
+      .toMatchObject({
+        intents: ["overview"],
+        preferredClaimIds: ["first-fly.overview"],
+      });
+    expect(firstFly.commonQuestions.find(
+      ({ question }) => question === "First Fly如何营造飞行体验",
+    )).toMatchObject({
+      intents: ["solution", "interaction"],
+      preferredClaimIds: ["first-fly.concept", "first-fly.motion", "first-fly.ar"],
+    });
+  });
+
+  test("backlinks every evidence page to its claim", () => {
+    expectEvidencePagesBacklinked(firstFly);
   });
 });
