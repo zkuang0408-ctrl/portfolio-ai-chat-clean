@@ -234,6 +234,32 @@ describe("INKSeat authored dossier", () => {
     expect(inkseat.pages.map(({ page }) => page)).toStrictEqual(
       Array.from({ length: 18 }, (_, index) => index + 1),
     );
+    expect(
+      inkseat.pages.map(({ page, role, informationDensity }) => [
+        page,
+        role,
+        informationDensity,
+      ]),
+    ).toStrictEqual([
+      [1, "overview", "high"],
+      [2, "contents", "low"],
+      [3, "cabin-trend", "high"],
+      [4, "in-flight-advertising", "high"],
+      [5, "contradiction-analysis", "high"],
+      [6, "market-gap", "high"],
+      [7, "e-paper-feasibility", "high"],
+      [8, "system-architecture", "high"],
+      [9, "explainable-recommendation", "high"],
+      [10, "content-library-and-personas", "high"],
+      [11, "backend-and-interface", "high"],
+      [12, "demonstration", "low"],
+      [13, "demonstration", "medium"],
+      [14, "demonstration", "low"],
+      [15, "form-and-viewing-relationship", "high"],
+      [16, "structure-and-cmf", "high"],
+      [17, "whole-flight-journey", "high"],
+      [18, "closing", "low"],
+    ]);
     expect(inkseat.pages.find(({ page }) => page === 1)).toMatchObject({
       role: "overview",
       informationDensity: "high",
