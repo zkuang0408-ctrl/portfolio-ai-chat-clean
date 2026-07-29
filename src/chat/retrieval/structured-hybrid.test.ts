@@ -143,6 +143,7 @@ describe("structured hybrid retriever", () => {
       limit: 8,
     });
 
+    expect(results).toHaveLength(3);
     expect(results.every(({ chunk }) => chunk.knowledgeKind === "authored-claim")).toBe(true);
     expect(new Set(results.map(({ chunk }) => {
       if (chunk.knowledgeKind !== "authored-claim") {

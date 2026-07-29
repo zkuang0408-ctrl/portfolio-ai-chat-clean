@@ -10,7 +10,7 @@ import type { Retriever, SearchOptions, SearchResult } from "./retriever.js";
 
 const DEFAULT_MINIMUM_SCORE = 2.5;
 const DEFAULT_MAX_RESULTS = 8;
-const DEFAULT_MAX_PER_SOURCE = DEFAULT_MAX_RESULTS;
+const DEFAULT_MAX_PER_SOURCE = 3;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
 
@@ -367,7 +367,7 @@ function selectEvidencePacket(
   const preferredPasses: readonly EvidenceSelectionPass[] = [
     {
       sourceLimit: comparisonSourceLimit,
-      intentLimit: 2,
+      intentLimit: 1,
       distinctPagesOnly: true,
     },
     {
