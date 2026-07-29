@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import generatedIndex from "../knowledge/generated-index.json";
 import type { GeneratedKnowledgeIndex } from "../knowledge/types";
-import { portfolioRetrievalEvaluationCases } from "./evaluation-cases";
+import { retrievalEvaluationCases } from "./evaluation-cases";
 import { createStructuredHybridRetriever } from "./structured-hybrid";
 
 describe("portfolio retrieval acceptance suite", () => {
@@ -10,7 +10,22 @@ describe("portfolio retrieval acceptance suite", () => {
     generatedIndex as GeneratedKnowledgeIndex,
   );
 
-  test.each(portfolioRetrievalEvaluationCases)(
+  test("keeps the published evaluation case names stable", () => {
+    expect(retrievalEvaluationCases.map(({ name }) => name)).toEqual([
+      "INKSeat Chinese overview",
+      "INKSeat architecture",
+      "INKSeat problem",
+      "EMOVUE technology",
+      "Fruit algorithm",
+      "Atempo data translation",
+      "UroSense measurement",
+      "First Fly English overview",
+      "Cross-project systems thinking",
+      "Unrelated private scheduling",
+    ]);
+  });
+
+  test.each(retrievalEvaluationCases)(
     "$name",
     async ({
       query,
@@ -47,4 +62,14 @@ describe("portfolio retrieval acceptance suite", () => {
       }
     },
   );
+
+  test("does not hard-reject a project question that mentions a weekend scenario", async () => {
+    const results = await retriever.search("INKSeat 在周末场景如何使用？", {
+      locale: "zh",
+      limit: 8,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some(({ chunk }) => chunk.projectId === "inkseat")).toBe(true);
+  });
 });

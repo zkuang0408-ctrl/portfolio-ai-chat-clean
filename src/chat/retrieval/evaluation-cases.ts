@@ -9,7 +9,7 @@ export interface RetrievalEvaluationCase {
   readonly expectNoResults?: boolean;
 }
 
-export const portfolioRetrievalEvaluationCases: readonly RetrievalEvaluationCase[] = [
+export const retrievalEvaluationCases: readonly RetrievalEvaluationCase[] = [
   {
     name: "INKSeat Chinese overview",
     query: "inkseat是什么作品",
@@ -30,13 +30,13 @@ export const portfolioRetrievalEvaluationCases: readonly RetrievalEvaluationCase
     requiredChunkIds: ["inkseat:claim:inkseat.problem"],
   },
   {
-    name: "EMOVUE emotion capture",
+    name: "EMOVUE technology",
     query: "EMOVUE如何自动捕捉情绪瞬间",
     locale: "zh",
     requiredChunkIds: ["emovue:claim:emovue.technical-prototype"],
   },
   {
-    name: "Fruit and Evolution generation",
+    name: "Fruit algorithm",
     query: "Fruit & Evolution如何生成果实形态",
     locale: "zh",
     requiredChunkIds: [
@@ -45,13 +45,13 @@ export const portfolioRetrievalEvaluationCases: readonly RetrievalEvaluationCase
     ],
   },
   {
-    name: "Atempo breath feedback",
+    name: "Atempo data translation",
     query: "Atempo如何把呼吸转化为反馈",
     locale: "zh",
     requiredChunkIds: ["atempo:claim:atempo.data-translation"],
   },
   {
-    name: "UroSense measurement flow",
+    name: "UroSense measurement",
     query: "UroSense如何完成尿量测量",
     locale: "zh",
     requiredChunkIds: ["urosense:claim:urosense.measurement-flow"],
@@ -63,13 +63,13 @@ export const portfolioRetrievalEvaluationCases: readonly RetrievalEvaluationCase
     requiredChunkIds: ["first-fly:claim:first-fly.overview"],
   },
   {
-    name: "cross-project systems thinking",
+    name: "Cross-project systems thinking",
     query: "哪个项目最能体现系统思考？",
     locale: "zh",
     minimumDistinctSources: 2,
   },
   {
-    name: "unrelated private scheduling",
+    name: "Unrelated private scheduling",
     query: "赵实旷周末几点有空？",
     locale: "zh",
     expectNoResults: true,

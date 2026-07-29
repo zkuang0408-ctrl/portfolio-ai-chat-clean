@@ -104,7 +104,8 @@ const CHINESE_QUERY_STOP_TERMS = new Set([
   "给我",
   "我想",
 ]);
-const PRIVATE_SCHEDULING_TERMS = ["周末", "几点", "有空"] as const;
+const PERSONAL_AVAILABILITY_TERMS = ["周末", "几点", "有空"] as const;
+const PERSON_NAME_TERMS = ["赵实旷", "zhao shikuang"] as const;
 
 export interface StructuredHybridRetrieverConfig {
   readonly minimumScore?: number;
@@ -189,7 +190,9 @@ function searchTerms(queryTerms: ReadonlySet<string>): ReadonlySet<string> {
 
 function asksForPrivateScheduling(query: string): boolean {
   const normalized = normalizeQuestion(query);
-  return PRIVATE_SCHEDULING_TERMS.some((term) => normalized.includes(term));
+  const mentionsPerson = PERSON_NAME_TERMS.some((term) => normalized.includes(term));
+  if (!mentionsPerson) return false;
+  return PERSONAL_AVAILABILITY_TERMS.filter((term) => normalized.includes(term)).length >= 2;
 }
 
 function isAuthoredClaim(
