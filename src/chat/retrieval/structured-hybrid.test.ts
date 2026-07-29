@@ -196,6 +196,48 @@ describe("structured hybrid retriever", () => {
     ]);
   });
 
+  test("treats same-numbered evidence pages from different projects as distinct", async () => {
+    const retriever = createStructuredHybridRetriever(index([
+      authoredClaim({
+        id: "alpha:claim:page-1",
+        sourceId: "alpha",
+        projectId: "alpha",
+        title: "哪个项目 Alpha overview",
+        aliases: ["Alpha"],
+        text: "Alpha overview.",
+        intents: ["overview", "comparison"],
+        evidencePages: [1],
+      }),
+      authoredClaim({
+        id: "alpha:claim:page-2",
+        sourceId: "alpha",
+        projectId: "alpha",
+        title: "Alpha",
+        aliases: ["Alpha"],
+        text: "Alpha second evidence.",
+        intents: ["research", "comparison"],
+        evidencePages: [2],
+      }),
+      authoredClaim({
+        id: "beta:claim:page-1",
+        sourceId: "beta",
+        projectId: "beta",
+        title: "哪个项目 Beta architecture",
+        aliases: ["Beta"],
+        text: "Beta architecture.",
+        intents: ["architecture", "comparison"],
+        evidencePages: [1],
+      }),
+    ]), { minimumScore: 0 });
+
+    const results = await retriever.search("哪个项目", { locale: "zh", limit: 2 });
+
+    expect(results.map(({ chunk }) => chunk.id)).toEqual([
+      "alpha:claim:page-1",
+      "beta:claim:page-1",
+    ]);
+  });
+
   test("applies the explicit negative route rule and excludes another project's PDF", async () => {
     const retriever = createStructuredHybridRetriever(index([
       authoredClaim(),

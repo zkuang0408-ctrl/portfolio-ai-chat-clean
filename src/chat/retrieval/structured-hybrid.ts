@@ -264,8 +264,9 @@ function primaryIntent(chunk: KnowledgeChunk): KnowledgeIntent | undefined {
   return isAuthoredClaim(chunk) ? chunk.intents[0] : undefined;
 }
 
-function primaryEvidencePage(chunk: KnowledgeChunk): number | undefined {
-  return chunk.evidencePages[0] ?? chunk.page;
+function primaryEvidencePageIdentity(chunk: KnowledgeChunk): string | undefined {
+  const page = chunk.evidencePages[0] ?? chunk.page;
+  return page === undefined ? undefined : `${chunk.sourceId}\u0000${page}`;
 }
 
 function isOverviewClaim(result: SearchResult): boolean {
@@ -310,7 +311,7 @@ function selectEvidencePacket(
   const selectedIds = new Set<string>();
   const sourceCounts = new Map<string, number>();
   const intentCounts = new Map<KnowledgeIntent, number>();
-  const evidencePages = new Set<number>();
+  const evidencePages = new Set<string>();
 
   const add = (result: SearchResult): void => {
     selected.push(result);
@@ -323,8 +324,8 @@ function selectEvidencePacket(
     if (intent !== undefined) {
       intentCounts.set(intent, (intentCounts.get(intent) ?? 0) + 1);
     }
-    const page = primaryEvidencePage(result.chunk);
-    if (page !== undefined) evidencePages.add(page);
+    const pageIdentity = primaryEvidencePageIdentity(result.chunk);
+    if (pageIdentity !== undefined) evidencePages.add(pageIdentity);
   };
 
   if (
@@ -353,8 +354,12 @@ function selectEvidencePacket(
       ) {
         continue;
       }
-      const page = primaryEvidencePage(result.chunk);
-      if (distinctPagesOnly && page !== undefined && evidencePages.has(page)) {
+      const pageIdentity = primaryEvidencePageIdentity(result.chunk);
+      if (
+        distinctPagesOnly &&
+        pageIdentity !== undefined &&
+        evidencePages.has(pageIdentity)
+      ) {
         continue;
       }
       add(result);
