@@ -10,7 +10,7 @@ import type { Retriever, SearchOptions, SearchResult } from "./retriever.js";
 
 const DEFAULT_MINIMUM_SCORE = 2.5;
 const DEFAULT_MAX_RESULTS = 8;
-const DEFAULT_MAX_PER_SOURCE = 3;
+const DEFAULT_MAX_PER_SOURCE = DEFAULT_MAX_RESULTS;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
 
@@ -260,10 +260,152 @@ function assertNoCandidateContribution(index: GeneratedKnowledgeIndex): void {
   }
 }
 
+function primaryIntent(chunk: KnowledgeChunk): KnowledgeIntent | undefined {
+  return isAuthoredClaim(chunk) ? chunk.intents[0] : undefined;
+}
+
+function primaryEvidencePage(chunk: KnowledgeChunk): number | undefined {
+  return chunk.evidencePages[0] ?? chunk.page;
+}
+
+function isOverviewClaim(result: SearchResult): boolean {
+  return (
+    isAuthoredClaim(result.chunk) &&
+    result.chunk.pageRole === "overview"
+  );
+}
+
+function deduplicateClaimText(
+  scored: readonly SearchResult[],
+): readonly SearchResult[] {
+  const seenClaimText = new Set<string>();
+  return scored.filter((result) => {
+    if (!isAuthoredClaim(result.chunk)) return true;
+    const normalizedText = normalizeQuestion(result.chunk.text);
+    if (!normalizedText || seenClaimText.has(normalizedText)) return false;
+    seenClaimText.add(normalizedText);
+    return true;
+  });
+}
+
+interface EvidenceSelectionPass {
+  readonly sourceLimit: number;
+  readonly intentLimit: number;
+  readonly distinctPagesOnly: boolean;
+}
+
 /**
- * Scores published portfolio evidence with deterministic routing and authored
- * claim boosts. It intentionally leaves source diversification to the next
- * retriever layer so ranking remains independently testable.
+ * Converts the score-ordered candidate list into a compact evidence packet.
+ * Each pass relaxes a preference only when the earlier, more diverse pass
+ * cannot fill the caller's requested limit.
+ */
+function selectEvidencePacket(
+  scored: readonly SearchResult[],
+  route: QueryRoute,
+  config: ResolvedConfig,
+  limit: number,
+): readonly SearchResult[] {
+  const candidates = deduplicateClaimText(scored);
+  const selected: SearchResult[] = [];
+  const selectedIds = new Set<string>();
+  const sourceCounts = new Map<string, number>();
+  const intentCounts = new Map<KnowledgeIntent, number>();
+  const evidencePages = new Set<number>();
+
+  const add = (result: SearchResult): void => {
+    selected.push(result);
+    selectedIds.add(result.chunk.id);
+    sourceCounts.set(
+      result.chunk.sourceId,
+      (sourceCounts.get(result.chunk.sourceId) ?? 0) + 1,
+    );
+    const intent = primaryIntent(result.chunk);
+    if (intent !== undefined) {
+      intentCounts.set(intent, (intentCounts.get(intent) ?? 0) + 1);
+    }
+    const page = primaryEvidencePage(result.chunk);
+    if (page !== undefined) evidencePages.add(page);
+  };
+
+  if (
+    route.projectIds.length > 0 &&
+    (route.intents.length === 0 ||
+      (route.intents.length === 1 && route.intents[0] === "overview"))
+  ) {
+    const overview = candidates.find(isOverviewClaim);
+    if (overview !== undefined) add(overview);
+  }
+
+  const addFromPass = ({
+    sourceLimit,
+    intentLimit,
+    distinctPagesOnly,
+  }: EvidenceSelectionPass): void => {
+    for (const result of candidates) {
+      if (selected.length >= limit) return;
+      if (selectedIds.has(result.chunk.id)) continue;
+      const sourceCount = sourceCounts.get(result.chunk.sourceId) ?? 0;
+      if (sourceCount >= sourceLimit) continue;
+      const intent = primaryIntent(result.chunk);
+      if (
+        intent !== undefined &&
+        (intentCounts.get(intent) ?? 0) >= intentLimit
+      ) {
+        continue;
+      }
+      const page = primaryEvidencePage(result.chunk);
+      if (distinctPagesOnly && page !== undefined && evidencePages.has(page)) {
+        continue;
+      }
+      add(result);
+    }
+  };
+
+  const comparisonSourceLimit = route.intents.includes("comparison")
+    ? Math.min(2, config.maxPerSource)
+    : config.maxPerSource;
+  const preferredPasses: readonly EvidenceSelectionPass[] = [
+    {
+      sourceLimit: comparisonSourceLimit,
+      intentLimit: 2,
+      distinctPagesOnly: true,
+    },
+    {
+      sourceLimit: comparisonSourceLimit,
+      intentLimit: 2,
+      distinctPagesOnly: false,
+    },
+    {
+      sourceLimit: config.maxPerSource,
+      intentLimit: 2,
+      distinctPagesOnly: true,
+    },
+    {
+      sourceLimit: config.maxPerSource,
+      intentLimit: 2,
+      distinctPagesOnly: false,
+    },
+    {
+      sourceLimit: config.maxPerSource,
+      intentLimit: Number.POSITIVE_INFINITY,
+      distinctPagesOnly: true,
+    },
+    {
+      sourceLimit: config.maxPerSource,
+      intentLimit: Number.POSITIVE_INFINITY,
+      distinctPagesOnly: false,
+    },
+  ];
+  for (const pass of preferredPasses) {
+    if (selected.length >= limit) break;
+    addFromPass(pass);
+  }
+  return selected;
+}
+
+/**
+ * Scores published portfolio evidence with deterministic routing, authored
+ * claim boosts, and a compact, diverse evidence-selection packet.
  */
 export function createStructuredHybridRetriever(
   index: GeneratedKnowledgeIndex,
@@ -416,16 +558,7 @@ export function createStructuredHybridRetriever(
       );
       const limit = requestedLimit(options, resolved.maxResults);
       if (limit === 0) return [];
-      const sourceCounts = new Map<string, number>();
-      const results: SearchResult[] = [];
-      for (const result of scored) {
-        if (results.length >= limit) break;
-        const count = sourceCounts.get(result.chunk.sourceId) ?? 0;
-        if (count >= resolved.maxPerSource) continue;
-        sourceCounts.set(result.chunk.sourceId, count + 1);
-        results.push(result);
-      }
-      return results;
+      return selectEvidencePacket(scored, route, resolved, limit);
     },
   };
 }

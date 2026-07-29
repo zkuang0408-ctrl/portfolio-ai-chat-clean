@@ -119,6 +119,82 @@ describe("structured hybrid retriever", () => {
     expect(results[0]?.chunk.evidencePages).toContain(8);
   });
 
+  test("diversifies real comparison evidence across portfolio projects", async () => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const results = await retriever.search("哪个项目最能体现系统思考？", {
+      locale: "zh",
+      limit: 8,
+    });
+
+    expect(new Set(results.map(({ chunk }) => chunk.sourceId)).size).toBeGreaterThanOrEqual(2);
+    expect(results.every(({ chunk }) => chunk.knowledgeKind === "authored-claim")).toBe(true);
+  });
+
+  test("diversifies a detailed INKSeat answer across primary intents", async () => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const results = await retriever.search("详细介绍INKSeat", {
+      locale: "zh",
+      limit: 8,
+    });
+
+    expect(results.every(({ chunk }) => chunk.knowledgeKind === "authored-claim")).toBe(true);
+    expect(new Set(results.map(({ chunk }) => {
+      if (chunk.knowledgeKind !== "authored-claim") {
+        throw new Error("Detailed project evidence must be an authored claim");
+      }
+      return chunk.intents[0];
+    })).size).toBeGreaterThanOrEqual(3);
+  });
+
+  test("selects the best overview claim first for an explicitly routed project", async () => {
+    const retriever = createStructuredHybridRetriever(index([
+      authoredClaim({
+        id: "inkseat:claim:overview",
+        text: "INKSeat is an intelligent cabin display system.",
+        pageRole: "overview",
+        intents: ["overview"],
+      }),
+      authoredClaim({
+        id: "inkseat:claim:detail",
+        text: "INKSeat 的详细介绍和结构信息。",
+        pageRole: "detail",
+        intents: ["architecture"],
+        questionAliases: ["INKSeat是什么作品的详细介绍"],
+      }),
+    ]), { minimumScore: 0 });
+
+    const results = await retriever.search("INKSeat是什么作品的详细介绍", { locale: "zh" });
+
+    expect(results[0]?.chunk.id).toBe("inkseat:claim:overview");
+  });
+
+  test("deduplicates authored claims with identical normalized text", async () => {
+    const retriever = createStructuredHybridRetriever(index([
+      authoredClaim({
+        id: "inkseat:claim:duplicate-a",
+        text: "INKSeat 是一个智能座舱信息系统。",
+        evidencePages: [3],
+      }),
+      authoredClaim({
+        id: "inkseat:claim:duplicate-b",
+        text: "  INKSeat 是一个智能座舱信息系统！ ",
+        evidencePages: [7],
+      }),
+    ]), { minimumScore: 0 });
+
+    const results = await retriever.search("INKSeat", { locale: "zh" });
+
+    expect(results.map(({ chunk }) => chunk.id)).toEqual([
+      "inkseat:claim:duplicate-a",
+    ]);
+  });
+
   test("applies the explicit negative route rule and excludes another project's PDF", async () => {
     const retriever = createStructuredHybridRetriever(index([
       authoredClaim(),
