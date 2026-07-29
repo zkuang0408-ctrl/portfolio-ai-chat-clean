@@ -14,7 +14,7 @@ const DEFAULT_MAX_PER_SOURCE = 3;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
 
-const SCORE = {
+export const SCORE = {
   routedProject: 20,
   excludedProject: -20,
   authoredClaim: 12,
@@ -301,26 +301,21 @@ export function createStructuredHybridRetriever(
 
       for (const indexed of indexedChunks) {
         const hasExplicitProjects = route.projectIds.length > 0;
-        const isExcludedProject =
-          hasExplicitProjects &&
-          indexed.chunk.projectId !== undefined &&
-          !route.projectIds.includes(indexed.chunk.projectId);
-        if (isExcludedProject) {
-          // Keep the explicit negative rule adjacent to the fail-closed filter:
-          // a long raw PDF excerpt can never overcome an excluded project route.
-          const excludedScore = SCORE.excludedProject;
-          void excludedScore;
-          continue;
-        }
-        if (!canRetrieve(indexed.chunk, route)) continue;
-
-        let score = 0;
-        let hasLexicalSignal = false;
+        const hasChunkProject = indexed.chunk.projectId !== undefined;
         const isRoutedProject =
           hasExplicitProjects &&
-          indexed.chunk.projectId !== undefined &&
-          route.projectIds.includes(indexed.chunk.projectId);
-        if (isRoutedProject) score += SCORE.routedProject;
+          hasChunkProject &&
+          route.projectIds.includes(indexed.chunk.projectId!);
+        const isExcludedProject =
+          hasExplicitProjects && hasChunkProject && !isRoutedProject;
+        if (!isExcludedProject && !canRetrieve(indexed.chunk, route)) continue;
+
+        let score = isRoutedProject
+          ? SCORE.routedProject
+          : isExcludedProject
+            ? SCORE.excludedProject
+            : 0;
+        let hasLexicalSignal = false;
         for (const term of queryTerms) {
           const bodyScore = binaryBodyTermBm25(term, indexed);
           score += bodyScore;
@@ -360,6 +355,10 @@ export function createStructuredHybridRetriever(
         if (hasExactQuestionAlias) {
           score += SCORE.exactQuestionAlias;
         }
+        // The negative route score is part of the same deterministic scoring
+        // path, while this fail-closed boundary guarantees that even unusually
+        // strong lexical overlap cannot revive another project's PDF evidence.
+        if (isExcludedProject) continue;
         if (
           !isRoutedProject &&
           !hasLexicalSignal &&

@@ -7,7 +7,7 @@ import type {
   KnowledgeChunk,
   SourceExcerptKnowledgeChunk,
 } from "../knowledge/types";
-import { createStructuredHybridRetriever } from "./structured-hybrid";
+import { SCORE, createStructuredHybridRetriever } from "./structured-hybrid";
 
 const INTENT_ALIASES = {
   overview: ["是什么作品", "what is"],
@@ -114,6 +114,26 @@ describe("structured hybrid retriever", () => {
 
     expect(results[0]?.chunk.id).toBe("inkseat:claim:inkseat.architecture");
     expect(results[0]?.chunk.evidencePages).toContain(8);
+  });
+
+  test("applies the explicit negative route rule and excludes another project's PDF", async () => {
+    const retriever = createStructuredHybridRetriever(index([
+      authoredClaim(),
+      sourceChunk({
+        id: "emovue:p1:c0",
+        sourceId: "emovue",
+        projectId: "emovue",
+        title: "INKSeat architecture evidence",
+        aliases: ["INKSeat"],
+        text: "INKSeat architecture ".repeat(80),
+        informationDensity: "high",
+      }),
+    ]), { minimumScore: 0 });
+
+    const results = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
+
+    expect(SCORE.excludedProject).toBe(-20);
+    expect(results.map(({ chunk }) => chunk.id)).not.toContain("emovue:p1:c0");
   });
 
   test("penalizes low-density pages without deleting them", async () => {
