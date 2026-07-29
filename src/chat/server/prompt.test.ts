@@ -29,6 +29,32 @@ function result(number: number): SearchResult {
   return { chunk, score: 20 - number };
 }
 
+function authoredClaimResult(): SearchResult {
+  return {
+    score: 42,
+    chunk: {
+      id: "inkseat:architecture:0",
+      sourceId: "inkseat",
+      projectId: "inkseat",
+      page: 1,
+      title: "INKSeat",
+      text: "INKSeat 将座椅作为信息、交互与环境体验的载体。",
+      terms: ["INKSeat", "architecture"],
+      aliases: ["inkseat"],
+      tags: ["interaction"],
+      citationLabel: "INKSeat, pp. 1, 8",
+      publicHref: "/documents/inkseat.pdf#page=1",
+      knowledgeKind: "authored-claim",
+      provenance: "document_fact",
+      intents: ["overview"],
+      informationDensity: "high",
+      pageRole: "overview",
+      evidencePages: [1, 8],
+      questionAliases: ["inkseat是什么作品"],
+    },
+  };
+}
+
 describe("buildGroundedPrompt", () => {
   test("defines a grounded bilingual portfolio assistant contract", () => {
     const prompt = buildGroundedPrompt({
@@ -50,6 +76,39 @@ describe("buildGroundedPrompt", () => {
     expect(prompt.system).toMatch(/不得.{0,20}(隐藏|私密)/);
     expect(prompt.system).toContain("[[S1]]");
     expect(prompt.system).toContain("Evidence excerpt 1");
+  });
+
+  test("instructs the assistant to answer project questions directly and synthesize their value", () => {
+    const prompt = buildGroundedPrompt({
+      locale: "zh",
+      message: "INKSeat 是什么作品？",
+      history: [],
+      profileFacts: [],
+      results: [authoredClaimResult()],
+    });
+
+    expect(prompt.system).toContain("先直接回答访客的问题");
+    expect(prompt.system).toContain("问题、方案与价值");
+    expect(prompt.system).toContain(
+      '"knowledgeKind":"authored-claim"',
+    );
+    expect(prompt.system).toContain('"provenance":"document_fact"');
+    expect(prompt.system).toContain('"evidencePages":[1,8]');
+    expect(prompt.system).toContain('"intents":["overview"]');
+    expect(prompt.system).toContain('"pageRole":"overview"');
+  });
+
+  test("separates documented team outcomes from owner-confirmed personal contributions", () => {
+    const prompt = buildGroundedPrompt({
+      locale: "zh",
+      message: "赵实旷在 INKSeat 中做了什么？",
+      history: [],
+      profileFacts: [],
+      results: [authoredClaimResult()],
+    });
+
+    expect(prompt.system).toMatch(/团队成果[\s\S]{0,160}个人贡献/);
+    expect(prompt.system).toMatch(/owner[- ]?confirmed|owner-confirmed/i);
   });
 
   test("assigns at most eight server-owned source IDs in rank order", () => {
