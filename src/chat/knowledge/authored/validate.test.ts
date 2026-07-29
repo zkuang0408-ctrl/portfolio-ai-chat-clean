@@ -86,6 +86,53 @@ function reviewClaimBlock(review: string, claimId: string): string {
   return review.slice(start, end === -1 ? undefined : end);
 }
 
+function reviewProjectBlock(review: string, title: string): string {
+  const start = review.indexOf(`## ${title}`);
+  expect(start, `review includes ${title}`).toBeGreaterThanOrEqual(0);
+  const end = review.indexOf("\n## ", start + 1);
+  return review.slice(start, end === -1 ? undefined : end);
+}
+
+function reviewOwnerBlock(review: string, title: string): string {
+  const project = reviewProjectBlock(review, title);
+  const heading = "### 已确认共同表述";
+  const start = project.indexOf(heading);
+  expect(start, `${title} has an owner block`).toBeGreaterThanOrEqual(0);
+  const end = project.indexOf("\n### ", start + heading.length);
+  return project.slice(start, end === -1 ? undefined : end);
+}
+
+function reviewCandidateEvidencePages(review: string, claimId: string): readonly number[] {
+  const evidenceLines = reviewClaimBlock(review, claimId).split("\n").filter(
+    (line) => line.startsWith("- 可展示该工作领域的 evidence pages："),
+  );
+  if (evidenceLines.length !== 1) {
+    throw new Error(`${claimId} must have exactly one evidence field`);
+  }
+  const value = evidenceLines[0]!.replace(
+    "- 可展示该工作领域的 evidence pages：",
+    "",
+  );
+  const emptyEvidence = "无（该 candidate 的 dossier evidence 为空）";
+  if (value === emptyEvidence) return [];
+
+  const links = [...value.matchAll(/\[p\.(\d+)\]\(([^)]+)\)/gu)];
+  if (links.length === 0 || value !== links.map((link) => link[0]).join("、")) {
+    throw new Error(`${claimId} evidence field must contain only page links`);
+  }
+  const pages = links.map((link) => Number(link[1]));
+  for (let index = 0; index < pages.length; index += 1) {
+    const page = pages[index]!;
+    if (
+      !links[index]![2]!.endsWith(`#page=${page}`)
+      || (index > 0 && page <= pages[index - 1]!)
+    ) {
+      throw new Error(`${claimId} evidence pages must be sorted, unique page links`);
+    }
+  }
+  return pages;
+}
+
 function minimalDossier(): AuthoredProjectDossier {
   const claim = {
     id: "overview-claim",
@@ -217,6 +264,53 @@ function expectConservativeCoreContributor(
 describe("authored knowledge contracts", () => {
   test("provides a reviewer-facing contribution review document", () => {
     expect(existsSync(contributionReviewUrl), contributionReviewUrl.href).toBe(true);
+  });
+
+  test("parses a candidate evidence field as ordered unique PDF page links", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8");
+    expect(reviewCandidateEvidencePages(
+      review,
+      "inkseat.contribution.system-analysis",
+    )).toStrictEqual([3, 4, 5, 6]);
+  });
+
+  test("keeps every project owner block conservative and every candidate evidence field exact", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8");
+    const forbiddenOwnerPhrases = [
+      "sole", "lead", "主导", "负责人", "个人", "独立", "唯一", "全部完成",
+    ];
+
+    for (const dossier of authoredProjects) {
+      const ownerStatements = dossier.claims.filter(
+        ({ provenance }) => provenance === "owner_statement",
+      );
+      expect(ownerStatements, `${dossier.projectId} has one owner statement`).toHaveLength(1);
+      const ownerStatement = ownerStatements[0]!;
+      const owner = reviewOwnerBlock(review, dossier.title);
+      expect(owner).toContain(`Claim ID：\`${ownerStatement.id}\``);
+      expect(owner).toContain(ownerStatement.text);
+      expect(owner).toContain("状态：`已确认`");
+      expect(owner).toContain("来源：本人确认");
+      expect(owner).toContain("PDF 证据页：无");
+      expect(owner).toMatch(/核心贡献者/u);
+      expect(owner).toMatch(/承担了?(较多|实质性)工作|完成了其中相当大一部分工作/u);
+      const affirmativeOwnerText = owner
+        .replace(/不表示[^。]*。/gu, "")
+        .replace(/不以[^\n]*/gu, "");
+      for (const phrase of forbiddenOwnerPhrases) {
+        expect(affirmativeOwnerText.toLowerCase(), `${dossier.projectId} owner does not affirm ${phrase}`)
+          .not.toContain(phrase.toLowerCase());
+      }
+
+      for (const candidate of dossier.claims.filter(
+        ({ provenance }) => provenance === "candidate_contribution",
+      )) {
+        const expectedPages = [...new Set(candidate.evidence.map(({ page }) => page))]
+          .sort((left, right) => left - right);
+        expect(reviewCandidateEvidencePages(review, candidate.id))
+          .toStrictEqual(expectedPages);
+      }
+    }
   });
 
   test("keeps every candidate private, evidenced, out of chunks, and synchronized to the review", () => {
