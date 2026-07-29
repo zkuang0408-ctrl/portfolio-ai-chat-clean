@@ -111,12 +111,12 @@
     },
     {
       "canonical": "交互",
-      "aliases": ["流程", "旅程", "interaction", "flow", "journey"],
+      "aliases": ["流程", "旅程", "拍摄", "interaction", "flow", "journey"],
       "intents": ["interaction"]
     },
     {
       "canonical": "技术",
-      "aliases": ["原型", "传感器", "technology", "prototype", "sensor"],
+      "aliases": ["原型", "传感器", "感知", "感知情绪", "technology", "prototype", "sensor"],
       "intents": ["technology"]
     },
     {
@@ -136,7 +136,7 @@
     },
     {
       "canonical": "核心贡献",
-      "aliases": ["负责", "贡献", "做了什么", "role", "contribution"],
+      "aliases": ["负责", "贡献", "做了什么", "role", "contribute", "contribution"],
       "intents": ["contribution"]
     }
   ]

@@ -1794,8 +1794,8 @@ describe("reviewed authored knowledge loader", () => {
       "system",
       "how it works",
     ],
-    interaction: ["交互", "流程", "旅程", "interaction", "flow", "journey"],
-    technology: ["技术", "原型", "传感器", "technology", "prototype", "sensor"],
+    interaction: ["交互", "流程", "旅程", "拍摄", "interaction", "flow", "journey"],
+    technology: ["技术", "原型", "传感器", "感知", "感知情绪", "technology", "prototype", "sensor"],
     form: ["造型", "结构", "材料", "form", "structure", "material"],
     value: ["价值", "意义", "商业模式", "value", "impact", "business model"],
     comparison: [
@@ -1806,7 +1806,7 @@ describe("reviewed authored knowledge loader", () => {
       "which project",
       "system thinking",
     ],
-    contribution: ["负责", "贡献", "做了什么", "role", "contribution"],
+    contribution: ["负责", "贡献", "做了什么", "role", "contribute", "contribution"],
   } as const satisfies Readonly<Record<KnowledgeIntent, readonly string[]>>;
 
   test("loads all six dossiers in portfolio order and validates 135 annotated pages", () => {
@@ -1963,6 +1963,26 @@ describe("reviewed authored knowledge loader", () => {
         expect.arrayContaining([...expectedIntentAliases[intent]]),
       );
     }
+  });
+
+  test("keeps routing-only aliases normalized, unique, and assigned to their intended contract", () => {
+    const aliases = buildIntentAliases(authoredGlossary);
+    expect(aliases.interaction).toContain("拍摄");
+    expect(aliases.technology).toEqual(expect.arrayContaining(["感知", "感知情绪"]));
+    expect(aliases.contribution).toContain("contribute");
+
+    const normalizedOwners = new Map<string, KnowledgeIntent>();
+    for (const intent of intents) {
+      for (const alias of aliases[intent]) {
+        const key = alias.normalize("NFKC").trim().toLowerCase();
+        expect(normalizedOwners.has(key), `${alias} is unique across intents`).toBe(false);
+        normalizedOwners.set(key, intent);
+      }
+    }
+    expect(normalizedOwners.get("拍摄")).toBe("interaction");
+    expect(normalizedOwners.get("感知")).toBe("technology");
+    expect(normalizedOwners.get("感知情绪")).toBe("technology");
+    expect(normalizedOwners.get("contribute")).toBe("contribution");
   });
 
   test("normalizes NFKC, trim, and case when deduplicating without mutating input", () => {

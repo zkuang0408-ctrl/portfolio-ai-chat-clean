@@ -1,5 +1,5 @@
 {
-  "authoredDigest": "e529f57e1765307e3ccc687e210c55357c21dd11486ea3f41299b6001d1807a6",
+  "authoredDigest": "614e556782efadd0fc8471ae00f66595f41c61f1e3ea843eb33a048a6f5c3aec",
   "chunks": [
     {
       "aliases": [
@@ -21338,6 +21338,7 @@
       "贡献",
       "做了什么",
       "role",
+      "contribute",
       "contribution"
     ],
     "form": [
@@ -21352,6 +21353,7 @@
       "交互",
       "流程",
       "旅程",
+      "拍摄",
       "interaction",
       "flow",
       "journey"
@@ -21439,6 +21441,8 @@
       "技术",
       "原型",
       "传感器",
+      "感知",
+      "感知情绪",
       "technology",
       "prototype",
       "sensor"
