@@ -104,8 +104,16 @@ const CHINESE_QUERY_STOP_TERMS = new Set([
   "给我",
   "我想",
 ]);
-const PERSONAL_AVAILABILITY_TERMS = ["周末", "几点", "有空"] as const;
-const PERSON_NAME_TERMS = ["赵实旷", "zhao shikuang"] as const;
+const PERSON_NAME_TERMS = ["赵实旷", "zhao shikuang", "zhaoshikuang"] as const;
+const PERSONAL_AVAILABILITY_PATTERNS = [
+  /什么时候/u,
+  /何时/u,
+  /几点/u,
+  /有空/u,
+  /有时间/u,
+  /\bwhen\b.*\b(?:available|free)\b/u,
+  /\b(?:available|free)\b/u,
+] as const;
 
 export interface StructuredHybridRetrieverConfig {
   readonly minimumScore?: number;
@@ -192,7 +200,7 @@ function asksForPrivateScheduling(query: string): boolean {
   const normalized = normalizeQuestion(query);
   const mentionsPerson = PERSON_NAME_TERMS.some((term) => normalized.includes(term));
   if (!mentionsPerson) return false;
-  return PERSONAL_AVAILABILITY_TERMS.filter((term) => normalized.includes(term)).length >= 2;
+  return PERSONAL_AVAILABILITY_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function isAuthoredClaim(

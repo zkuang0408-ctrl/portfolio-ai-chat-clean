@@ -72,4 +72,11 @@ describe("portfolio retrieval acceptance suite", () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results.some(({ chunk }) => chunk.projectId === "inkseat")).toBe(true);
   });
+
+  test.each([
+    "赵实旷什么时候有空？",
+    "赵实旷周末是否有时间？",
+  ])("rejects a named person's private availability question: %s", async (query) => {
+    await expect(retriever.search(query, { locale: "zh", limit: 8 })).resolves.toEqual([]);
+  });
 });
