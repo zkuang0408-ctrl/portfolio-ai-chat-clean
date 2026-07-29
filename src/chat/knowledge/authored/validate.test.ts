@@ -102,6 +102,47 @@ function reviewOwnerBlock(review: string, title: string): string {
   return project.slice(start, end === -1 ? undefined : end);
 }
 
+interface ReviewOwnerFields {
+  readonly claimId: string;
+  readonly text: string;
+  readonly status: string;
+  readonly source: string;
+  readonly pdfEvidence: string;
+}
+
+function reviewOwnerField(owner: string, label: string): string {
+  const prefix = `- ${label}：`;
+  const values = owner.split("\n").filter((line) => line.startsWith(prefix));
+  if (values.length !== 1) {
+    throw new Error(`${label} must appear exactly once`);
+  }
+  return values[0]!.slice(prefix.length);
+}
+
+function reviewOwnerCodeField(owner: string, label: string): string {
+  const value = reviewOwnerField(owner, label);
+  const match = /^`([^`]+)`$/u.exec(value);
+  if (match === null) {
+    throw new Error(`${label} must be a single inline-code value`);
+  }
+  return match[1]!;
+}
+
+function reviewOwnerFields(review: string, title: string): ReviewOwnerFields {
+  const owner = reviewOwnerBlock(review, title);
+  const pdfEvidence = reviewOwnerField(owner, "PDF 证据页");
+  if (pdfEvidence !== "无（owner_statement 不以 PDF 页面作为个人贡献证据）") {
+    throw new Error("PDF 证据页 must state 无 with the owner-statement disclaimer");
+  }
+  return {
+    claimId: reviewOwnerCodeField(owner, "Claim ID"),
+    text: reviewOwnerField(owner, "对应 public owner_statement 原文"),
+    status: reviewOwnerCodeField(owner, "状态"),
+    source: reviewOwnerField(owner, "来源"),
+    pdfEvidence: "无",
+  };
+}
+
 function reviewCandidateEvidencePages(review: string, claimId: string): readonly number[] {
   const evidenceLines = reviewClaimBlock(review, claimId).split("\n").filter(
     (line) => line.startsWith("- 可展示该工作领域的 evidence pages："),
@@ -274,6 +315,49 @@ describe("authored knowledge contracts", () => {
     )).toStrictEqual([3, 4, 5, 6]);
   });
 
+  test("rejects a duplicate owner status field", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8").replace(
+      "- 状态：`已确认`",
+      "- 状态：`已确认`\n- 状态：`待确认`",
+    );
+    expect(() => reviewOwnerFields(review, "INKSeat"))
+      .toThrow("状态 must appear exactly once");
+  });
+
+  test("rejects a duplicate owner source field", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8").replace(
+      "- 来源：本人确认",
+      "- 来源：本人确认\n- 来源：他人转述",
+    );
+    expect(() => reviewOwnerFields(review, "INKSeat"))
+      .toThrow("来源 must appear exactly once");
+  });
+
+  test("rejects a duplicate owner PDF evidence field", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8").replace(
+      "- PDF 证据页：无",
+      "- PDF 证据页：无\n- PDF 证据页：p.99",
+    );
+    expect(() => reviewOwnerFields(review, "INKSeat"))
+      .toThrow("PDF 证据页 must appear exactly once");
+  });
+
+  test.each([
+    ["Claim ID", "- Claim ID：`inkseat.core-contributor`"],
+    [
+      "对应 public owner_statement 原文",
+      "- 对应 public owner_statement 原文：据作品所有者确认，赵实旷（Zhao Shikuang）是 INKSeat 团队项目的核心贡献者，完成了其中相当大一部分工作；这不表示他是唯一设计者或项目负责人。",
+    ],
+  ])("rejects a duplicate owner %s field", (label, line) => {
+    const review = readFileSync(contributionReviewUrl, "utf8").replace(
+      line,
+      `${line}\n${line}`,
+    );
+
+    expect(() => reviewOwnerFields(review, "INKSeat"))
+      .toThrow(`${label} must appear exactly once`);
+  });
+
   test("keeps every project owner block conservative and every candidate evidence field exact", () => {
     const review = readFileSync(contributionReviewUrl, "utf8");
     const forbiddenOwnerPhrases = [
@@ -287,11 +371,13 @@ describe("authored knowledge contracts", () => {
       expect(ownerStatements, `${dossier.projectId} has one owner statement`).toHaveLength(1);
       const ownerStatement = ownerStatements[0]!;
       const owner = reviewOwnerBlock(review, dossier.title);
-      expect(owner).toContain(`Claim ID：\`${ownerStatement.id}\``);
-      expect(owner).toContain(ownerStatement.text);
-      expect(owner).toContain("状态：`已确认`");
-      expect(owner).toContain("来源：本人确认");
-      expect(owner).toContain("PDF 证据页：无");
+      expect(reviewOwnerFields(review, dossier.title)).toStrictEqual({
+        claimId: ownerStatement.id,
+        text: ownerStatement.text,
+        status: "已确认",
+        source: "本人确认",
+        pdfEvidence: "无",
+      });
       expect(owner).toMatch(/核心贡献者/u);
       expect(owner).toMatch(/承担了?(较多|实质性)工作|完成了其中相当大一部分工作/u);
       const affirmativeOwnerText = owner
