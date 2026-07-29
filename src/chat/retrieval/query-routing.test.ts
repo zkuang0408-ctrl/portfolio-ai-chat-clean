@@ -5,6 +5,7 @@ import type {
   KnowledgeChunk,
   SourceExcerptKnowledgeChunk,
 } from "../knowledge/types";
+import type { KnowledgeIntent } from "../knowledge/authored/types";
 import generatedIndex from "../knowledge/generated-index.json";
 import { createQueryRouter } from "./query-routing";
 
@@ -26,13 +27,12 @@ function projectChunk(
   projectId: string,
   aliases: readonly string[],
   overrides: Partial<SourceExcerptKnowledgeChunk> = {},
-): SourceExcerptKnowledgeChunk {
+): KnowledgeChunk {
   const title = overrides.title ?? projectId;
   return {
     id: overrides.id ?? `${projectId}:p1:c0`,
     sourceId: overrides.sourceId ?? projectId,
     projectId,
-    page: overrides.page ?? 1,
     title,
     text: overrides.text ?? title,
     terms: overrides.terms ?? [],
@@ -40,13 +40,13 @@ function projectChunk(
     tags: overrides.tags ?? [],
     citationLabel: overrides.citationLabel ?? title,
     publicHref: overrides.publicHref ?? `/portfolio/${projectId}`,
-    knowledgeKind: "source-excerpt",
-    intents: [],
-    informationDensity: "medium",
-    pageRole: "project",
-    evidencePages: [1],
+    knowledgeKind: "authored-claim",
+    intents: ["overview"],
+    informationDensity: "high",
+    pageRole: "owner-confirmed",
+    evidencePages: [],
     questionAliases: [],
-  };
+  } as unknown as KnowledgeChunk;
 }
 
 function index(
@@ -82,6 +82,28 @@ describe("query routing", () => {
     expect(createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(query)).toMatchObject({
       projectIds,
       intents,
+    });
+  });
+
+  test.each([
+    "医疗场景怎么做",
+    "未来出行趋势",
+    "智能交互体验",
+  ])("does not treat raw manifest aliases as project identity: %s", (query) => {
+    expect(createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(query)).toMatchObject({
+      projectIds: [],
+      intents: [],
+    });
+  });
+
+  test.each([
+    ["inkseat", "inkseat"],
+    ["第一飞行", "first-fly"],
+    ["缓律", "atempo"],
+    ["智能尿量检测附件", "urosense"],
+  ] as const)("uses reviewed project identity alias %s", (query, projectId) => {
+    expect(createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(query)).toMatchObject({
+      projectIds: [projectId],
     });
   });
 
@@ -212,6 +234,27 @@ describe("query routing", () => {
     });
   });
 
+  test("snapshots exact-question intents before the input index can be mutated", () => {
+    const intents: KnowledgeChunk["intents"] = ["contribution"];
+    const claim = {
+      ...projectChunk("atempo", ["Atempo"]),
+      id: "atempo:claim:contribution",
+      knowledgeKind: "authored-claim",
+      intents,
+      informationDensity: "high",
+      pageRole: "owner-confirmed",
+      questionAliases: ["Who contributed to Atempo?"],
+    } as unknown as KnowledgeChunk;
+    const router = createQueryRouter(index([claim]));
+
+    (intents as KnowledgeIntent[]).splice(0, 1, "overview");
+
+    expect(router.route("Who contributed to Atempo?")).toMatchObject({
+      projectIds: ["atempo"],
+      intents: ["contribution"],
+    });
+  });
+
   test("does not mutate its index and rejects malformed v2 project aliases", () => {
     const input = index([projectChunk("inkseat", ["INKSeat"])]);
     const before = JSON.stringify(input);
@@ -223,5 +266,18 @@ describe("query routing", () => {
       ...input,
       chunks: [{ ...input.chunks[0], aliases: [] }],
     } as GeneratedKnowledgeIndex)).toThrow("Invalid v2 project aliases");
+  });
+
+  test("rejects malformed project question aliases and intent arrays", () => {
+    const input = index([projectChunk("inkseat", ["INKSeat"])]);
+
+    expect(() => createQueryRouter({
+      ...input,
+      chunks: [{ ...input.chunks[0], questionAliases: [42] }],
+    } as unknown as GeneratedKnowledgeIndex)).toThrow("Invalid v2 question aliases");
+    expect(() => createQueryRouter({
+      ...input,
+      chunks: [{ ...input.chunks[0], intents: ["unknown"] }],
+    } as unknown as GeneratedKnowledgeIndex)).toThrow("Invalid v2 chunk intents");
   });
 });

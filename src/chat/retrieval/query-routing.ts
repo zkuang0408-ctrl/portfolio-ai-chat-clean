@@ -99,6 +99,30 @@ function assertAliasArray(value: unknown, label: string): readonly string[] {
   });
 }
 
+function validatedChunkIntents(
+  value: unknown,
+  knowledgeKind: unknown,
+): readonly KnowledgeIntent[] {
+  if (!Array.isArray(value)) throw new Error("Invalid v2 chunk intents");
+  const intents: KnowledgeIntent[] = [];
+  for (const intent of value) {
+    if (typeof intent !== "string" || !INTENT_ORDER.includes(intent as KnowledgeIntent)) {
+      throw new Error("Invalid v2 chunk intents");
+    }
+    if (intents.includes(intent as KnowledgeIntent)) {
+      throw new Error("Invalid v2 chunk intents");
+    }
+    intents.push(intent as KnowledgeIntent);
+  }
+  if (
+    (knowledgeKind === "authored-claim" && intents.length === 0)
+    || (knowledgeKind === "source-excerpt" && intents.length !== 0)
+  ) {
+    throw new Error("Invalid v2 chunk intents");
+  }
+  return Object.freeze([...intents]);
+}
+
 function assertV2Index(index: GeneratedKnowledgeIndex): void {
   const candidate = index as unknown;
   if (!isRecord(candidate) || candidate.version !== 2 || !Array.isArray(candidate.chunks)) {
@@ -125,7 +149,16 @@ function assertV2Index(index: GeneratedKnowledgeIndex): void {
       throw new Error("Invalid v2 project ID");
     }
     assertAliasArray(chunk.aliases, "project aliases");
-    if (!Array.isArray(chunk.questionAliases)) {
+    if (chunk.knowledgeKind !== "source-excerpt" && chunk.knowledgeKind !== "authored-claim") {
+      throw new Error("Invalid v2 knowledge chunk");
+    }
+    validatedChunkIntents(chunk.intents, chunk.knowledgeKind);
+    if (
+      !Array.isArray(chunk.questionAliases)
+      || chunk.questionAliases.some(
+        (alias) => typeof alias !== "string" || !normalizeQueryText(alias),
+      )
+    ) {
       throw new Error("Invalid v2 question aliases");
     }
   }
@@ -143,13 +176,13 @@ function projectAliasMap(index: GeneratedKnowledgeIndex): {
   const exactQuestions = new Map<string, QuestionRoute[]>();
 
   for (const chunk of index.chunks) {
-    if (!chunk.projectId) continue;
+    if (!chunk.projectId || chunk.knowledgeKind !== "authored-claim") continue;
     const projectId = chunk.projectId;
     if (!seenProjects.has(projectId)) {
       seenProjects.add(projectId);
       projectIds.push(projectId);
     }
-    for (const alias of chunk.aliases) {
+    for (const alias of [...chunk.aliases, chunk.title, projectId]) {
       const phrase = normalizeQueryText(alias);
       const key = `${projectId}\u0000${phrase}`;
       if (!seenAliases.has(key) && isUsableProjectAlias(projectId, phrase)) {
@@ -161,7 +194,10 @@ function projectAliasMap(index: GeneratedKnowledgeIndex): {
       const question = normalizeQueryText(questionAlias);
       if (!question) continue;
       const routes = exactQuestions.get(question) ?? [];
-      routes.push({ projectId, intents: chunk.intents });
+      routes.push({
+        projectId,
+        intents: Object.freeze([...chunk.intents]),
+      });
       exactQuestions.set(question, routes);
     }
   }
