@@ -253,7 +253,11 @@ export function createQueryRouter(index: GeneratedKnowledgeIndex): QueryRouter {
       if (matchedProjects.size === 0 && matchedIntents.has("comparison")) {
         for (const projectId of derived.projectIds) matchedProjects.add(projectId);
       }
-      if (matchedProjects.size === 0) matchedIntents.clear();
+      if (matchedProjects.size === 0) {
+        const preserveContributionBoundary = matchedIntents.has("contribution");
+        matchedIntents.clear();
+        if (preserveContributionBoundary) matchedIntents.add("contribution");
+      }
 
       return {
         normalizedQuery,

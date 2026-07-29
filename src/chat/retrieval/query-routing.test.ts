@@ -118,6 +118,16 @@ describe("query routing", () => {
   });
 
   test.each([
+    "赵实旷的贡献",
+    "赵实旷做了什么",
+  ])("preserves a generic personal contribution intent without routing a project: %s", (query) => {
+    expect(createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(query)).toMatchObject({
+      projectIds: [],
+      intents: ["contribution"],
+    });
+  });
+
+  test.each([
     ["inkseat", "inkseat"],
     ["第一飞行", "first-fly"],
     ["缓律", "atempo"],

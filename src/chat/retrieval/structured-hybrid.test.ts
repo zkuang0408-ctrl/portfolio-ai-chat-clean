@@ -193,6 +193,30 @@ describe("structured hybrid retriever", () => {
     )).toBe(true);
   });
 
+  test.each([
+    "赵实旷的贡献",
+    "赵实旷做了什么",
+  ])("keeps generic personal contribution evidence public and owner-confirmed: %s", async (query) => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const results = await retriever.search(query, { locale: "zh" });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every(({ chunk }) =>
+      (chunk.knowledgeKind === "authored-claim" && chunk.provenance === "owner_statement")
+      || (chunk.knowledgeKind === "source-excerpt"
+        && (chunk.sourceId === "profile" || chunk.sourceId === "resume")),
+    )).toBe(true);
+    expect(results.some(({ chunk }) =>
+      chunk.knowledgeKind === "source-excerpt" && chunk.projectId !== undefined,
+    )).toBe(false);
+    expect(results.some(({ chunk }) =>
+      chunk.knowledgeKind === "authored-claim" && chunk.provenance !== "owner_statement",
+    )).toBe(false);
+  });
+
   test("fails closed if a candidate contribution claim reaches the published index", () => {
     const candidate = {
       ...authoredClaim({ id: "inkseat:claim:private-candidate" }),
