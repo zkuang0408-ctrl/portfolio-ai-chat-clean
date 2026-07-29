@@ -3,7 +3,8 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, test, vi } from "vitest";
 
-import type { KnowledgeChunk } from "../knowledge/types";
+import generatedIndex from "../knowledge/generated-index.json";
+import type { GeneratedKnowledgeIndex, KnowledgeChunk } from "../knowledge/types";
 import type { Retriever } from "../retrieval/retriever";
 import type { ChatProvider, ProviderEvent } from "./chat-types";
 import { DeepSeekProviderError } from "./deepseek-provider";
@@ -19,6 +20,13 @@ const encoder = new TextEncoder();
 const fixedNow = 1_786_000_000_000;
 const RATE_LIMIT_SALT =
   "a-safe-test-salt-that-is-at-least-32-bytes-long";
+const knowledgeIndex = generatedIndex as GeneratedKnowledgeIndex;
+
+function publishedChunk(id: string): KnowledgeChunk {
+  const found = knowledgeIndex.chunks.find((chunk) => chunk.id === id);
+  if (!found) throw new Error(`Missing published knowledge chunk: ${id}`);
+  return found;
+}
 
 function chunk(sourceId: string, page: number): KnowledgeChunk {
   return {
@@ -262,6 +270,117 @@ describe("handleChat", () => {
       },
       { event: "done", data: { inputTokens: 12, outputTokens: 4 } },
     ]);
+  });
+
+  test("streams a grounded INKSeat answer with only its cited public overview source", async () => {
+    const provider: ChatProvider = {
+      async *stream({ system }) {
+        expect(system).toContain(
+          "INKSeat 是面向窄体机经济舱、尤其无 IFE 或去 IFE 场景的电子纸显示系统",
+        );
+        expect(system).toContain(
+          "系统概念中,乘客数据进入带内置智能体的智能推送后台",
+        );
+        yield {
+          type: "delta",
+          text: "INKSeat 是面向窄体机经济舱的电子纸显示系统，主要服务于无 IFE 或去 IFE 的客舱。[[S1]]",
+        };
+        yield { type: "done" };
+      },
+    };
+    const response = await handleChat(
+      request({
+        message: "INKSeat 是什么作品？",
+        history: [],
+        sessionId: "session_123",
+        locale: "zh",
+      }),
+      dependencies({
+        provider,
+        results: [
+          publishedChunk("inkseat:claim:inkseat.overview"),
+          publishedChunk("inkseat:claim:inkseat.architecture"),
+          publishedChunk("inkseat:p14:c0"),
+          publishedChunk("inkseat:p18:c0"),
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const events = await readEvents(response);
+    expect(events.map(({ event }) => event)).toEqual([
+      "start",
+      "delta",
+      "sources",
+      "done",
+    ]);
+    expect(events[1]).toEqual({
+      event: "delta",
+      data: {
+        text: "INKSeat 是面向窄体机经济舱的电子纸显示系统，主要服务于无 IFE 或去 IFE 的客舱。",
+      },
+    });
+    expect(events[2]).toEqual({
+      event: "sources",
+      data: {
+        sources: [expect.objectContaining({
+          sourceId: "inkseat",
+          projectId: "inkseat",
+          page: 1,
+          citationLabel: "INKSeat · p. 1",
+        })],
+      },
+    });
+    expect(JSON.stringify(events)).not.toContain("page\":14");
+    expect(JSON.stringify(events)).not.toContain("page\":18");
+    expect(JSON.stringify(events)).not.toContain("[[S1]]");
+  });
+
+  test("keeps INKSeat contribution answers limited to the published core-contributor statement", async () => {
+    const unpublishedCandidate =
+      "可能参与智能推送与可解释推荐逻辑的梳理和表达。";
+    const provider: ChatProvider = {
+      async *stream({ system }) {
+        expect(system).toContain(
+          "据作品所有者确认,赵实旷(Zhao Shikuang)是 INKSeat 团队项目的核心贡献者,完成了其中相当大一部分工作;这不表示他是唯一设计者或项目负责人。",
+        );
+        expect(system).not.toContain(unpublishedCandidate);
+        expect(system).not.toContain("candidate_contribution");
+        yield { type: "delta", text: "赵实旷是 INKSeat 团队项目的核心贡献者。[[S1]]" };
+        yield { type: "done" };
+      },
+    };
+    const response = await handleChat(
+      request({
+        message: "赵实旷在 INKSeat 中做了什么？",
+        history: [],
+        sessionId: "session_123",
+        locale: "zh",
+      }),
+      dependencies({
+        provider,
+        results: [publishedChunk("inkseat:claim:inkseat.core-contributor")],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const events = await readEvents(response);
+    expect(events.map(({ event }) => event)).toEqual([
+      "start",
+      "delta",
+      "sources",
+      "done",
+    ]);
+    expect(events[2]).toEqual({
+      event: "sources",
+      data: {
+        sources: [expect.objectContaining({
+          sourceId: "inkseat",
+          projectId: "inkseat",
+          citationLabel: "INKSeat · Owner-confirmed",
+        })],
+      },
+    });
   });
 
   test.each([
