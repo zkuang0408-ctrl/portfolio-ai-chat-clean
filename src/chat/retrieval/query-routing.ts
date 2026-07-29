@@ -1,5 +1,5 @@
-import type { KnowledgeIntent } from "../knowledge/authored/types";
-import type { GeneratedKnowledgeIndex, KnowledgeChunk } from "../knowledge/types";
+import type { KnowledgeIntent } from "../knowledge/authored/types.js";
+import type { GeneratedKnowledgeIndex, KnowledgeChunk } from "../knowledge/types.js";
 
 const INTENT_ORDER = [
   "overview",
