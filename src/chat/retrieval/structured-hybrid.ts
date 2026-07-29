@@ -104,6 +104,7 @@ const CHINESE_QUERY_STOP_TERMS = new Set([
   "给我",
   "我想",
 ]);
+const PRIVATE_SCHEDULING_TERMS = ["周末", "几点", "有空"] as const;
 
 export interface StructuredHybridRetrieverConfig {
   readonly minimumScore?: number;
@@ -184,6 +185,11 @@ function searchTerms(queryTerms: ReadonlySet<string>): ReadonlySet<string> {
         !CHINESE_QUERY_STOP_TERMS.has(term),
     ),
   );
+}
+
+function asksForPrivateScheduling(query: string): boolean {
+  const normalized = normalizeQuestion(query);
+  return PRIVATE_SCHEDULING_TERMS.some((term) => normalized.includes(term));
 }
 
 function isAuthoredClaim(
@@ -463,6 +469,10 @@ export function createStructuredHybridRetriever(
   return {
     async search(query: string, options: SearchOptions): Promise<readonly SearchResult[]> {
       void options.locale;
+      // A portfolio corpus cannot establish a person's live availability.
+      // Keep private scheduling requests outside the retrieval boundary even
+      // when they contain a public name that appears in the source material.
+      if (asksForPrivateScheduling(query)) return [];
       const route = router.route(query);
       if (!route.normalizedQuery) return [];
       const queryTerms = searchTerms(termsAsSet(query));
