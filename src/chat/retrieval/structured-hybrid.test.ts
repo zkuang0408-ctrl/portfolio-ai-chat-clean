@@ -7,7 +7,10 @@ import type {
   KnowledgeChunk,
   SourceExcerptKnowledgeChunk,
 } from "../knowledge/types";
-import { SCORE, createStructuredHybridRetriever } from "./structured-hybrid";
+import {
+  createStructuredHybridRetriever,
+  evaluateStructuredProjectRoute,
+} from "./structured-hybrid";
 
 const INTENT_ALIASES = {
   overview: ["是什么作品", "what is"],
@@ -132,7 +135,10 @@ describe("structured hybrid retriever", () => {
 
     const results = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
 
-    expect(SCORE.excludedProject).toBe(-20);
+    expect(evaluateStructuredProjectRoute("emovue", ["inkseat"])).toEqual({
+      score: -20,
+      eligible: false,
+    });
     expect(results.map(({ chunk }) => chunk.id)).not.toContain("emovue:p1:c0");
   });
 

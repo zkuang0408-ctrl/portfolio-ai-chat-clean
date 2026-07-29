@@ -14,7 +14,7 @@ const DEFAULT_MAX_PER_SOURCE = 3;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
 
-export const SCORE = {
+const SCORE = {
   routedProject: 20,
   excludedProject: -20,
   authoredClaim: 12,
@@ -28,6 +28,28 @@ export const SCORE = {
   architectureRoleForArchitecture: 8,
   contributionForOtherIntent: -10,
 } as const;
+
+export interface StructuredProjectRouteDecision {
+  readonly score: number;
+  readonly eligible: boolean;
+}
+
+/** Evaluates the fail-closed project boundary from the same score it reports. */
+export function evaluateStructuredProjectRoute(
+  projectId: string | undefined,
+  routedProjectIds: readonly string[],
+): StructuredProjectRouteDecision {
+  if (projectId === undefined || routedProjectIds.length === 0) {
+    return { score: 0, eligible: true };
+  }
+  const score = routedProjectIds.includes(projectId)
+    ? SCORE.routedProject
+    : SCORE.excludedProject;
+  return {
+    score,
+    eligible: score > SCORE.excludedProject,
+  };
+}
 
 const ENGLISH_QUERY_STOP_TERMS = new Set([
   "a",
@@ -300,21 +322,15 @@ export function createStructuredHybridRetriever(
       const scored: SearchResult[] = [];
 
       for (const indexed of indexedChunks) {
-        const hasExplicitProjects = route.projectIds.length > 0;
-        const hasChunkProject = indexed.chunk.projectId !== undefined;
+        const projectRoute = evaluateStructuredProjectRoute(
+          indexed.chunk.projectId,
+          route.projectIds,
+        );
         const isRoutedProject =
-          hasExplicitProjects &&
-          hasChunkProject &&
-          route.projectIds.includes(indexed.chunk.projectId!);
-        const isExcludedProject =
-          hasExplicitProjects && hasChunkProject && !isRoutedProject;
-        if (!isExcludedProject && !canRetrieve(indexed.chunk, route)) continue;
+          projectRoute.eligible && projectRoute.score === SCORE.routedProject;
+        if (projectRoute.eligible && !canRetrieve(indexed.chunk, route)) continue;
 
-        let score = isRoutedProject
-          ? SCORE.routedProject
-          : isExcludedProject
-            ? SCORE.excludedProject
-            : 0;
+        let score = projectRoute.score;
         let hasLexicalSignal = false;
         for (const term of queryTerms) {
           const bodyScore = binaryBodyTermBm25(term, indexed);
@@ -358,7 +374,7 @@ export function createStructuredHybridRetriever(
         // The negative route score is part of the same deterministic scoring
         // path, while this fail-closed boundary guarantees that even unusually
         // strong lexical overlap cannot revive another project's PDF evidence.
-        if (isExcludedProject) continue;
+        if (!projectRoute.eligible) continue;
         if (
           !isRoutedProject &&
           !hasLexicalSignal &&
