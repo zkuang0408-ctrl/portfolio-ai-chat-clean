@@ -35,16 +35,18 @@ function scrollTo(root: ParentNode, selector: string): boolean {
   return true;
 }
 
-function isProjectSource(
+function isOwnerConfirmedProjectSource(
   source: ClientChatSource,
-): source is ClientChatSource & { projectId: string; page: number } {
+): source is ClientChatSource & { projectId: string } {
   return (
     typeof source.projectId === "string" &&
     Object.hasOwn(PROJECT_PAGE_COUNTS, source.projectId) &&
-    source.sourceId === source.projectId &&
-    Number.isInteger(source.page) &&
-    (source.page ?? 0) > 0
+    source.sourceId === source.projectId
   );
+}
+
+function isPositiveIntegerPage(page: number | undefined): page is number {
+  return Number.isInteger(page) && (page ?? 0) > 0;
 }
 
 export function navigateToSource(
@@ -52,8 +54,10 @@ export function navigateToSource(
   source: ClientChatSource,
   browser: SourceNavigationBrowser,
 ): void {
-  if (isProjectSource(source)) {
+  if (isOwnerConfirmedProjectSource(source)) {
+    if (source.page !== undefined && !isPositiveIntegerPage(source.page)) return;
     if (!scrollTo(portfolioRoot, `#project-${source.projectId}`)) return;
+    if (source.page === undefined) return;
     const EventConstructor =
       browser.document.defaultView?.CustomEvent ?? CustomEvent;
     portfolioRoot.dispatchEvent(

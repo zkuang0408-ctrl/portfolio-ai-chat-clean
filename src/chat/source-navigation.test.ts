@@ -59,6 +59,33 @@ test("scrolls to a trusted project and dispatches its exact PDF page", () => {
   expect(received).toEqual([{ projectId: "inkseat", page: 8 }]);
 });
 
+test("scrolls an owner-confirmed project source without a page to the project only", () => {
+  const { browser, portfolioRoot } = setup();
+  const project = portfolioRoot.querySelector<HTMLElement>("#project-inkseat")!;
+  const scrollIntoView = vi.fn();
+  project.scrollIntoView = scrollIntoView;
+  const listener = vi.fn();
+  portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, listener);
+
+  navigateToSource(portfolioRoot, source({ page: undefined }), browser);
+
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  expect(listener).not.toHaveBeenCalled();
+  expect(browser.open).not.toHaveBeenCalled();
+});
+
+test("does nothing when an owner-confirmed project source without a page has no project element", () => {
+  const { browser, portfolioRoot } = setup();
+  portfolioRoot.querySelector("#project-inkseat")!.remove();
+  const listener = vi.fn();
+  portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, listener);
+
+  navigateToSource(portfolioRoot, source({ page: undefined }), browser);
+
+  expect(listener).not.toHaveBeenCalled();
+  expect(browser.open).not.toHaveBeenCalled();
+});
+
 test.each([
   source({ sourceId: "unknown", projectId: "unknown" }),
   source({ sourceId: "inkseat", projectId: "emovue" }),
@@ -68,11 +95,33 @@ test.each([
   source({ page: Number.NaN }),
 ])("ignores unknown, mismatched, or invalid project sources", (untrusted) => {
   const { browser, portfolioRoot } = setup();
+  const project = portfolioRoot.querySelector<HTMLElement>("#project-inkseat")!;
+  const scrollIntoView = vi.fn();
+  project.scrollIntoView = scrollIntoView;
   const listener = vi.fn();
   portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, listener);
 
   navigateToSource(portfolioRoot, untrusted, browser);
 
+  expect(listener).not.toHaveBeenCalled();
+  expect(browser.open).not.toHaveBeenCalled();
+  expect(scrollIntoView).not.toHaveBeenCalled();
+});
+
+test.each([
+  source({ sourceId: "unknown", projectId: "unknown", page: undefined }),
+  source({ sourceId: "inkseat", projectId: "emovue", page: undefined }),
+])("ignores unknown or mismatched project sources without a page", (untrusted) => {
+  const { browser, portfolioRoot } = setup();
+  const project = portfolioRoot.querySelector<HTMLElement>("#project-inkseat")!;
+  const scrollIntoView = vi.fn();
+  project.scrollIntoView = scrollIntoView;
+  const listener = vi.fn();
+  portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, listener);
+
+  navigateToSource(portfolioRoot, untrusted, browser);
+
+  expect(scrollIntoView).not.toHaveBeenCalled();
   expect(listener).not.toHaveBeenCalled();
   expect(browser.open).not.toHaveBeenCalled();
 });
