@@ -1,6 +1,6 @@
 import generatedIndexJson from "../knowledge/generated-index.json" with { type: "json" };
 import type { GeneratedKnowledgeIndex } from "../knowledge/types.js";
-import { createLocalHybridRetriever } from "../retrieval/local-hybrid.js";
+import { createStructuredHybridRetriever } from "../retrieval/structured-hybrid.js";
 import type { Retriever } from "../retrieval/retriever.js";
 import {
   handleChat,
@@ -223,7 +223,7 @@ function parseConfig(
 
 function defaultFactories(): RuntimeFactories {
   return {
-    createRetriever: (index) => createLocalHybridRetriever(index),
+    createRetriever: (index) => createStructuredHybridRetriever(index),
     createProvider: (options) => new DeepSeekProvider(options),
     createRateLimitStore: (options) => createUpstashRateLimitStore(options),
   };

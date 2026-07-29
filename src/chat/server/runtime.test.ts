@@ -80,6 +80,8 @@ describe("createRuntime", () => {
     expect(source).not.toContain('"@vercel/functions/headers"');
     expect(source).not.toContain("process.env");
     expect(source).not.toContain("Buffer.byteLength");
+    expect(source).toContain("createStructuredHybridRetriever");
+    expect(source).not.toContain("createLocalHybridRetriever");
   });
 
   test("uses injected Web Platform defaults", () => {
@@ -174,7 +176,13 @@ describe("createRuntime", () => {
     });
 
     expect(runtime.enabled).toBe(true);
+    expect(captures.index?.version).toBe(2);
     expect(captures.index?.chunks.length).toBeGreaterThan(100);
+    expect(
+      captures.index?.chunks.some(
+        ({ knowledgeKind }) => knowledgeKind === "authored-claim",
+      ),
+    ).toBe(true);
     expect(captures.index?.chunks.some(({ sourceId }) => sourceId === "profile")).toBe(true);
     expect(captures.providerOptions).toMatchObject({
       apiKey: validEnv.DEEPSEEK_API_KEY,
