@@ -62,6 +62,27 @@ function index(
   };
 }
 
+function nonProjectChunk(sourceId: "profile" | "resume"): KnowledgeChunk {
+  return {
+    id: `${sourceId}:p1:c0`,
+    sourceId,
+    page: 1,
+    title: sourceId,
+    text: sourceId,
+    terms: [],
+    aliases: [],
+    tags: [],
+    citationLabel: sourceId,
+    publicHref: `/${sourceId}`,
+    knowledgeKind: "source-excerpt",
+    intents: [],
+    informationDensity: "medium",
+    pageRole: sourceId,
+    evidencePages: [1],
+    questionAliases: [],
+  } as KnowledgeChunk;
+}
+
 describe("query routing", () => {
   test.each([
     ["INKSeat是什么", ["inkseat"], ["overview"]],
@@ -280,4 +301,20 @@ describe("query routing", () => {
       chunks: [{ ...input.chunks[0], intents: ["unknown"] }],
     } as unknown as GeneratedKnowledgeIndex)).toThrow("Invalid v2 chunk intents");
   });
+
+  test.each(["profile", "resume"] as const)(
+    "rejects malformed basic routing fields on the non-project %s chunk",
+    (sourceId) => {
+      const input = index([nonProjectChunk(sourceId)]);
+
+      expect(() => createQueryRouter({
+        ...input,
+        chunks: [{ ...input.chunks[0], questionAliases: [42] }],
+      } as unknown as GeneratedKnowledgeIndex)).toThrow("Invalid v2 question aliases");
+      expect(() => createQueryRouter({
+        ...input,
+        chunks: [{ ...input.chunks[0], intents: ["unknown"] }],
+      } as unknown as GeneratedKnowledgeIndex)).toThrow("Invalid v2 chunk intents");
+    },
+  );
 });

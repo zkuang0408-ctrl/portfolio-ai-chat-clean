@@ -144,11 +144,6 @@ function assertV2Index(index: GeneratedKnowledgeIndex): void {
   }
   for (const chunk of candidate.chunks) {
     if (!isRecord(chunk)) throw new Error("Invalid v2 knowledge chunk");
-    if (chunk.projectId === undefined) continue;
-    if (typeof chunk.projectId !== "string" || !normalizeQueryText(chunk.projectId)) {
-      throw new Error("Invalid v2 project ID");
-    }
-    assertAliasArray(chunk.aliases, "project aliases");
     if (chunk.knowledgeKind !== "source-excerpt" && chunk.knowledgeKind !== "authored-claim") {
       throw new Error("Invalid v2 knowledge chunk");
     }
@@ -161,6 +156,11 @@ function assertV2Index(index: GeneratedKnowledgeIndex): void {
     ) {
       throw new Error("Invalid v2 question aliases");
     }
+    if (chunk.projectId === undefined) continue;
+    if (typeof chunk.projectId !== "string" || !normalizeQueryText(chunk.projectId)) {
+      throw new Error("Invalid v2 project ID");
+    }
+    assertAliasArray(chunk.aliases, "project aliases");
   }
 }
 
