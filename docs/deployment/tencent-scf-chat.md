@@ -17,6 +17,30 @@ output/portfolio-chat-scf.zip
 
 该 ZIP 只包含 `index.mjs` 和可执行的 `scf_bootstrap`，不包含 `.env`、PDF、作品图片或任何真实密钥。
 
+## 更新已上线的结构化作品知识库运行时
+
+本次作品知识库或检索逻辑更新时，不需要新建函数，也不要在线编辑代码。请在已有的
+`portfolio-ai-chat` 函数中直接上传新生成的 `output/portfolio-chat-scf.zip`，并按以下顺序操作：
+
+1. 保持现有环境变量完全不变，尤其不要改动 TokenHub、Upstash 和限流盐。
+2. 上传新的 ZIP 后，发布一个新的函数版本；确认新版本已指向该上传包。
+3. 从 `https://portfolio-ai-chat-clean.pages.dev` 发送一次 `OPTIONS` 预检请求，确认精确 Origin
+   仍得到允许，而不是把 CORS 放宽为 `*`。
+4. 在生产站点逐一询问以下问题，确认回答直接、可引用，且作品来源可导航：
+
+   ```text
+   INKSeat是什么作品？
+   INKSeat的系统架构是什么？
+   EMOVUE如何自动捕捉情绪瞬间？
+   UroSense解决了什么问题？
+   哪个项目最能体现赵实旷的系统思考？
+   ```
+
+5. 只在 SCF 日志中检查失败事件、状态码和耗时。不要记录、复制或传播作品知识库正文、
+   访客问题、回答内容或任何密钥。
+
+验证完成前不要修改 Cloudflare Pages 的公开聊天地址；该步骤只更新腾讯云函数运行时。
+
 ## 1. 创建 SCF Web Function
 
 进入腾讯云 Serverless Cloud Function 控制台，创建函数时使用：
