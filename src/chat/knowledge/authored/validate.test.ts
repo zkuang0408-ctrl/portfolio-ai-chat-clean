@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, test } from "vitest";
 import atempoJson from "./projects/atempo.json";
 import emovueJson from "./projects/emovue.json";
@@ -13,6 +14,8 @@ import {
   buildPageKnowledgeMap,
   resolveProjectManifestValidation,
 } from "./index";
+import { buildAuthoredChunks } from "./build-authored-chunks";
+import { knowledgeSources } from "../manifest";
 import { validateProjectDossier } from "./validate";
 import type { KnowledgeSource } from "../types";
 import type {
@@ -27,6 +30,61 @@ const intents = [
   "overview", "problem", "research", "solution", "architecture", "interaction",
   "technology", "form", "value", "comparison", "contribution",
 ] as const satisfies readonly KnowledgeIntent[];
+
+const contributionReviewUrl = new URL(
+  "../../../../docs/knowledge/portfolio-contribution-review" + ".md",
+  import.meta.url,
+);
+
+const expectedCandidateEvidenceByProject = {
+  inkseat: {
+    "inkseat.contribution.system-analysis": [3, 4, 5, 6],
+    "inkseat.contribution.information-architecture": [8, 10, 11, 17],
+    "inkseat.contribution.recommendation-logic": [8, 9],
+    "inkseat.contribution.terminal-interface": [11, 15, 16],
+  },
+  emovue: {
+    "emovue.contribution.product-positioning": [],
+    "emovue.contribution.form-exploration": [],
+    "emovue.contribution.interaction-flow": [],
+    "emovue.contribution.app-interface": [],
+    "emovue.contribution.packaging": [],
+  },
+  "evolution-fruit": {
+    "evolution-fruit.contribution.concept": [],
+    "evolution-fruit.contribution.parametric-model": [],
+    "evolution-fruit.contribution.visual-generation": [],
+    "evolution-fruit.contribution.physical-making": [],
+  },
+  atempo: {
+    "atempo.contribution.research": [4, 6, 7],
+    "atempo.contribution.interaction": [10, 11],
+    "atempo.contribution.data-translation": [13],
+    "atempo.contribution.technology-prototype": [15],
+    "atempo.contribution.form-design": [17, 18],
+  },
+  urosense: {
+    "urosense.contribution.field-research": [3, 4, 5],
+    "urosense.contribution.system-architecture": [12, 13],
+    "urosense.contribution.measurement-flow": [14, 16],
+    "urosense.contribution.installation": [21],
+    "urosense.contribution.form-design": [17, 18, 19, 20],
+  },
+  "first-fly": {
+    "first-fly.contribution.concept": [10, 11],
+    "first-fly.contribution.user-research": [12, 13],
+    "first-fly.contribution.journey": [14],
+    "first-fly.contribution.spatial-form": [15, 16, 17, 18, 19, 20],
+    "first-fly.contribution.ar-interaction": [21, 23],
+  },
+} as const;
+
+function reviewClaimBlock(review: string, claimId: string): string {
+  const start = review.indexOf(`#### ${claimId}`);
+  expect(start, `review includes ${claimId}`).toBeGreaterThanOrEqual(0);
+  const end = review.indexOf("#### ", start + 1);
+  return review.slice(start, end === -1 ? undefined : end);
+}
 
 function minimalDossier(): AuthoredProjectDossier {
   const claim = {
@@ -157,6 +215,87 @@ function expectConservativeCoreContributor(
 }
 
 describe("authored knowledge contracts", () => {
+  test("provides a reviewer-facing contribution review document", () => {
+    expect(existsSync(contributionReviewUrl), contributionReviewUrl.href).toBe(true);
+  });
+
+  test("keeps every candidate private, evidenced, out of chunks, and synchronized to the review", () => {
+    const review = readFileSync(contributionReviewUrl, "utf8");
+    const projectHeadings = [
+      "INKSeat",
+      "EMOVUE",
+      "Fruit & Evolution",
+      "Atempo",
+      "UroSense",
+      "First Fly",
+    ];
+    let previousHeadingPosition = -1;
+    for (const title of projectHeadings) {
+      const position = review.indexOf(`## ${title}`);
+      expect(position, `review includes ${title}`).toBeGreaterThan(previousHeadingPosition);
+      previousHeadingPosition = position;
+    }
+
+    const candidates = authoredProjects.flatMap((dossier) => dossier.claims.filter(
+      ({ provenance }) => provenance === "candidate_contribution",
+    ));
+    expect(candidates).toHaveLength(28);
+    expect(candidates.every(({ public: isPublic }) => !isPublic)).toBe(true);
+
+    for (const dossier of authoredProjects) {
+      const expected = expectedCandidateEvidenceByProject[
+        dossier.projectId as keyof typeof expectedCandidateEvidenceByProject
+      ];
+      expect(expected, `${dossier.projectId} has an expected candidate map`).toBeDefined();
+      const projectCandidates = dossier.claims.filter(
+        ({ provenance }) => provenance === "candidate_contribution",
+      );
+      expect(projectCandidates.map(({ id }) => id)).toStrictEqual(Object.keys(expected));
+
+      const ownerStatements = dossier.claims.filter(
+        ({ provenance }) => provenance === "owner_statement",
+      );
+      expect(ownerStatements, `${dossier.projectId} has one owner statement`).toHaveLength(1);
+      expect(ownerStatements[0]).toMatchObject({
+        provenance: "owner_statement",
+        public: true,
+        evidence: [],
+      });
+      expect(review).toContain(`Claim ID：\`${ownerStatements[0]!.id}\``);
+      expect(review).toContain(ownerStatements[0]!.text);
+
+      const source = knowledgeSources.find(({ id }) => id === dossier.projectId);
+      expect(source?.publicHref, `${dossier.projectId} has a public PDF viewer`).toBeTruthy();
+      for (const candidate of projectCandidates) {
+        const expectedPages = (
+          expected as Readonly<Record<string, readonly number[]>>
+        )[candidate.id];
+        if (expectedPages === undefined) {
+          throw new Error(`Missing expected evidence pages for ${candidate.id}`);
+        }
+        expect(candidate.evidence.map(({ page }) => page)).toStrictEqual(expectedPages);
+        const block = reviewClaimBlock(review, candidate.id);
+        expect(block).toContain(candidate.text);
+        expect(block).toContain("当前状态：`待确认`");
+        expect(block).toContain("公开状态：`否`");
+        if (expectedPages.length === 0) {
+          expect(block).toContain("evidence pages：无");
+        } else {
+          for (const page of expectedPages) {
+            expect(block).toContain(`[p.${page}](${source!.publicHref}#page=${page})`);
+          }
+        }
+      }
+    }
+
+    expect((review.match(/状态：`已确认`/gu) ?? [])).toHaveLength(6);
+    const chunks = buildAuthoredChunks(authoredProjects);
+    const candidateChunkIds = authoredProjects.flatMap((dossier) => dossier.claims
+      .filter(({ provenance }) => provenance === "candidate_contribution")
+      .map(({ id }) => `${dossier.projectId}:claim:${id}`));
+    expect(chunks.map(({ id }) => id)).not.toEqual(expect.arrayContaining(candidateChunkIds));
+  });
+
   test("keeps contribution candidates distinguishable from public evidence", () => {
     expectTypeOf<KnowledgeClaim["provenance"]>().toEqualTypeOf<
       | "document_fact"
