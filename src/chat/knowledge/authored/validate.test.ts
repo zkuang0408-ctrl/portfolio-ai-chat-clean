@@ -315,6 +315,49 @@ describe("authored knowledge contracts", () => {
     )).toStrictEqual([3, 4, 5, 6]);
   });
 
+  test("rejects duplicate candidate evidence fields without reading the full review", () => {
+    const candidate = [
+      "#### sample.contribution",
+      "",
+      "- 可展示该工作领域的 evidence pages：[p.3](/projects/pdfs/sample.pdf#page=3)",
+      "- 可展示该工作领域的 evidence pages：[p.4](/projects/pdfs/sample.pdf#page=4)",
+    ].join("\n");
+
+    expect(() => reviewCandidateEvidencePages(candidate, "sample.contribution"))
+      .toThrow("sample.contribution must have exactly one evidence field");
+  });
+
+  test("rejects a candidate evidence link whose target page differs from its label", () => {
+    const candidate = [
+      "#### sample.contribution",
+      "",
+      "- 可展示该工作领域的 evidence pages：[p.3](/projects/pdfs/sample.pdf#page=4)",
+    ].join("\n");
+
+    expect(() => reviewCandidateEvidencePages(candidate, "sample.contribution"))
+      .toThrow("sample.contribution evidence pages must be sorted, unique page links");
+  });
+
+  test.each([
+    [
+      "non-increasing",
+      "[p.4](/projects/pdfs/sample.pdf#page=4)、[p.3](/projects/pdfs/sample.pdf#page=3)",
+    ],
+    [
+      "duplicate",
+      "[p.3](/projects/pdfs/sample.pdf#page=3)、[p.3](/projects/pdfs/sample.pdf#page=3)",
+    ],
+  ])("rejects %s candidate evidence pages", (_case, evidence) => {
+    const candidate = [
+      "#### sample.contribution",
+      "",
+      `- 可展示该工作领域的 evidence pages：${evidence}`,
+    ].join("\n");
+
+    expect(() => reviewCandidateEvidencePages(candidate, "sample.contribution"))
+      .toThrow("sample.contribution evidence pages must be sorted, unique page links");
+  });
+
   test("rejects a duplicate owner status field", () => {
     const review = readFileSync(contributionReviewUrl, "utf8").replace(
       "- 状态：`已确认`",
