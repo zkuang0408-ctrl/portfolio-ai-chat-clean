@@ -88,6 +88,7 @@ describe("buildGroundedPrompt", () => {
     });
 
     expect(prompt.system).toContain("先直接回答访客的问题");
+    expect(prompt.system).toContain("第一句先直接回答访客的问题");
     expect(prompt.system).toContain("问题、方案与价值");
     expect(prompt.system).toContain(
       '"knowledgeKind":"authored-claim"',
