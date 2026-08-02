@@ -1,12 +1,15 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createCanvas } from "@napi-rs/canvas";
 
 export const MASK_WIDTH = 1104;
 export const MASK_HEIGHT = 1425;
 
-const MASK_PATH = resolve("public/portrait-particle-mask.png");
+const MASK_PATH = resolve(
+  process.env.PORTRAIT_MASK_OUTPUT ?? "public/portrait-particle-mask.png",
+);
 
 export function portraitMaskPng(): Buffer {
   const canvas = createCanvas(MASK_WIDTH, MASK_HEIGHT);
@@ -79,9 +82,18 @@ export function portraitMaskPng(): Buffer {
 }
 
 function main(): void {
+  const args = process.argv.slice(2);
+  const verify = args.length === 1 && args[0] === "--verify";
+
+  if (args.length > 0 && !verify) {
+    throw new Error(
+      "Unsupported portrait mask arguments. Usage: tsx scripts/build-portrait-mask.ts [--verify]",
+    );
+  }
+
   const expected = portraitMaskPng();
 
-  if (process.argv.includes("--verify")) {
+  if (verify) {
     if (!existsSync(MASK_PATH)) {
       throw new Error(
         "Portrait particle mask is missing. Run `npm run portrait-mask:generate` to create it.",
@@ -103,6 +115,9 @@ function main(): void {
   console.log(`Generated portrait particle mask: ${MASK_WIDTH}x${MASK_HEIGHT}`);
 }
 
-if (process.argv[1]?.replaceAll("\\", "/").endsWith("/scripts/build-portrait-mask.ts")) {
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
   main();
 }
