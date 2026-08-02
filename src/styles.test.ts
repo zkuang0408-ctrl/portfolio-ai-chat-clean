@@ -193,6 +193,15 @@ test("removes reader fades when reduced motion is requested", () => {
   );
 });
 
+test("gives the active navigation section a quiet persistent state", () => {
+  expect(rule('.site-nav nav a[aria-current="location"]')).toMatch(
+    /color:\s*var\(--text\)/,
+  );
+  expect(rule('.site-nav nav a[aria-current="location"]')).toMatch(
+    /text-decoration|border-bottom|background/,
+  );
+});
+
 test("keeps the assistant fixed above safe areas as a compact persistent control", () => {
   const heroChat = rule(".hero-chat");
 

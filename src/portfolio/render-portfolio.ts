@@ -236,7 +236,7 @@ function renderContact(): string {
       <div class="contact-grid">
         <p>欢迎交流产品、交互、AI 应用与未来体验方向的设计合作。</p>
         <div class="contact-meta">
-          <a href="mailto:${profile.email}">${profile.email}</a>
+          ${profile.emails.map((email) => `<a href="mailto:${email}">${email}</a>`).join("")}
           <span>${profile.location}</span>
         </div>
       </div>

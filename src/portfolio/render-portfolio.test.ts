@@ -48,6 +48,9 @@ test("renders accessible resume, project, document, and contact sections", () =>
       'a[href="mailto:zkuang0408@gmail.com"]',
     ),
   ).not.toBeNull();
+  expect(
+    root.querySelector<HTMLAnchorElement>('#contact a[href="mailto:2643414752@qq.com"]'),
+  ).not.toBeNull();
   expect(root.textContent).toContain("同济大学设计创意学院");
 });
 

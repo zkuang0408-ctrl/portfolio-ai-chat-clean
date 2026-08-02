@@ -7,6 +7,7 @@ import { navigateToSource } from "./chat/source-navigation";
 import type { ProjectPageAsset } from "./content/portfolio";
 import { renderHero } from "./hero/render-hero";
 import { renderNavigation } from "./navigation/render-navigation";
+import { startSectionState } from "./navigation/section-state";
 import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
 import { startProjectSelector } from "./portfolio/project-selector";
@@ -70,6 +71,7 @@ portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
 renderPortfolio(portfolioRoot, { portraitUrl });
 const stopProjectSelector = startProjectSelector(portfolioRoot);
+const stopSectionState = startSectionState(navigation.root, app);
 
 const stopChat = startPortfolioChat(portrait.chat, {
   fetch: window.fetch.bind(window),
@@ -102,6 +104,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   stopReaders();
   stopProjectSelector();
   stopReaderRouting();
+  stopSectionState();
   window.removeEventListener("pagehide", handlePageHide);
 }
 window.addEventListener("pagehide", handlePageHide);

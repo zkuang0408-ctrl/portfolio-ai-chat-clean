@@ -20,11 +20,16 @@ const stopChatPresentation = vi.hoisted(() => vi.fn());
 const startChatPresentation = vi.hoisted(() =>
   vi.fn((_elements: unknown, _dependencies: unknown) => stopChatPresentation),
 );
+const stopSectionState = vi.hoisted(() => vi.fn());
+const startSectionState = vi.hoisted(() =>
+  vi.fn((_navigation: HTMLElement, _content: ParentNode) => stopSectionState),
+);
 
 vi.mock("./particles/controller", () => ({ startPortrait }));
 vi.mock("./portfolio/image-reader", () => ({ startProjectReaders }));
 vi.mock("./chat/chat-controller", () => ({ startPortfolioChat }));
 vi.mock("./chat/chat-presentation", () => ({ startChatPresentation }));
+vi.mock("./navigation/section-state", () => ({ startSectionState }));
 vi.mock("./chat/source-navigation", () => ({ navigateToSource }));
 
 beforeEach(() => {
@@ -39,6 +44,8 @@ beforeEach(() => {
   stopChat.mockClear();
   startChatPresentation.mockClear();
   stopChatPresentation.mockClear();
+  startSectionState.mockClear();
+  stopSectionState.mockClear();
   navigateToSource.mockClear();
   document.body.innerHTML = "";
 });
@@ -95,6 +102,10 @@ test("renders the editorial homepage in the app root", async () => {
       trigger: app?.querySelector("[data-open-chat]"),
       window,
     }),
+  );
+  expect(startSectionState).toHaveBeenCalledWith(
+    app?.querySelector("[data-site-nav]"),
+    app,
   );
 });
 
@@ -184,6 +195,7 @@ test("preserves chat and readers in BFCache and cleans both once on terminal pag
   expect(stopReaders).toHaveBeenCalledOnce();
   expect(stopChat).toHaveBeenCalledOnce();
   expect(stopChatPresentation).toHaveBeenCalledOnce();
+  expect(stopSectionState).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledOnce();
 });
 
