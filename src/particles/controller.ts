@@ -168,10 +168,12 @@ export async function startPortrait(
 
   let stopTimeline = noop;
   let resizeTimer: number | undefined;
+  let pointerFrame: number | undefined;
   let listening = false;
   let pointerListening = false;
   let closed = false;
   let drawSettled = noop;
+  let enableParallax = noop;
   let onResize = noop;
   let onPointerMove: (event: Event) => void = noop;
 
@@ -190,6 +192,11 @@ export async function startPortrait(
     if (resizeTimer !== undefined) {
       window.clearTimeout(resizeTimer);
       resizeTimer = undefined;
+    }
+
+    if (pointerFrame !== undefined) {
+      cancelAnimationFrame(pointerFrame);
+      pointerFrame = undefined;
     }
 
     if (listening) {
@@ -241,6 +248,7 @@ export async function startPortrait(
         resizeTimer = undefined;
         stopAnimation();
         drawSettled();
+        enableParallax();
       }),
       RESIZE_DEBOUNCE,
     );
@@ -285,14 +293,28 @@ export async function startPortrait(
       resize();
       renderer.draw(particles, 1, pixels);
     };
+    let latestParallax = { x: 0, y: 0 };
     onPointerMove = safely((event: Event) => {
       const pointer = event as MouseEvent;
       const viewportWidth = Math.max(1, window.innerWidth);
       const viewportHeight = Math.max(1, window.innerHeight);
       const x = Math.max(-4, Math.min(4, (pointer.clientX / viewportWidth - 0.5) * 8));
       const y = Math.max(-4, Math.min(4, (pointer.clientY / viewportHeight - 0.5) * 8));
-      renderer.draw(particles, 1, pixels, { x, y });
+      latestParallax = { x, y };
+
+      if (pointerFrame !== undefined) return;
+
+      pointerFrame = requestAnimationFrame(safely(() => {
+        pointerFrame = undefined;
+        renderer.draw(particles, 1, pixels, latestParallax);
+      }));
     });
+    enableParallax = (): void => {
+      if (closed || pointerListening) return;
+
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      pointerListening = true;
+    };
 
     resize();
 
@@ -308,10 +330,7 @@ export async function startPortrait(
         onFrame: safely((progress) =>
           renderer.draw(particles, progress, pixels),
         ),
-        onComplete: safely(() => {
-          window.addEventListener("pointermove", onPointerMove, { passive: true });
-          pointerListening = true;
-        }),
+        onComplete: safely(enableParallax),
       });
       stopTimeline = returnedStop;
 

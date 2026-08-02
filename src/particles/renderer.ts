@@ -2,7 +2,6 @@ import { particleProgress } from "./timeline";
 import type { Particle } from "./types";
 
 export const DEFAULT_MAX_DRAW_PARTICLES = 16_000;
-export const DEFAULT_PORTRAIT_POSITION_Y = 0.18;
 
 export interface SourceSize {
   width: number;

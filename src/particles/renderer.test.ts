@@ -74,6 +74,10 @@ describe("ParticleRenderer", () => {
     expect(rendererModule.DEFAULT_MAX_DRAW_PARTICLES).toBe(16_000);
   });
 
+  it("does not export the obsolete contain-position constant", () => {
+    expect(rendererModule).not.toHaveProperty("DEFAULT_PORTRAIT_POSITION_Y");
+  });
+
   it("caps the backing-store DPR at two", () => {
     const { canvas, context, renderer } = createRenderer();
 

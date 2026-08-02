@@ -68,6 +68,20 @@ function dependencies(width = 600) {
   return { ...dom, renderer, loadPixels, sample, stop, run };
 }
 
+function installAnimationFrame() {
+  const callbacks: FrameRequestCallback[] = [];
+  const request = vi.fn((callback: FrameRequestCallback): number => {
+    callbacks.push(callback);
+    return callbacks.length;
+  });
+  const cancel = vi.fn();
+
+  vi.stubGlobal("requestAnimationFrame", request);
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+
+  return { callbacks, cancel, request };
+}
+
 function installMatchMedia(viewportWidth: number, reducedMotion = false) {
   const matchMedia = vi.fn((query: string): MediaQueryList => {
     const matches =
@@ -236,6 +250,7 @@ describe("startPortrait", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
@@ -291,6 +306,7 @@ describe("startPortrait", () => {
 
   it("adds only restrained depth parallax after the entrance settles", async () => {
     const deps = dependencies();
+    const frame = installAnimationFrame();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
 
@@ -300,6 +316,7 @@ describe("startPortrait", () => {
       clientX: 1_000,
       clientY: 0,
     }));
+    frame.callbacks[0]?.(0);
 
     expect(deps.renderer.draw).toHaveBeenLastCalledWith(
       [particle],
@@ -307,6 +324,80 @@ describe("startPortrait", () => {
       pixels,
       { x: 4, y: -4 },
     );
+  });
+
+  it("enables parallax once when resize settles an unfinished entrance", async () => {
+    const deps = dependencies();
+    const frame = installAnimationFrame();
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+
+    await start({ ...deps, reducedMotion: false });
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+    deps.renderer.draw.mockClear();
+
+    window.dispatchEvent(new MouseEvent("pointermove", {
+      clientX: 1_000,
+      clientY: 0,
+    }));
+    expect(frame.request).toHaveBeenCalledOnce();
+    frame.callbacks[0]?.(0);
+    expect(deps.renderer.draw).toHaveBeenLastCalledWith(
+      [particle],
+      1,
+      pixels,
+      { x: 4, y: -4 },
+    );
+
+    deps.run.mock.calls[0]?.[0]?.onComplete();
+    const pointerRegistrations = addEventListener.mock.calls.filter(
+      ([eventName]) => eventName === "pointermove",
+    );
+    expect(pointerRegistrations).toHaveLength(1);
+  });
+
+  it("coalesces pointer bursts into one frame using the latest coordinates", async () => {
+    const deps = dependencies();
+    const frame = installAnimationFrame();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+
+    await start({ ...deps, reducedMotion: false });
+    deps.run.mock.calls[0]?.[0]?.onComplete();
+    deps.renderer.draw.mockClear();
+
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 0, clientY: 0 }));
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 500, clientY: 400 }));
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 1_000, clientY: 800 }));
+
+    expect(frame.request).toHaveBeenCalledOnce();
+    expect(deps.renderer.draw).not.toHaveBeenCalled();
+    frame.callbacks[0]?.(0);
+    expect(deps.renderer.draw).toHaveBeenCalledOnce();
+    expect(deps.renderer.draw).toHaveBeenCalledWith(
+      [particle],
+      1,
+      pixels,
+      { x: 4, y: 4 },
+    );
+  });
+
+  it("cancels a pending parallax frame and prevents drawing after cleanup", async () => {
+    const deps = dependencies();
+    const frame = installAnimationFrame();
+
+    await start({ ...deps, reducedMotion: false });
+    deps.run.mock.calls[0]?.[0]?.onComplete();
+    deps.renderer.draw.mockClear();
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 0, clientY: 0 }));
+
+    expect(frame.request).toHaveBeenCalledOnce();
+    cleanup();
+    expect(frame.cancel).toHaveBeenCalledWith(1);
+    frame.callbacks[0]?.(0);
+    expect(deps.renderer.draw).not.toHaveBeenCalled();
   });
 
   it("safely defaults to animation when matchMedia is unavailable", async () => {
