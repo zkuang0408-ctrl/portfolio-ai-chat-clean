@@ -139,10 +139,38 @@ function renderProjectReader(project: Project): string {
 }
 
 function renderProjects(): string {
+  const selectorMarkup = projects
+    .map((project) => {
+      const firstPage = project.pdf.pages[0];
+      if (!firstPage) throw new Error(`Missing selector image for ${project.id}`);
+      return `
+        <a
+          class="project-selector"
+          href="#project-${escapeHtml(project.id)}"
+          data-project-selector="${escapeHtml(project.id)}"
+        >
+          <span class="project-selector__media">
+            <picture>
+              <source media="(max-width: 760px)" srcset="${escapeHtml(firstPage.mobile)}" />
+              <img src="${escapeHtml(firstPage.desktop)}" alt="" loading="lazy" decoding="async" />
+            </picture>
+          </span>
+          <span class="project-selector__meta">
+            <small>${escapeHtml(project.number)} · ${escapeHtml(project.type)}</small>
+            <strong>${escapeHtml(project.title)}</strong>
+          </span>
+        </a>
+      `;
+    })
+    .join("");
   const projectMarkup = projects
     .map(
       (project) => `
-        <article class="project-card" id="project-${project.id}">
+        <article
+          class="project-card"
+          id="project-${project.id}"
+          data-project-chapter="${escapeHtml(project.id)}"
+        >
           ${renderProjectReader(project)}
           <div class="project-copy">
             <p class="project-number" aria-hidden="true">${project.number}</p>
@@ -162,7 +190,8 @@ function renderProjects(): string {
   return `
     <section class="portfolio-section projects" id="projects" aria-labelledby="projects-title">
       ${renderSectionHeading("03", "SELECTED WORK", '<span id="projects-title">Selected</span> <em>projects.</em>')}
-      <div class="project-list">${projectMarkup}</div>
+      <nav class="project-selector-rail" aria-label="选择项目">${selectorMarkup}</nav>
+      <div class="project-list project-chapters">${projectMarkup}</div>
     </section>
   `;
 }

@@ -132,3 +132,28 @@ test("does not render false case-study links", () => {
   expect(root.querySelectorAll("#projects .project-copy a")).toHaveLength(0);
   expect(root.querySelectorAll("#projects .project-copy button")).toHaveLength(0);
 });
+
+test("renders the approved selector order and matching editorial chapters", () => {
+  const root = document.createElement("main");
+
+  renderPortfolio(root);
+
+  expect(
+    Array.from(
+      root.querySelectorAll<HTMLElement>("[data-project-selector]"),
+      (card) => card.dataset.projectSelector,
+    ),
+  ).toEqual([
+    "inkseat",
+    "emovue",
+    "evolution-fruit",
+    "atempo",
+    "urosense",
+    "first-fly",
+  ]);
+  expect(root.querySelectorAll("[data-project-chapter]")).toHaveLength(6);
+  expect(root.querySelector("#project-inkseat")?.getAttribute("data-project-chapter"))
+    .toBe("inkseat");
+  expect(root.querySelectorAll(".project-selector__media picture")).toHaveLength(6);
+  expect(root.querySelector("[data-project-selector]")?.textContent).toContain("INKSeat");
+});

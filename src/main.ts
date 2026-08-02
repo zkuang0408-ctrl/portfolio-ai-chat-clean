@@ -8,6 +8,7 @@ import { renderHero } from "./hero/render-hero";
 import { renderNavigation } from "./navigation/render-navigation";
 import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
+import { startProjectSelector } from "./portfolio/project-selector";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
 
@@ -66,6 +67,7 @@ const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
 renderPortfolio(portfolioRoot, { portraitUrl });
+const stopProjectSelector = startProjectSelector(portfolioRoot);
 
 const stopChat = startPortfolioChat(portrait.chatRoot, {
   fetch: window.fetch.bind(window),
@@ -90,6 +92,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   }
   stopChat();
   stopReaders();
+  stopProjectSelector();
   window.removeEventListener("pagehide", handlePageHide);
 }
 window.addEventListener("pagehide", handlePageHide);
