@@ -1319,6 +1319,123 @@ a:focus-visible {
   }
 }
 
+/* Fullscreen reader presentation wraps the existing lazy page controller. */
+.project-reader-open {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.project-reader-close {
+  position: absolute;
+  z-index: 8;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  display: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+  background: rgb(5 5 5 / 0.78);
+  color: #b6b6ba;
+  font: 300 28px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.project-reader.is-fullscreen {
+  position: fixed;
+  z-index: 220;
+  inset: 0;
+  display: grid;
+  width: 100vw;
+  height: 100dvh;
+  margin: 0;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: #020202;
+  color: #b8b8b8;
+  animation: reader-enter 260ms var(--ease-out) both;
+}
+
+.project-reader.is-fullscreen .project-reader-stage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 0;
+}
+
+.project-reader.is-fullscreen .project-reader-stage::after {
+  display: none;
+}
+
+.project-reader.is-fullscreen .project-reader-open {
+  display: none;
+}
+
+.project-reader.is-fullscreen .project-reader-close {
+  display: grid;
+}
+
+.project-reader.is-fullscreen [data-page-image] {
+  object-fit: contain;
+  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
+}
+
+.project-reader.is-fullscreen[data-reader-state="rendering"] [data-page-image] {
+  opacity: 0.34;
+  transform: translateX(12px);
+}
+
+.project-reader.is-fullscreen .project-reader-chevron--previous {
+  left: max(4px, env(safe-area-inset-left));
+}
+
+.project-reader.is-fullscreen .project-reader-chevron--next {
+  right: max(4px, env(safe-area-inset-right));
+}
+
+.project-reader.is-fullscreen .project-reader-meta {
+  min-height: 36px;
+  margin: 0;
+  padding-top: 10px;
+}
+
+.reader-scroll-locked {
+  overflow: hidden;
+}
+
+@keyframes reader-enter {
+  from {
+    opacity: 0.45;
+    clip-path: inset(12% 12% round 22px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 round 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-reader.is-fullscreen {
+    animation: none;
+  }
+
+  .project-reader.is-fullscreen [data-page-image] {
+    transition: none;
+  }
+}
+
 /* Approved black editorial homepage: title first, particle portrait rising beneath. */
 .hero {
   min-height: max(100svh, 760px);

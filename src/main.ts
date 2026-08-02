@@ -9,6 +9,7 @@ import { renderNavigation } from "./navigation/render-navigation";
 import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
 import { startProjectSelector } from "./portfolio/project-selector";
+import { startReaderRouting } from "./portfolio/reader-route";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
 
@@ -86,6 +87,7 @@ const stopReaders = startProjectReaders(portfolioRoot, {
   preload: preloadProjectPage,
   awaitVisibleImage,
 });
+const stopReaderRouting = startReaderRouting(portfolioRoot);
 function handlePageHide(event: PageTransitionEvent): void {
   if (event.persisted) {
     return;
@@ -93,6 +95,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   stopChat();
   stopReaders();
   stopProjectSelector();
+  stopReaderRouting();
   window.removeEventListener("pagehide", handlePageHide);
 }
 window.addEventListener("pagehide", handlePageHide);

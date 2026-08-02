@@ -37,6 +37,7 @@ export interface ImageReaderDependencies {
 export interface ImageReader {
   initialize(): Promise<void>;
   goTo(pageNumber: number): Promise<void>;
+  currentPage(): number;
   retry(): Promise<void>;
   destroy(): void;
 }
@@ -193,6 +194,12 @@ export function createImageReader(
     status.textContent = `Page ${counter.current} of ${counter.total}`;
     updateNavigation(pageNumber);
     preloadSuccessor(pageNumber);
+    root.dispatchEvent(
+      new CustomEvent("portfolio:reader-page-change", {
+        bubbles: true,
+        detail: { projectId: project.id, page: pageNumber },
+      }),
+    );
   }
 
   function markError(): void {
@@ -373,7 +380,13 @@ export function createImageReader(
   root.addEventListener("pointercancel", clearPointer);
   root.addEventListener("lostpointercapture", clearPointer);
 
-  return { destroy, goTo, initialize, retry };
+  return {
+    currentPage: () => currentPage,
+    destroy,
+    goTo,
+    initialize,
+    retry,
+  };
 }
 
 export function startProjectReaders(

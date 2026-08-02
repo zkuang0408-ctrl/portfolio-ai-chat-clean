@@ -89,6 +89,25 @@ test("initializes the rendered first page without loading it twice", async () =>
   expect(deps.preload).toHaveBeenCalledOnce();
   expect(deps.preload).toHaveBeenCalledWith(project.pdf.pages[1]);
   expect(root.dataset.readerState).toBe("ready");
+  expect(reader.currentPage()).toBe(1);
+});
+
+test("announces completed page changes for route synchronization", async () => {
+  const root = createRoot();
+  const events: unknown[] = [];
+  root.addEventListener("portfolio:reader-page-change", (event) => {
+    events.push((event as CustomEvent).detail);
+  });
+  const reader = createImageReader(root, dependencies());
+
+  await reader.initialize();
+  await reader.goTo(2);
+
+  expect(events).toEqual([
+    { projectId: project.id, page: 1 },
+    { projectId: project.id, page: 2 },
+  ]);
+  expect(reader.currentPage()).toBe(2);
 });
 
 test("loads only the requested page and preloads only its successor", async () => {

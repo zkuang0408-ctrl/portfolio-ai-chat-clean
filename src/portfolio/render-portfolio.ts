@@ -97,6 +97,18 @@ function renderProjectReader(project: Project): string {
             decoding="async"
           />
         </picture>
+        <button
+          class="project-reader-open"
+          type="button"
+          data-open-reader
+          aria-label="Open ${projectTitle} reader"
+        ></button>
+        <button
+          class="project-reader-close"
+          type="button"
+          data-close-reader
+          aria-label="Close ${projectTitle} reader"
+        ><span aria-hidden="true">×</span></button>
         <p data-reader-status aria-live="polite">Loading project</p>
         <div data-reader-error hidden>
           <p>Unable to load this project.</p>

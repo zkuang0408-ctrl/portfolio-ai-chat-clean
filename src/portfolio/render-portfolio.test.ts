@@ -71,6 +71,8 @@ test("renders accessible controls and matching metadata for every project reader
     const originalPdf = reader?.querySelector<HTMLAnchorElement>(
       "[data-open-original-pdf]",
     );
+    const openReader = reader?.querySelector<HTMLButtonElement>("[data-open-reader]");
+    const closeReader = reader?.querySelector<HTMLButtonElement>("[data-close-reader]");
 
     expect(reader?.dataset.pdfUrl).toBe(project.pdf.href);
     expect(reader?.dataset.projectId).toBe(project.id);
@@ -111,6 +113,8 @@ test("renders accessible controls and matching metadata for every project reader
       `Next page of ${project.title}`,
     );
     expect(next?.getAttribute("type")).toBe("button");
+    expect(openReader?.getAttribute("aria-label")).toBe(`Open ${project.title} reader`);
+    expect(closeReader?.getAttribute("aria-label")).toBe(`Close ${project.title} reader`);
     expect(previousIcon?.getAttribute("viewBox")).toBe("0 0 40 70");
     expect(previousIcon?.getAttribute("aria-hidden")).toBe("true");
     expect(nextIcon?.getAttribute("viewBox")).toBe("0 0 40 70");
