@@ -289,6 +289,29 @@ describe("startPortrait", () => {
     expect(deps.renderer.draw).toHaveBeenLastCalledWith([particle], 1, pixels);
   });
 
+  it("keeps parallax disabled after resizing in reduced-motion mode", async () => {
+    const deps = dependencies();
+    const frame = installAnimationFrame();
+    const addEventListener = vi.spyOn(window, "addEventListener");
+
+    await start({ ...deps, reducedMotion: true });
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(120);
+    const settledDrawCount = deps.renderer.draw.mock.calls.length;
+
+    window.dispatchEvent(new MouseEvent("pointermove", {
+      clientX: 1_000,
+      clientY: 0,
+    }));
+
+    const pointerRegistrations = addEventListener.mock.calls.filter(
+      ([eventName]) => eventName === "pointermove",
+    );
+    expect(pointerRegistrations).toHaveLength(0);
+    expect(frame.request).not.toHaveBeenCalled();
+    expect(deps.renderer.draw).toHaveBeenCalledTimes(settledDrawCount);
+  });
+
   it("plays one 2200ms entrance without redrawing its terminal frame", async () => {
     const deps = dependencies();
 
@@ -381,6 +404,19 @@ describe("startPortrait", () => {
       1,
       pixels,
       { x: 4, y: 4 },
+    );
+
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 500, clientY: 400 }));
+    window.dispatchEvent(new MouseEvent("pointermove", { clientX: 0, clientY: 0 }));
+    expect(frame.request).toHaveBeenCalledTimes(2);
+    expect(deps.renderer.draw).toHaveBeenCalledOnce();
+    frame.callbacks[1]?.(0);
+    expect(deps.renderer.draw).toHaveBeenCalledTimes(2);
+    expect(deps.renderer.draw).toHaveBeenLastCalledWith(
+      [particle],
+      1,
+      pixels,
+      { x: -4, y: -4 },
     );
   });
 

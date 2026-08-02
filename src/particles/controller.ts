@@ -293,6 +293,7 @@ export async function startPortrait(
       resize();
       renderer.draw(particles, 1, pixels);
     };
+    const reduced = options.reducedMotion ?? prefersReducedMotion();
     let latestParallax = { x: 0, y: 0 };
     onPointerMove = safely((event: Event) => {
       const pointer = event as MouseEvent;
@@ -310,7 +311,7 @@ export async function startPortrait(
       }));
     });
     enableParallax = (): void => {
-      if (closed || pointerListening) return;
+      if (reduced || closed || pointerListening) return;
 
       window.addEventListener("pointermove", onPointerMove, { passive: true });
       pointerListening = true;
@@ -318,7 +319,6 @@ export async function startPortrait(
 
     resize();
 
-    const reduced = options.reducedMotion ?? prefersReducedMotion();
     if (reduced) {
       renderer.draw(particles, 1, pixels);
     } else {
