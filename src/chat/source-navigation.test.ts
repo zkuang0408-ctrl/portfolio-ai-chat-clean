@@ -30,7 +30,7 @@ function setup(): {
 } {
   const portfolioRoot = document.createElement("main");
   portfolioRoot.innerHTML = `
-    <section id="about"></section>
+    <section id="resume"></section>
     <article id="project-inkseat"></article>
     <article id="project-emovue"></article>
   `;
@@ -142,10 +142,10 @@ test("allows an oversized trusted page for the reader to bound", () => {
 });
 
 test.each([undefined, 1])(
-  "scrolls the trusted profile source page %s to About without forcing motion",
+  "scrolls the trusted profile source page %s to Resume without forcing motion",
   (page) => {
     const { browser, portfolioRoot } = setup();
-    const about = portfolioRoot.querySelector<HTMLElement>("#about")!;
+    const about = portfolioRoot.querySelector<HTMLElement>("#resume")!;
     const scrollIntoView = vi.fn();
     about.scrollIntoView = scrollIntoView;
 

@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-02T18:37:19.4436157+08:00",
+  "title": "Design System: Zhao Shikuang Portfolio",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Exhibition Black",
+        "tonalRamp": ["#050505", "#181818", "#303030", "#4a4a4a", "#6b6b6b", "#969696", "#c6c6c6", "#f2f2f2"]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Black",
+        "tonalRamp": ["#0b0b0c", "#1c1c1e", "#323235", "#4b4b50", "#6c6c72", "#96969d", "#c7c7cb", "#f2f2f4"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Bone Paper",
+        "tonalRamp": ["#282622", "#4a4741", "#6d6961", "#918c82", "#b4afa6", "#d1ccc4", "#e9e5de", "#faf8f4"]
+      },
+      "paper-ink": {
+        "role": "neutral",
+        "displayName": "Paper Ink",
+        "tonalRamp": ["#171719", "#2c2c2f", "#444448", "#606065", "#808087", "#a5a5aa", "#d0d0d3", "#f4f4f5"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Gallery White",
+        "tonalRamp": ["#242320", "#474540", "#696761", "#8e8b84", "#b3b0aa", "#d2d0ca", "#f2f0eb", "#fbfaf7"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Quiet Gray",
+        "tonalRamp": ["#222226", "#3c3c41", "#56565c", "#717178", "#96969d", "#b3b3b9", "#d1d1d5", "#f1f1f3"]
+      },
+      "oxide-red": {
+        "role": "primary",
+        "displayName": "Oxide Red",
+        "tonalRamp": ["#2a0d0b", "#4a1713", "#69211d", "#8f322b", "#b34e45", "#d1756e", "#e7aaa5", "#f8dedb"]
+      },
+      "oxide-red-light": {
+        "role": "primary",
+        "displayName": "Oxide Red Light",
+        "tonalRamp": ["#2d1210", "#4f211d", "#73322d", "#98463f", "#c8675e", "#dc8c85", "#edb8b3", "#fae3e0"]
+      },
+      "supporting": {
+        "role": "neutral",
+        "displayName": "Supporting Gray",
+        "tonalRamp": ["#252421", "#45433f", "#64625c", "#84817b", "#a6a4a0", "#c0beba", "#dad8d5", "#f5f3f0"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "White Hairline",
+        "tonalRamp": ["rgb(255 255 255 / 0.04)", "rgb(255 255 255 / 0.08)", "rgb(255 255 255 / 0.14)", "rgb(255 255 255 / 0.2)", "rgb(255 255 255 / 0.3)", "rgb(255 255 255 / 0.42)", "rgb(255 255 255 / 0.62)", "rgb(255 255 255 / 0.82)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Editorial Display",
+        "purpose": "Identity statements, section chapters, and invitations."
+      },
+      "body": {
+        "displayName": "Functional Sans",
+        "purpose": "Readable descriptions, project evidence, and résumé content."
+      },
+      "headline": {
+        "displayName": "Editorial Headline",
+        "purpose": "Section statements and closing invitations."
+      },
+      "title": {
+        "displayName": "Evidence Title",
+        "purpose": "Project and résumé hierarchy below the display scale."
+      },
+      "label": {
+        "displayName": "Tracked Label",
+        "purpose": "Indices, metadata, and compact navigation signals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-ambient",
+        "value": "0 28px 80px rgb(0 0 0 / 0.34)",
+        "purpose": "Lift the résumé and assistant without glossy depth."
+      },
+      {
+        "name": "selector-hover",
+        "value": "0 14px 36px rgb(0 0 0 / 0.42)",
+        "purpose": "Confirm project-card focus or hover."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Shared confident deceleration for entrances and state changes."
+      },
+      {
+        "name": "selector-duration",
+        "value": "200ms",
+        "purpose": "Project selector hover and focus feedback."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "560px" },
+      { "name": "mobile", "value": "760px" },
+      { "name": "rail", "value": "1179px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Navigation Link",
+      "kind": "nav",
+      "description": "Quiet fixed navigation with a rare oxide-red active signal.",
+      "html": "<a class=\"ds-nav-link\" aria-current=\"location\" href=\"#projects\">作品</a>",
+      "css": ".ds-nav-link { display: inline-flex; min-height: 44px; align-items: center; color: var(--muted); font: 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; letter-spacing: .04em; text-decoration: none; transition: color 180ms var(--ease-out); } .ds-nav-link[aria-current=\"location\"] { color: var(--text); background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 78% / 100% 1px; } .ds-nav-link:hover, .ds-nav-link:focus-visible { color: var(--text); outline: none; }"
+    },
+    {
+      "name": "Project Selector",
+      "kind": "card",
+      "refersTo": "project-card",
+      "description": "A rounded real-project preview that grows without shifting layout.",
+      "html": "<a class=\"ds-project-selector\" href=\"#project-inkseat\"><span class=\"ds-project-image\"></span><small>01 · AI PRODUCT</small><strong>INKSeat</strong></a>",
+      "css": ".ds-project-selector { display: grid; min-height: 240px; overflow: hidden; padding: 12px; border: 1px solid rgb(255 255 255 / .12); border-radius: var(--radius-card); background: var(--ink-soft); color: var(--text); text-decoration: none; transition: transform 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out); } .ds-project-image { min-height: 150px; border-radius: 16px; background: linear-gradient(135deg, #e9e5de, #96969d); } .ds-project-selector small { align-self: end; color: var(--muted); letter-spacing: .08em; } .ds-project-selector:hover, .ds-project-selector:focus-visible { border-color: rgb(255 255 255 / .3); box-shadow: 0 14px 36px rgb(0 0 0 / .42); outline: none; transform: scale(1.03); }"
+    },
+    {
+      "name": "AI Orb",
+      "kind": "button",
+      "description": "Persistent circular access to the grounded portfolio assistant.",
+      "html": "<button class=\"ds-ai-orb\" type=\"button\" aria-label=\"Ask AI\">✦</button>",
+      "css": ".ds-ai-orb { display: grid; width: 56px; height: 56px; place-items: center; border: 1px solid rgb(255 255 255 / .18); border-radius: 50%; background: #171719; color: var(--text); font-size: 24px; box-shadow: 0 12px 34px rgb(0 0 0 / .42); transition: transform 180ms var(--ease-out), background 180ms var(--ease-out); } .ds-ai-orb:hover, .ds-ai-orb:focus-visible { background: #252527; outline: 1px solid var(--paper); outline-offset: 3px; transform: scale(1.045); } .ds-ai-orb:active { transform: scale(.97); }"
+    },
+    {
+      "name": "AI Panel",
+      "kind": "custom",
+      "refersTo": "assistant-panel",
+      "description": "A dark translucent conversational layer that stays subordinate to portfolio evidence.",
+      "html": "<aside class=\"ds-ai-panel\"><small>ASK SHIKUANG · AI</small><p>Answers are grounded in the résumé and portfolio.</p><button type=\"button\">Ask a question</button></aside>",
+      "css": ".ds-ai-panel { width: min(400px, calc(100vw - 32px)); padding: 20px; border: 1px solid rgb(255 255 255 / .14); border-radius: var(--radius-card); background: rgb(16 16 17 / .94); color: var(--text); box-shadow: 0 24px 80px rgb(0 0 0 / .58); font: 14px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; backdrop-filter: blur(28px) saturate(125%); } .ds-ai-panel small { color: #c8675e; letter-spacing: .17em; } .ds-ai-panel button { min-height: 44px; border: 1px solid rgb(255 255 255 / .16); border-radius: 999px; background: transparent; color: var(--text); } .ds-ai-panel button:hover, .ds-ai-panel button:focus-visible { border-color: var(--paper); outline: none; }"
+    },
+    {
+      "name": "Metadata Chip",
+      "kind": "chip",
+      "description": "Small uppercase evidence labels used in project chapters.",
+      "html": "<span class=\"ds-chip\">AI PRODUCT</span>",
+      "css": ".ds-chip { display: inline-flex; min-height: 28px; align-items: center; padding: 0 11px; border: 1px solid rgb(255 255 255 / .14); border-radius: 999px; color: var(--muted); font: 650 9px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; letter-spacing: .12em; } .ds-chip:hover, .ds-chip:focus-visible { border-color: rgb(255 255 255 / .3); color: var(--text); outline: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Particle Editorial.",
+    "overview": "The portfolio behaves like a dark exhibition catalogue that has become interactive. The opening portrait is not a photograph laid under an effect: light and shadow are rebuilt from irregular particles, expressing the move from physical objects to intelligent systems. Interfaces remain restrained so the work, résumé, and evidence carry the experience.",
+    "keyCharacteristics": [
+      "Black editorial fields",
+      "Dimensional monochrome imagery",
+      "Bone-white italic display type",
+      "Sparse oxide-red signals",
+      "Apple-like motion restraint",
+      "Complete project evidence rather than decorative thumbnails"
+    ],
+    "rules": [
+      {
+        "name": "The Rare Signal Rule",
+        "body": "Red marks orientation or action; it never becomes decoration or a large background field.",
+        "section": "colors"
+      },
+      {
+        "name": "The Contrast Rule",
+        "body": "Serif is reserved for identity, chapter statements, and major contact invitations; functional UI stays sans-serif.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do let real project pages and the particle portrait provide visual richness.",
+      "Do preserve complete source documents, citations, keyboard paths, and reduced motion.",
+      "Do keep red scarce and functional.",
+      "Do use warm paper only as a deliberate résumé interruption inside the black world."
+    ],
+    "donts": [
+      "Don't expose the portrait photo behind the particle canvas.",
+      "Don't add generic gradient cards, neon glow, glass tiles, or dashboard chrome.",
+      "Don't hide the main mobile navigation or let floating UI cover page controls.",
+      "Don't replace project evidence with summaries when full pages are available."
+    ]
+  }
+}

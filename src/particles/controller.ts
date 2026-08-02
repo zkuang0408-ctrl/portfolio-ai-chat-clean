@@ -164,7 +164,7 @@ export async function startPortrait(
   let closed = false;
   let drawSettled = noop;
   let onResize = noop;
-  let onPointerMove = noop;
+  let onPointerMove: (event: Event) => void = noop;
 
   const stopAnimation = (): void => {
     const stop = stopTimeline;

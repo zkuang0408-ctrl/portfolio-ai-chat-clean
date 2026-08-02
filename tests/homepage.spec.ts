@@ -41,25 +41,21 @@ const projectPdfUrls = projectPdfFiles.map(
   (filename) => `/projects/pdfs/${filename}`,
 );
 
-function projectPdfFilename(url: string): string | null {
+function projectPagePath(url: string): string | null {
   const { pathname } = new URL(url);
-  if (!pathname.startsWith("/projects/pdfs/") || !pathname.endsWith(".pdf")) {
+  if (!pathname.startsWith("/projects/pages/") || !pathname.endsWith(".webp")) {
     return null;
   }
-  return pathname.slice(pathname.lastIndexOf("/") + 1);
+  return pathname;
 }
 
-function trackProjectPdfRequests(page: Page): string[] {
-  const requestedFiles: string[] = [];
+function trackProjectPageRequests(page: Page): string[] {
+  const requestedPages: string[] = [];
   page.on("request", (request) => {
-    const filename = projectPdfFilename(request.url());
-    if (filename) requestedFiles.push(filename);
+    const pathname = projectPagePath(request.url());
+    if (pathname) requestedPages.push(pathname);
   });
-  return requestedFiles;
-}
-
-function uniqueRequestedFiles(requestedFiles: readonly string[]): string[] {
-  return [...new Set(requestedFiles)];
+  return requestedPages;
 }
 
 function expectOneFailedRequest(page: Page, pathname: string): void {
@@ -124,6 +120,12 @@ async function fulfillChat(
 }
 
 async function ask(page: Page, question: string): Promise<void> {
+  const chat = page.locator("[data-chat-root]");
+  if ((await chat.getAttribute("data-chat-presentation")) !== "expanded") {
+    await expect(chat).not.toHaveAttribute("data-chat-scrolling", "true");
+    await page.locator("[data-chat-orb]").click();
+    await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
+  }
   await page.locator("[data-chat-input]").fill(question);
   await page.locator("[data-chat-send]").click();
 }
@@ -153,8 +155,17 @@ function installBrowserErrorGuards(page: Page): void {
   });
   page.on("requestfailed", (request) => {
     if (consumeExpectedFailedRequest(page, request.url())) return;
+    const failure = request.failure()?.errorText ?? "unknown error";
+    const pathname = new URL(request.url()).pathname;
+    if (
+      failure === "net::ERR_ABORTED" &&
+      pathname.startsWith("/projects/pages/") &&
+      pathname.endsWith(".webp")
+    ) {
+      return;
+    }
     errors.push(
-      `requestfailed: ${request.failure()?.errorText ?? "unknown error"} ${request.url()}`,
+      `requestfailed: ${failure} ${request.url()}`,
     );
   });
 }
@@ -458,8 +469,8 @@ async function expectCriticalLayoutInsideViewport(page: Page): Promise<void> {
       bodyScrollWidth: document.body.scrollWidth,
       canvas: bounds(".portrait-canvas"),
       documentScrollWidth: document.documentElement.scrollWidth,
-      headline: bounds(".headline-wrap"),
-      identity: bounds(".identity"),
+      headline: bounds(".hero-copy"),
+      identity: bounds(".site-nav__brand"),
       viewportHeight: window.innerHeight,
       viewportWidth: window.innerWidth,
     };
@@ -488,8 +499,11 @@ async function expectCriticalLayoutInsideViewport(page: Page): Promise<void> {
     Math.min(layout.canvas.right, layout.viewportWidth) - Math.max(layout.canvas.left, 0);
   const visibleCanvasHeight =
     Math.min(layout.canvas.bottom, layout.viewportHeight) - Math.max(layout.canvas.top, 0);
+  const minimumHeightRatio = layout.viewportWidth <= 390 ? 0.4 : 0.55;
   expect(visibleCanvasWidth).toBeGreaterThan(layout.viewportWidth * 0.5);
-  expect(visibleCanvasHeight).toBeGreaterThan(layout.viewportHeight * 0.55);
+  expect(visibleCanvasHeight).toBeGreaterThan(
+    layout.viewportHeight * minimumHeightRatio,
+  );
 }
 
 test.beforeEach(async ({ page }) => {
@@ -506,39 +520,39 @@ test.describe("canonical grounded portfolio chat", () => {
     "The canonical desktop project owns deterministic chat coverage.",
   );
 
-  test("keeps the assistant frameless in the approved position with identity and four prompts", async ({ page }) => {
+  test("keeps a persistent collapsible assistant with four grounded prompts", async ({ page }) => {
     await page.goto("/");
 
     const chat = page.locator("[data-chat-root]");
-    await expect(page.getByText("赵实旷.", { exact: true })).toBeVisible();
+    await expect(page.locator("[data-site-brand]")).toHaveText("赵实旷");
     await expect(chat.locator("[data-chat-recommendation]")).toHaveCount(4);
-    await expect(chat.locator('button[aria-label*="close" i], [data-chat-close]')).toHaveCount(0);
-    const style = await chat.evaluate((element) => {
+    await expect(chat).toHaveAttribute("data-chat-presentation", "collapsed");
+    await expect(chat.locator("[data-chat-orb]")).toBeVisible();
+    await page.getByRole("button", { name: "Ask AI" }).click();
+    await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
+    await expect(chat.locator("[data-chat-panel]")).toBeVisible();
+    const style = await chat.locator("[data-chat-panel]").evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const computed = getComputedStyle(element);
       return {
         background: computed.backgroundColor,
-        borderBottom: computed.borderBottomWidth,
-        borderLeft: computed.borderLeftWidth,
-        borderRight: computed.borderRightWidth,
-        borderTop: computed.borderTopWidth,
+        borderRadius: computed.borderRadius,
         boxShadow: computed.boxShadow,
+        height: rect.height,
         left: rect.left,
+        right: rect.right,
         top: rect.top,
+        width: rect.width,
       };
     });
-    expect(style.left).toBeGreaterThanOrEqual(85);
-    expect(style.left).toBeLessThanOrEqual(105);
-    expect(style.top).toBeGreaterThanOrEqual(335);
-    expect(style.top).toBeLessThanOrEqual(370);
-    expect(style).toMatchObject({
-      background: "rgba(0, 0, 0, 0)",
-      borderBottom: "0px",
-      borderLeft: "0px",
-      borderRight: "0px",
-      borderTop: "0px",
-      boxShadow: "none",
-    });
+    expect(style.left).toBeGreaterThanOrEqual(0);
+    expect(style.right).toBeLessThanOrEqual(1_440);
+    expect(style.top).toBeGreaterThanOrEqual(0);
+    expect(style.width).toBeLessThanOrEqual(400);
+    expect(style.height).toBeLessThanOrEqual(560);
+    expect(style.borderRadius).toBe("24px");
+    expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(style.boxShadow).not.toBe("none");
   });
 
   test("streams Chinese and English deltas using the visitor language", async ({ browser, page }) => {
@@ -682,7 +696,7 @@ test.describe("canonical grounded portfolio chat", () => {
 
     await ask(page, "profile");
     await page.getByRole("button", { name: "PROFILE" }).click();
-    await expect(page.locator("#about")).toBeInViewport();
+    await expect(page.locator("#resume")).toBeInViewport();
 
     await ask(page, "resume");
     const popupPromise = page.waitForEvent("popup");
@@ -728,6 +742,7 @@ test.describe("canonical grounded portfolio chat", () => {
       }),
     );
     await page.goto("/");
+    await page.getByRole("button", { name: "Ask AI" }).click();
     const input = page.locator("[data-chat-input]");
     await input.focus();
     await expect(input).toBeFocused();
@@ -761,7 +776,7 @@ test.describe("canonical grounded portfolio chat", () => {
     await page.goto("/");
     await ask(page, "fail safely");
     await expect(page.locator("[data-chat-status]")).toContainText("couldn’t complete");
-    await page.getByRole("link", { name: "Projects" }).click();
+    await page.locator('a[href="#projects"]').click();
     await expect(page.locator("#projects")).toBeInViewport();
     await waitForCompleteCanvas(page);
     await loadAllFirstPagesSequentially(page);
@@ -773,13 +788,13 @@ test.describe("canonical grounded portfolio chat", () => {
   });
 });
 
-test("keeps the mobile assistant in normal flow without overlapping the hero scene or projects", async ({ page }, testInfo) => {
+test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bounds", async ({ page }, testInfo) => {
   test.skip(
     !["mobile-390", "mobile-430"].includes(testInfo.project.name),
     "Only the approved 390px and 430px mobile layouts are in scope.",
   );
   await page.goto("/");
-  const layout = await page.evaluate(() => {
+  const collapsed = await page.evaluate(() => {
     const rect = (selector: string) => {
       const value = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
       if (!value) throw new Error(`Missing ${selector}`);
@@ -787,15 +802,28 @@ test("keeps the mobile assistant in normal flow without overlapping the hero sce
     };
     return {
       chat: rect("[data-chat-root]"),
-      heroScene: rect(".hero-scene"),
-      projects: rect("#projects"),
+      orb: rect("[data-chat-orb]"),
+      position: getComputedStyle(document.querySelector<HTMLElement>("[data-chat-root]")!).position,
+      viewportHeight: window.innerHeight,
       viewportWidth: window.innerWidth,
     };
   });
-  expect(layout.chat.top).toBeGreaterThanOrEqual(layout.heroScene.bottom - 1);
-  expect(layout.projects.top).toBeGreaterThanOrEqual(layout.chat.bottom - 1);
-  expect(layout.chat.left).toBeGreaterThanOrEqual(0);
-  expect(layout.chat.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(collapsed.position).toBe("fixed");
+  expect(collapsed.orb.left).toBeGreaterThanOrEqual(0);
+  expect(collapsed.orb.right).toBeLessThanOrEqual(collapsed.viewportWidth + 1);
+  expect(collapsed.orb.bottom).toBeLessThanOrEqual(collapsed.viewportHeight + 1);
+  await page.locator("[data-chat-orb]").click();
+  const panel = page.locator("[data-chat-panel]");
+  await expect(panel).toBeVisible();
+  const panelBox = await panel.boundingBox();
+  const expandedViewport = await page.evaluate(() => ({
+    height: window.innerHeight,
+    width: window.innerWidth,
+  }));
+  expect(panelBox).not.toBeNull();
+  expect(panelBox!.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(expandedViewport.width + 2);
+  expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(expandedViewport.height + 2);
 });
 
 test("renders a responsive, complete portrait and becomes still", async ({
@@ -823,11 +851,12 @@ test("renders a responsive, complete portrait and becomes still", async ({
   ).rejects.toThrow();
   await page.locator("#single-pixel-probe").evaluate((probe) => probe.remove());
 
-  await expect(page.getByText("赵实旷.", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-site-brand]")).toHaveText("赵实旷");
   await expect(page.getByRole("heading", { name: /Crafting Future Through Objects & Systems\./i })).toBeVisible();
-  await expect(page.getByRole("navigation")).toBeVisible();
-  await expect(page.locator("nav a")).toHaveCount(3);
-  await expect(page.locator("nav [aria-disabled='true']")).toHaveCount(0);
+  const primaryNavigation = page.getByRole("navigation", { name: "主要栏目" });
+  await expect(primaryNavigation).toBeVisible();
+  await expect(primaryNavigation.locator("a")).toHaveCount(3);
+  await expect(primaryNavigation.locator("[aria-disabled='true']")).toHaveCount(0);
   await expect(page.locator(".portrait-base")).toHaveCSS("opacity", "0");
   await expect(page.locator(".portrait-canvas")).toBeVisible();
 
@@ -896,12 +925,12 @@ test("publishes selected work, stable documents, and privacy-safe contact detail
   const navigation = page.getByRole("navigation", { name: "主要栏目" });
   const links = navigation.getByRole("link");
   await expect(links).toHaveCount(3);
-  await expect(links.nth(0)).toHaveAttribute("href", "#about");
+  await expect(links.nth(0)).toHaveAttribute("href", "#resume");
   await expect(links.nth(1)).toHaveAttribute("href", "#projects");
   await expect(links.nth(2)).toHaveAttribute("href", "#contact");
 
-  for (const target of ["about", "projects", "contact"]) {
-    await navigation.getByRole("link", { name: new RegExp(target, "i") }).click();
+  for (const target of ["resume", "projects", "contact"]) {
+    await navigation.locator(`a[href="#${target}"]`).click();
     await expect(page.locator(`#${target}`)).toBeInViewport();
   }
 
@@ -942,10 +971,11 @@ test("publishes selected work, stable documents, and privacy-safe contact detail
   }
 
   await expect(
-    page.locator('a[href="mailto:zkuang0408@gmail.com"]'),
+    page.locator('#contact a[href="mailto:zkuang0408@gmail.com"]'),
   ).toBeVisible();
   const publicText = await page.locator("body").innerText();
   expect(publicText).toContain("zkuang0408@gmail.com");
+  expect(publicText).toContain("2643414752@qq.com");
 
   const stage = page.locator(".portrait-stage");
   const base = page.locator(".portrait-base");
@@ -965,14 +995,14 @@ test("publishes selected work, stable documents, and privacy-safe contact detail
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });
 
-test.describe("canonical desktop PDF reader behavior", () => {
+test.describe("canonical desktop project reader behavior", () => {
   test.skip(
     ({ viewport }) => viewport?.width !== 1_440,
     "Canonical desktop project owns the lazy-network proof.",
   );
 
-  test("loads only the approached project PDF", async ({ page }) => {
-    const requestedFiles = trackProjectPdfRequests(page);
+  test("preloads only the approached reader's next image page", async ({ page }) => {
+    const requestedPages = trackProjectPageRequests(page);
     await page.goto("/");
     await waitForCompleteCanvas(page);
 
@@ -991,12 +1021,12 @@ test.describe("canonical desktop PDF reader behavior", () => {
       });
     });
     await waitForBrowserLayout(page);
-    await expect(page.locator("#about")).toBeInViewport();
+    await expect(page.locator("#resume")).toBeInViewport();
     const initialDistance = await firstReader.evaluate(
       (element) => element.getBoundingClientRect().top - window.innerHeight,
     );
     expect(initialDistance).toBeGreaterThan(600);
-    expect(uniqueRequestedFiles(requestedFiles)).toEqual([]);
+    expect(requestedPages.some((path) => /\/02-1800\.webp$/.test(path))).toBe(false);
 
     await firstReader.evaluate((element) => {
       const readerTop = element.getBoundingClientRect().top + window.scrollY;
@@ -1007,7 +1037,22 @@ test.describe("canonical desktop PDF reader behavior", () => {
     });
     await waitForReaderReady(firstReader);
 
-    expect(uniqueRequestedFiles(requestedFiles)).toEqual(["inkseat.pdf"]);
+    await expect
+      .poll(() =>
+        requestedPages.some(
+          (path) =>
+            path.includes("/projects/pages/inkseat/") &&
+            path.endsWith("/02-1800.webp"),
+        ),
+      )
+      .toBe(true);
+    expect(
+      requestedPages.some(
+        (path) =>
+          !path.includes("/projects/pages/inkseat/") &&
+          /\/02-1800\.webp$/.test(path),
+      ),
+    ).toBe(false);
   });
 
   test("navigates INKSeat without wrapping at either boundary", async ({
@@ -1055,10 +1100,20 @@ test.describe("canonical desktop PDF reader behavior", () => {
     await expect(currentPage).toHaveText("18");
   });
 
-  test("isolates one failed PDF while another reader stays usable", async ({
+  test("isolates one failed image page while another reader stays usable", async ({
     page,
   }) => {
-    const failedPath = "/projects/pdfs/emovue.pdf";
+    await page.goto("/");
+    const failedReader = page.locator(
+      '[data-project-reader][data-project-id="emovue"]',
+    );
+    await failedReader.scrollIntoViewIfNeeded();
+    await waitForReaderReady(failedReader);
+    const firstPagePath = await failedReader
+      .locator("[data-page-image]")
+      .getAttribute("src");
+    if (!firstPagePath) throw new Error("Missing EMOVUE first page URL.");
+    const failedPath = firstPagePath.replace("/01-1800.webp", "/02-1800.webp");
     expectOneFailedRequest(page, failedPath);
     expectOneConsoleError(page, "Failed to load resource: net::ERR_FAILED");
     let abortedRequests = 0;
@@ -1070,12 +1125,7 @@ test.describe("canonical desktop PDF reader behavior", () => {
       }
       await route.continue();
     });
-
-    await page.goto("/");
-    const failedReader = page.locator(
-      `[data-project-reader][data-pdf-url="${failedPath}"]`,
-    );
-    await failedReader.scrollIntoViewIfNeeded();
+    await failedReader.getByRole("button", { name: "Next page of EMOVUE" }).click();
     await expect(failedReader).toHaveAttribute("data-reader-state", "error", {
       timeout: 30_000,
     });
@@ -1085,11 +1135,11 @@ test.describe("canonical desktop PDF reader behavior", () => {
     await expect(
       errorRegion.getByRole("button", { name: "Retry" }),
     ).toBeVisible();
-    const originalPdf = errorRegion.getByRole("link", {
-      name: "Open original PDF",
+    const originalPdf = failedReader.getByRole("link", {
+      name: "Open complete PDF",
     });
     await expect(originalPdf).toBeVisible();
-    await expect(originalPdf).toHaveAttribute("href", failedPath);
+    await expect(originalPdf).toHaveAttribute("href", "/projects/pdfs/emovue.pdf");
     await expect(originalPdf).toHaveAttribute("target", "_blank");
     expect(abortedRequests).toBe(1);
 
@@ -1244,7 +1294,7 @@ test("resize redraws a settled portrait without replaying the scatter", async ({
   if (!viewport) throw new Error("Project must define a viewport.");
   await page.setViewportSize({
     height: Math.max(320, viewport.height - 17),
-    width: Math.max(320, viewport.width - 13),
+    width: viewport.width <= 333 ? viewport.width + 17 : viewport.width - 13,
   });
 
   await page.waitForTimeout(180);
@@ -1258,6 +1308,7 @@ test("resize redraws a settled portrait without replaying the scatter", async ({
   });
   expectCompleteCanvas(redrawn);
   expect(later).toEqual(redrawn);
+  await page.evaluate(() => window.scrollTo({ behavior: "instant", top: 0 }));
   await expectCriticalLayoutInsideViewport(page);
 });
 

@@ -15,7 +15,8 @@
 
   background: var(--ink);
   color: var(--paper);
-  font-family: Inter, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", Helvetica, Arial, sans-serif;
   font-synthesis: none;
 }
 
@@ -444,12 +445,12 @@ a:focus-visible {
   line-height: 1.45;
   text-align: left;
   cursor: pointer;
-  transition: color 160ms ease, padding-left 160ms ease;
+  transition: color 160ms ease, transform 160ms ease;
 }
 
 .chat-recommendation:hover {
-  padding-left: 5px;
   color: var(--paper);
+  transform: translateX(5px);
 }
 
 .chat-recommendation:focus-visible,
@@ -592,7 +593,8 @@ a:focus-visible {
   display: block;
   margin-top: 20px;
   color: var(--muted);
-  font-family: Inter, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", Helvetica, Arial, sans-serif;
   font-size: clamp(9px, 0.9vw, 12px);
   font-style: normal;
   letter-spacing: 0.18em;
@@ -1114,12 +1116,20 @@ a:focus-visible {
   color: #aaa;
   font-size: 12px;
   letter-spacing: 0.08em;
-  transition: color 180ms ease, padding 180ms ease;
+  transition: color 180ms ease;
+}
+
+.document-links a > * {
+  transition: transform 180ms var(--ease-out);
 }
 
 .document-links a:hover {
-  padding-left: 8px;
   color: var(--paper);
+}
+
+.document-links a:hover > *,
+.document-links a:focus-visible > * {
+  transform: translateX(8px);
 }
 
 .document-links strong {
@@ -1277,7 +1287,8 @@ a:focus-visible {
 
   .chat-panel {
     position: fixed;
-    inset: auto 0 var(--chat-viewport-inset, 0px) 0;
+    inset: auto 0 auto 0;
+    bottom: max(1px, var(--chat-viewport-inset, 0px));
     width: 100%;
     max-height: min(78dvh, calc(100dvh - var(--nav-height) - var(--chat-viewport-inset, 0px)));
     padding: 18px 20px max(20px, env(safe-area-inset-bottom));
@@ -1687,7 +1698,39 @@ a:focus-visible {
   }
 
   .portrait-stage {
-    top: 260px;
+    top: 225px;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
+  .hero {
+    min-height: max(100svh, 520px);
+  }
+
+  .hero-copy {
+    top: 24px;
+    width: 58%;
+  }
+
+  .hero-copy .role {
+    margin-bottom: 12px;
+  }
+
+  .hero-copy .headline {
+    font-size: clamp(36px, 6.2vw, 44px);
+  }
+
+  .hero-supporting {
+    max-width: 29ch;
+    margin-top: 14px;
+    font-size: 11px;
+  }
+
+  .portrait-stage {
+    top: 64px;
+    right: -10vw;
+    bottom: -4vh;
+    width: 72vw;
   }
 }
 

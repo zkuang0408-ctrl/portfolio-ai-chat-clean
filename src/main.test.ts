@@ -69,6 +69,7 @@ test("renders the editorial homepage in the app root", async () => {
   expect(app?.querySelectorAll("[data-site-nav] nav a")).toHaveLength(3);
   expect(app?.querySelector(".hero nav")).toBeNull();
   expect(app?.querySelector(".portfolio-content")).not.toBeNull();
+  expect(app?.querySelector("[data-chat-root]")?.parentElement).toBe(app);
   expect(app?.querySelectorAll("#projects article")).toHaveLength(6);
   expect(app?.querySelector<HTMLImageElement>(".portrait-base")?.src).toMatch(
     /\/portrait-resume-retouched-v1\.png(?:\?.*)?$/,

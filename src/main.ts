@@ -70,6 +70,10 @@ const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
 renderPortfolio(portfolioRoot, { portraitUrl });
+// Keep the assistant above every editorial section instead of trapping it in
+// the hero's isolated stacking context. Moving the existing node preserves the
+// chat controller state and avoids rendering a second assistant instance.
+app.append(portrait.chatRoot);
 const stopProjectSelector = startProjectSelector(portfolioRoot);
 const stopSectionState = startSectionState(navigation.root, app);
 

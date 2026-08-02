@@ -73,7 +73,7 @@ export function navigateToSource(
     source.projectId === undefined &&
     (source.page === undefined || source.page === 1)
   ) {
-    scrollTo(portfolioRoot, "#about");
+    scrollTo(portfolioRoot, "#resume");
     return;
   }
 

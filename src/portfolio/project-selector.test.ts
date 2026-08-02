@@ -48,7 +48,7 @@ test("updates active state from visible chapters without stealing focus", () => 
   const emovue = root.querySelector<HTMLElement>('[data-project-chapter="emovue"]')!;
 
   callback(
-    [{ target: emovue, isIntersecting: true, intersectionRatio: 0.7 } as IntersectionObserverEntry],
+    [{ target: emovue, isIntersecting: true, intersectionRatio: 0.7 } as unknown as IntersectionObserverEntry],
     {} as IntersectionObserver,
   );
 
