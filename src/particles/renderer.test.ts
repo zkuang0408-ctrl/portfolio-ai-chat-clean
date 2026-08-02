@@ -17,6 +17,7 @@ const particle: Particle = {
   delay: 0.1,
   band: "micro",
   region: "core",
+  depth: 0.9,
 };
 
 function createRenderer(maxDrawParticles?: number) {
@@ -137,6 +138,17 @@ describe("ParticleRenderer", () => {
     expect(context.restore).toHaveBeenCalledTimes(1);
     expect(context.fillStyle).toBe("");
     expect(context.globalAlpha).toBe(1);
+  });
+
+  it("applies restrained parallax in proportion to particle depth", () => {
+    const { context, renderer } = createRenderer();
+    renderer.resize(100, 120, 1);
+
+    renderer.draw([particle], 1, { width: 100, height: 120 }, { x: 4, y: -2 });
+
+    const ellipseCall = context.ellipse.mock.calls[0];
+    expect(ellipseCall?.[0]).toBeCloseTo(50 + 4 * particle.depth);
+    expect(ellipseCall?.[1]).toBeCloseTo(60 - 2 * particle.depth);
   });
 
   it("aligns a contained portrait to the CSS 18% vertical position", () => {

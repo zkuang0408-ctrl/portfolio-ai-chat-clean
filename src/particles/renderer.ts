@@ -9,6 +9,11 @@ export interface SourceSize {
   height: number;
 }
 
+export interface PortraitParallax {
+  x: number;
+  y: number;
+}
+
 function isDrawableParticle(particle: Particle): boolean {
   return (
     Number.isFinite(particle.targetX) &&
@@ -58,6 +63,7 @@ export class ParticleRenderer {
     particles: readonly Particle[],
     globalProgress: number,
     source: SourceSize,
+    parallax: PortraitParallax = { x: 0, y: 0 },
   ): void {
     const previousGlobalAlpha = this.context.globalAlpha;
     const previousFillStyle = this.context.fillStyle;
@@ -103,13 +109,16 @@ export class ParticleRenderer {
         const radius = particle.radius * scale * (0.55 + progress * 0.45);
         const alpha = Math.min(1, Math.max(0, particle.alpha * progress));
         const tone = Math.min(255, Math.max(0, Math.round(particle.tone)));
+        const depth = Number.isFinite(particle.depth)
+          ? Math.min(1, Math.max(0, particle.depth))
+          : 0;
 
         this.context.beginPath();
         this.context.globalAlpha = alpha;
         this.context.fillStyle = `rgb(${tone} ${tone} ${tone})`;
         this.context.ellipse(
-          offsetX + x * scale,
-          offsetY + y * scale,
+          offsetX + x * scale + parallax.x * depth,
+          offsetY + y * scale + parallax.y * depth,
           radius * particle.stretch,
           radius,
           0,

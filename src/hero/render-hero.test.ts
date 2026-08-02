@@ -11,6 +11,10 @@ test("renders the editorial hero beneath the persistent site navigation", () => 
   expect(root.textContent).toContain("Crafting");
   expect(root.textContent).toContain("Through Objects");
   expect(root.querySelector("nav")).toBeNull();
+  expect(root.querySelector(".hero")?.id).toBe("top");
+  expect(root.querySelector("[data-hero-supporting]")?.textContent).toBe(
+    "从实体产品到智能系统，以研究、交互与原型塑造未来体验。",
+  );
   expect(root.querySelector("canvas")?.getAttribute("aria-hidden")).toBe("true");
   expect(root.querySelector<HTMLImageElement>(".portrait-base")?.src).toContain(
     "/portrait.png",
@@ -37,12 +41,26 @@ test("provides a concise portrait failure status", () => {
   );
 });
 
+test("uses the supplied approved portrait only as a hidden particle source", () => {
+  const root = document.createElement("div");
+
+  renderHero(root, "/portrait-resume-retouched-v1.png");
+
+  const source = root.querySelector<HTMLImageElement>(".portrait-base");
+  expect(source?.src).toContain("portrait-resume-retouched-v1.png");
+  expect(source?.alt).toBe("");
+  expect(source?.getAttribute("aria-hidden")).toBe("true");
+  expect(root.querySelector(".portrait-stage")?.getAttribute("role")).toBe("img");
+  expect(root.querySelector(".portrait-stage")?.getAttribute("aria-label")).toBe(
+    "赵实旷的粒子肖像",
+  );
+});
+
 test("mounts the permanent Chinese assistant and returns its scoped references", () => {
   const root = document.createElement("div");
 
   const hero = renderHero(root, "/portrait.png");
 
-  expect(root.querySelector(".name")?.textContent).toBe("赵实旷.");
   expect(hero.chatRoot).toBe(root.querySelector("[data-chat-root]"));
   expect(hero.chat.root).toBe(hero.chatRoot);
   expect(hero.chatRoot.getAttribute("role")).not.toBe("dialog");

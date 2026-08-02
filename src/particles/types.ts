@@ -20,6 +20,7 @@ export interface Particle {
   delay: number;
   band: ParticleSizeBand;
   region: ParticleRegion;
+  depth: number;
 }
 
 export interface SampleOptions {

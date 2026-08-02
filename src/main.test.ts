@@ -57,7 +57,7 @@ test("renders the editorial homepage in the app root", async () => {
   expect(app?.querySelector(".portfolio-content")).not.toBeNull();
   expect(app?.querySelectorAll("#projects article")).toHaveLength(6);
   expect(app?.querySelector<HTMLImageElement>(".portrait-base")?.src).toMatch(
-    /\/portrait(?:-[^./]+)?\.webp(?:\?.*)?$/,
+    /\/portrait-resume-retouched-v1\.png(?:\?.*)?$/,
   );
   expect(startPortrait).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledWith({

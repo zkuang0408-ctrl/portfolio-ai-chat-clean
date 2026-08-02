@@ -313,6 +313,10 @@ describe("samplePortrait", () => {
     expect(first).toEqual(second);
     expect(first.length).toBeLessThanOrEqual(300);
     expect(first.length).toBeGreaterThan(120);
+    expect(first.every(({ depth }) => depth >= 0 && depth <= 1)).toBe(true);
+    expect(first.filter(({ band }) => band === "micro").length).toBeGreaterThan(
+      first.filter(({ band }) => band === "large").length,
+    );
   });
 
   it.each([7_000, 14_000])(

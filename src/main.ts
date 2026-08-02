@@ -1,4 +1,3 @@
-import portraitUrl from "./assets/portrait.webp";
 import { resolveChatEndpoint } from "./chat/chat-endpoint";
 import { startPortfolioChat } from "./chat/chat-controller";
 import type { ChatLocale } from "./chat/content";
@@ -11,6 +10,8 @@ import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
+
+const portraitUrl = "/portrait-resume-retouched-v1.png";
 
 function selectedPageUrl(asset: ProjectPageAsset): string {
   return window.matchMedia("(max-width: 760px)").matches

@@ -1319,6 +1319,125 @@ a:focus-visible {
   }
 }
 
+/* Approved black editorial homepage: title first, particle portrait rising beneath. */
+.hero {
+  min-height: max(100svh, 760px);
+  padding-top: calc(var(--nav-height) + env(safe-area-inset-top));
+  background:
+    radial-gradient(circle at 50% 58%, rgb(28 28 29 / 0.52), transparent 42%),
+    var(--ink);
+}
+
+.hero-scene {
+  inset: calc(var(--nav-height) + env(safe-area-inset-top)) 0 0;
+}
+
+.hero-copy {
+  position: absolute;
+  z-index: 4;
+  top: clamp(42px, 7vh, 88px);
+  left: clamp(24px, 5.4vw, 96px);
+  width: min(780px, 68vw);
+}
+
+.hero-copy .role {
+  margin: 0 0 22px;
+}
+
+.hero-copy .headline {
+  font-size: clamp(54px, 6.8vw, 108px);
+  line-height: 0.89;
+}
+
+.hero-copy .headline span {
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.hero-supporting {
+  max-width: 48ch;
+  margin: 24px 0 0;
+  color: #a6a4a0;
+  font-size: clamp(13px, 1.15vw, 17px);
+  line-height: 1.8;
+  letter-spacing: 0.035em;
+}
+
+.portrait-stage {
+  top: clamp(228px, 29vh, 310px);
+  right: clamp(-80px, 1vw, 22px);
+  bottom: -12vh;
+  left: auto;
+  width: min(74vw, 1060px);
+}
+
+.portrait-base {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.hero-index {
+  bottom: clamp(28px, 4vh, 54px);
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: max(100svh, 700px);
+    padding-bottom: 0;
+  }
+
+  .hero-scene {
+    position: absolute;
+    inset: calc(var(--nav-height) + env(safe-area-inset-top)) 0 0;
+    height: auto;
+  }
+
+  .hero-copy {
+    top: 34px;
+    left: 20px;
+    width: calc(100% - 40px);
+  }
+
+  .hero-copy .role {
+    margin-bottom: 16px;
+  }
+
+  .hero-copy .headline {
+    font-size: clamp(43px, 13vw, 62px);
+  }
+
+  .hero-supporting {
+    max-width: 32ch;
+    margin-top: 18px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  .portrait-stage {
+    top: 248px;
+    right: -28vw;
+    bottom: -3vh;
+    left: auto;
+    width: 145vw;
+  }
+}
+
+@media (max-width: 390px) {
+  .hero-copy .headline {
+    font-size: 42px;
+  }
+
+  .portrait-stage {
+    top: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy .headline {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;

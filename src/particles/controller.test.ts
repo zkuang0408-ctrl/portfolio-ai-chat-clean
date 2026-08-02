@@ -20,6 +20,7 @@ const particle: Particle = {
   delay: 0,
   band: "micro",
   region: "core",
+  depth: 0.9,
 };
 
 function elements(width = 600, height = 800) {
@@ -269,6 +270,26 @@ describe("startPortrait", () => {
     const terminalDrawCount = deps.renderer.draw.mock.calls.length;
     options?.onComplete();
     expect(deps.renderer.draw).toHaveBeenCalledTimes(terminalDrawCount);
+  });
+
+  it("adds only restrained depth parallax after the entrance settles", async () => {
+    const deps = dependencies();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+
+    await start({ ...deps, reducedMotion: false });
+    deps.run.mock.calls[0]?.[0]?.onComplete();
+    window.dispatchEvent(new MouseEvent("pointermove", {
+      clientX: 1_000,
+      clientY: 0,
+    }));
+
+    expect(deps.renderer.draw).toHaveBeenLastCalledWith(
+      [particle],
+      1,
+      pixels,
+      { x: 6, y: -6 },
+    );
   });
 
   it("safely defaults to animation when matchMedia is unavailable", async () => {

@@ -16,6 +16,7 @@ interface RendererLike {
     particles: readonly Particle[],
     progress: number,
     source: { width: number; height: number },
+    parallax?: { x: number; y: number },
   ): void;
 }
 
@@ -159,9 +160,11 @@ export async function startPortrait(
   let stopTimeline = noop;
   let resizeTimer: number | undefined;
   let listening = false;
+  let pointerListening = false;
   let closed = false;
   let drawSettled = noop;
   let onResize = noop;
+  let onPointerMove = noop;
 
   const stopAnimation = (): void => {
     const stop = stopTimeline;
@@ -183,6 +186,10 @@ export async function startPortrait(
     if (listening) {
       window.removeEventListener("resize", onResize);
       listening = false;
+    }
+    if (pointerListening) {
+      window.removeEventListener("pointermove", onPointerMove);
+      pointerListening = false;
     }
   };
   const fail = (error: unknown): void => {
@@ -259,6 +266,14 @@ export async function startPortrait(
       resize();
       renderer.draw(particles, 1, pixels);
     };
+    onPointerMove = safely((event: Event) => {
+      const pointer = event as MouseEvent;
+      const viewportWidth = Math.max(1, window.innerWidth);
+      const viewportHeight = Math.max(1, window.innerHeight);
+      const x = Math.max(-6, Math.min(6, (pointer.clientX / viewportWidth - 0.5) * 12));
+      const y = Math.max(-6, Math.min(6, (pointer.clientY / viewportHeight - 0.5) * 12));
+      renderer.draw(particles, 1, pixels, { x, y });
+    });
 
     resize();
 
@@ -274,7 +289,10 @@ export async function startPortrait(
         onFrame: safely((progress) =>
           renderer.draw(particles, progress, pixels),
         ),
-        onComplete: safely(noop),
+        onComplete: safely(() => {
+          window.addEventListener("pointermove", onPointerMove, { passive: true });
+          pointerListening = true;
+        }),
       });
       stopTimeline = returnedStop;
 

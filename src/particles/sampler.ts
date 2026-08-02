@@ -518,6 +518,8 @@ export function samplePortrait(
           ? [0.22, 0.48]
           : [0.42, 0.72];
     const visual = visualForSample(light, region, random(), edge);
+    const depthBase = region === "core" ? 0.86 : region === "face" ? 0.62 : 0.28;
+    const depth = clamp01(depthBase + edge * 0.1 + (light - 0.5) * 0.12);
 
     candidates.push({
       targetX,
@@ -528,6 +530,7 @@ export function samplePortrait(
       tone: visual.tone,
       delay: between(random, delayRange[0], delayRange[1]),
       region,
+      depth,
       assignmentOrder,
       edgeScore: edge,
       radiusRoll,
