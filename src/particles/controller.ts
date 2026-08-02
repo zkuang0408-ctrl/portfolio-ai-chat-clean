@@ -289,8 +289,8 @@ export async function startPortrait(
       const pointer = event as MouseEvent;
       const viewportWidth = Math.max(1, window.innerWidth);
       const viewportHeight = Math.max(1, window.innerHeight);
-      const x = Math.max(-6, Math.min(6, (pointer.clientX / viewportWidth - 0.5) * 12));
-      const y = Math.max(-6, Math.min(6, (pointer.clientY / viewportHeight - 0.5) * 12));
+      const x = Math.max(-4, Math.min(4, (pointer.clientX / viewportWidth - 0.5) * 8));
+      const y = Math.max(-4, Math.min(4, (pointer.clientY / viewportHeight - 0.5) * 8));
       renderer.draw(particles, 1, pixels, { x, y });
     });
 

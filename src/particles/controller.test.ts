@@ -305,7 +305,7 @@ describe("startPortrait", () => {
       [particle],
       1,
       pixels,
-      { x: 6, y: -6 },
+      { x: 4, y: -4 },
     );
   });
 

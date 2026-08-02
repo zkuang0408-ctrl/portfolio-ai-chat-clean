@@ -9,6 +9,33 @@ export interface SourceSize {
   height: number;
 }
 
+export interface PortraitComposition {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+export function portraitCompositionFor(
+  width: number,
+  height: number,
+  source: SourceSize,
+): PortraitComposition {
+  const mobile = width <= 760;
+  const shortLandscape = mobile && width > height;
+  const widthFactor = shortLandscape ? 0.78 : mobile ? 1.10 : 0.70;
+  const heightFactor = shortLandscape ? 0.92 : mobile ? 0.78 : 1.12;
+  const scale = Math.max(
+    (width / source.width) * widthFactor,
+    (height / source.height) * heightFactor,
+  );
+
+  return {
+    scale,
+    offsetX: (width - source.width * scale) / 2,
+    offsetY: height * 0.11 - source.height * 0.13 * scale,
+  };
+}
+
 export interface PortraitParallax {
   x: number;
   y: number;
@@ -82,13 +109,11 @@ export class ParticleRenderer {
         return;
       }
 
-      const scale = Math.min(
-        this.width / source.width,
-        this.height / source.height,
+      const { scale, offsetX, offsetY } = portraitCompositionFor(
+        this.width,
+        this.height,
+        source,
       );
-      const offsetX = (this.width - source.width * scale) / 2;
-      const offsetY =
-        (this.height - source.height * scale) * DEFAULT_PORTRAIT_POSITION_Y;
 
       const drawCount = Math.min(particles.length, this.maxDrawParticles);
 

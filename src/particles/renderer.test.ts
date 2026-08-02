@@ -1,9 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
 import * as rendererModule from "./renderer";
+import { portraitCompositionFor } from "./renderer";
 import type { Particle } from "./types";
 
 const { ParticleRenderer } = rendererModule;
+
+const portraitSource = { width: 1_104, height: 1_425 };
+const portraitLandmarks = {
+  hairTop: { x: 552, y: 143 },
+  glassesLeft: { x: 360, y: 485 },
+  glassesRight: { x: 744, y: 485 },
+  chin: { x: 552, y: 855 },
+  lowerClothing: { x: 552, y: 1_425 },
+};
+
+function composedPoint(
+  point: { x: number; y: number },
+  composition: { scale: number; offsetX: number; offsetY: number },
+) {
+  return {
+    x: composition.offsetX + point.x * composition.scale,
+    y: composition.offsetY + point.y * composition.scale,
+  };
+}
 
 const particle: Particle = {
   targetX: 50,
@@ -113,7 +133,56 @@ describe("ParticleRenderer", () => {
     },
   );
 
-  it("contains and centers the completed portrait in the canvas", () => {
+  it.each([
+    {
+      name: "desktop",
+      width: 1_440,
+      height: 836,
+      expectedScale: (1_440 / 1_104) * 0.7,
+      expectedOffsetY: 836 * 0.11 - 1_425 * 0.13 * ((1_440 / 1_104) * 0.7),
+      clothingCrossesBottom: true,
+    },
+    {
+      name: "mobile portrait",
+      width: 390,
+      height: 722,
+      expectedScale: (722 / 1_425) * 0.78,
+      expectedOffsetY: 722 * 0.11 - 1_425 * 0.13 * ((722 / 1_425) * 0.78),
+      clothingCrossesBottom: false,
+    },
+    {
+      name: "short mobile landscape",
+      width: 667,
+      height: 375,
+      expectedScale: (667 / 1_104) * 0.78,
+      expectedOffsetY: 375 * 0.11 - 1_425 * 0.13 * ((667 / 1_104) * 0.78),
+      clothingCrossesBottom: true,
+    },
+  ])(
+    "centers and crops the portrait for $name at $width x $height",
+    ({ width, height, expectedScale, expectedOffsetY, clothingCrossesBottom }) => {
+      const composition = portraitCompositionFor(width, height, portraitSource);
+      const hairTop = composedPoint(portraitLandmarks.hairTop, composition);
+      const glassesLeft = composedPoint(portraitLandmarks.glassesLeft, composition);
+      const glassesRight = composedPoint(portraitLandmarks.glassesRight, composition);
+      const chin = composedPoint(portraitLandmarks.chin, composition);
+      const lowerClothing = composedPoint(portraitLandmarks.lowerClothing, composition);
+
+      expect(composition.scale).toBeCloseTo(expectedScale);
+      expect(composition.offsetX).toBeCloseTo(
+        (width - portraitSource.width * expectedScale) / 2,
+      );
+      expect(composition.offsetY).toBeCloseTo(expectedOffsetY);
+      expect(hairTop.y).toBeGreaterThanOrEqual(0);
+      expect(chin.y).toBeLessThan(height);
+      expect(Math.abs((glassesLeft.x + glassesRight.x) / 2 - width / 2))
+        .toBeLessThanOrEqual(1);
+      expect(lowerClothing.y > height).toBe(clothingCrossesBottom);
+      if (width === 390) expect(composition.scale).toBeGreaterThan(0.38);
+    },
+  );
+
+  it("uses the viewport composition when drawing the completed portrait", () => {
     const { context, fillStates, renderer } = createRenderer();
     renderer.resize(400, 300, 1);
 
@@ -121,15 +190,12 @@ describe("ParticleRenderer", () => {
 
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 400, 300);
     expect(context.beginPath).toHaveBeenCalledTimes(1);
-    expect(context.ellipse).toHaveBeenCalledWith(
-      200,
-      150,
-      3,
-      2.5,
-      0,
-      0,
-      Math.PI * 2,
-    );
+    const ellipseCall = context.ellipse.mock.calls[0];
+    expect(ellipseCall?.[0]).toBeCloseTo(200);
+    expect(ellipseCall?.[1]).toBeCloseTo(171.528);
+    expect(ellipseCall?.[2]).toBeCloseTo(3.744);
+    expect(ellipseCall?.[3]).toBeCloseTo(3.12);
+    expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
     expect(context.fill).toHaveBeenCalledTimes(1);
     expect(fillStates).toEqual([
       { alpha: 0.8, fillStyle: "rgb(230 230 230)" },
@@ -148,24 +214,21 @@ describe("ParticleRenderer", () => {
 
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(50 + 4 * particle.depth);
-    expect(ellipseCall?.[1]).toBeCloseTo(60 - 2 * particle.depth);
+    expect(ellipseCall?.[1]).toBeCloseTo(62.04 - 2 * particle.depth);
   });
 
-  it("aligns a contained portrait to the CSS 18% vertical position", () => {
+  it("keeps portrait composition consistent when the viewport is tall", () => {
     const { context, renderer } = createRenderer();
     renderer.resize(200, 500, 1);
 
     renderer.draw([particle], 1, { width: 100, height: 100 });
 
-    expect(context.ellipse).toHaveBeenCalledWith(
-      100,
-      174,
-      2.4,
-      2,
-      0,
-      0,
-      Math.PI * 2,
-    );
+    const ellipseCall = context.ellipse.mock.calls[0];
+    expect(ellipseCall?.[0]).toBeCloseTo(100);
+    expect(ellipseCall?.[1]).toBeCloseTo(238.3);
+    expect(ellipseCall?.[2]).toBeCloseTo(4.68);
+    expect(ellipseCall?.[3]).toBeCloseTo(3.9);
+    expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
   });
 
   it("clears but does not draw a particle before its delayed entrance", () => {
@@ -318,10 +381,15 @@ describe("ParticleRenderer", () => {
     renderer.draw([particle], 0.55, { width: 100, height: 120 });
 
     const progress = 0.96875;
-    const radius = 0.55 + progress * 0.45;
+    const scale = 1.1;
+    const radius = scale * (0.55 + progress * 0.45);
     const ellipseCall = context.ellipse.mock.calls[0];
-    expect(ellipseCall?.[0]).toBeCloseTo(-40 + (50 - -40) * progress);
-    expect(ellipseCall?.[1]).toBeCloseTo(10 + (60 - 10) * progress);
+    expect(ellipseCall?.[0]).toBeCloseTo(
+      -5 + (-40 + (50 - -40) * progress) * scale,
+    );
+    expect(ellipseCall?.[1]).toBeCloseTo(
+      -3.96 + (10 + (60 - 10) * progress) * scale,
+    );
     expect(ellipseCall?.[2]).toBeCloseTo(radius * 1.2);
     expect(ellipseCall?.[3]).toBeCloseTo(radius);
     expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
