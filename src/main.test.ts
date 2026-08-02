@@ -74,10 +74,14 @@ test("renders the editorial homepage in the app root", async () => {
   expect(app?.querySelector<HTMLImageElement>(".portrait-base")?.src).toMatch(
     /\/portrait-resume-retouched-v1\.png(?:\?.*)?$/,
   );
+  expect(app?.querySelector<HTMLImageElement>(".portrait-mask")?.src).toMatch(
+    /\/portrait-particle-mask\.png(?:\?.*)?$/,
+  );
   expect(startPortrait).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledWith({
     canvas: app?.querySelector(".portrait-canvas"),
     portraitBase: app?.querySelector(".portrait-base"),
+    portraitMask: app?.querySelector(".portrait-mask"),
     portraitStage: app?.querySelector(".portrait-stage"),
   });
   expect(startPortfolioChat).toHaveBeenCalledOnce();

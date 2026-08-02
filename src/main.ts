@@ -16,6 +16,7 @@ import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
 
 const portraitUrl = "/portrait-resume-retouched-v1.png";
+const portraitMaskUrl = "/portrait-particle-mask.png";
 
 function selectedPageUrl(asset: ProjectPageAsset): string {
   return window.matchMedia("(max-width: 760px)").matches
@@ -65,7 +66,7 @@ const locale: ChatLocale = navigator.language.toLowerCase().startsWith("zh")
   ? "zh"
   : "en";
 const navigation = renderNavigation(app);
-const portrait = renderHero(app, portraitUrl, locale);
+const portrait = renderHero(app, portraitUrl, portraitMaskUrl, locale);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
@@ -116,5 +117,6 @@ window.addEventListener("pagehide", handlePageHide);
 void startPortrait({
   canvas: portrait.canvas,
   portraitBase: portrait.portraitBase,
+  portraitMask: portrait.portraitMask,
   portraitStage: portrait.portraitStage,
 });

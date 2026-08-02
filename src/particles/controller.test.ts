@@ -8,6 +8,17 @@ const pixels = {
   height: 2,
 };
 
+const maskPixels = {
+  data: new Uint8ClampedArray([
+    0, 0, 0, 0,
+    0, 0, 0, 255,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+  ]),
+  width: 2,
+  height: 2,
+};
+
 const particle: Particle = {
   targetX: 1,
   targetY: 1,
@@ -27,8 +38,11 @@ function elements(width = 600, height = 800) {
   const portraitStage = document.createElement("div");
   const canvas = document.createElement("canvas");
   const portraitBase = document.createElement("img");
+  const portraitMask = document.createElement("img");
+  portraitBase.hidden = true;
+  portraitMask.hidden = true;
 
-  portraitStage.append(portraitBase, canvas);
+  portraitStage.append(portraitBase, portraitMask, canvas);
   Object.defineProperty(portraitStage, "clientWidth", {
     configurable: true,
     value: width,
@@ -38,13 +52,15 @@ function elements(width = 600, height = 800) {
     value: height,
   });
 
-  return { canvas, portraitBase, portraitStage };
+  return { canvas, portraitBase, portraitMask, portraitStage };
 }
 
 function dependencies(width = 600) {
   const dom = elements(width);
   const renderer = { resize: vi.fn(), draw: vi.fn() };
-  const loadPixels = vi.fn().mockResolvedValue(pixels);
+  const loadPixels = vi.fn((image: HTMLImageElement) =>
+    Promise.resolve(image === dom.portraitBase ? pixels : maskPixels),
+  );
   const sample = vi.fn().mockReturnValue([particle]);
   const stop = vi.fn();
   const run = vi.fn().mockReturnValue(stop);
@@ -239,6 +255,7 @@ describe("startPortrait", () => {
       expect(deps.sample).toHaveBeenCalledWith(pixels, {
         maxParticles,
         seed: 20260714,
+        mask: maskPixels,
       });
       expect(matchMedia).toHaveBeenCalledWith("(max-width: 760px)");
       expect(matchMedia).toHaveBeenCalledWith(
@@ -366,10 +383,12 @@ describe("startPortrait", () => {
       expect(deps.sample).toHaveBeenNthCalledWith(1, pixels, {
         maxParticles: initialBudget,
         seed: 20260714,
+        mask: maskPixels,
       });
       expect(deps.sample).toHaveBeenNthCalledWith(2, pixels, {
         maxParticles: resizedBudget,
         seed: 20260714,
+        mask: maskPixels,
       });
       expect(deps.sample).toHaveBeenCalledTimes(2);
       expect(deps.renderer.draw).toHaveBeenLastCalledWith(
@@ -487,12 +506,13 @@ describe("startPortrait", () => {
   });
 
   it("keeps a black particle-stage fallback when Canvas 2D is unavailable", async () => {
-    const { canvas, portraitBase, portraitStage } = elements();
+    const { canvas, portraitBase, portraitMask, portraitStage } = elements();
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
 
     await start({
       canvas,
       portraitBase,
+      portraitMask,
       portraitStage,
     });
 
@@ -515,6 +535,88 @@ describe("startPortrait", () => {
     ).toBe(true);
     expect(deps.portraitStage.classList.contains("is-error")).toBe(true);
     expect(cleanup).toBeTypeOf("function");
+    error.mockRestore();
+  });
+
+  it("starts both aligned source pixel loads before either resolves", async () => {
+    const deps = dependencies();
+    const pending: Array<() => void> = [];
+    deps.loadPixels.mockImplementation((image: HTMLImageElement) =>
+      new Promise((resolve) => {
+        pending.push(() =>
+          resolve(image === deps.portraitBase ? pixels : maskPixels),
+        );
+      }),
+    );
+
+    const started = start({ ...deps, reducedMotion: true });
+
+    expect(deps.loadPixels).toHaveBeenCalledTimes(2);
+    expect(deps.loadPixels).toHaveBeenNthCalledWith(1, deps.portraitBase);
+    expect(deps.loadPixels).toHaveBeenNthCalledWith(2, deps.portraitMask);
+    pending.forEach((resolve) => resolve());
+    await started;
+  });
+
+  it("falls back to typography-only mode when mask decoding fails", async () => {
+    const deps = dependencies();
+    const decodeError = new Error("mask decode failed");
+    deps.loadPixels.mockImplementation((image: HTMLImageElement) =>
+      image === deps.portraitMask
+        ? Promise.reject(decodeError)
+        : Promise.resolve(pixels),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await start({ ...deps, reducedMotion: true });
+
+    expect(deps.sample).not.toHaveBeenCalled();
+    expect(deps.portraitStage.classList).toContain("portrait-stage--error");
+    expect(deps.portraitBase.hidden).toBe(true);
+    expect(deps.portraitMask.hidden).toBe(true);
+    expect(error).toHaveBeenCalledWith(
+      "Portrait initialization failed",
+      decodeError,
+    );
+    error.mockRestore();
+  });
+
+  it("rejects portrait masks whose dimensions do not match the source", async () => {
+    const deps = dependencies();
+    const mismatchedMask = { ...maskPixels, width: 1 };
+    deps.loadPixels.mockImplementation((image: HTMLImageElement) =>
+      Promise.resolve(image === deps.portraitBase ? pixels : mismatchedMask),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await start({ ...deps, reducedMotion: true });
+
+    expect(deps.sample).not.toHaveBeenCalled();
+    expect(error.mock.calls[0]?.[1]).toEqual(
+      new Error("Portrait mask dimensions must match source pixels."),
+    );
+    expect(deps.portraitStage.classList).toContain("portrait-stage--error");
+    error.mockRestore();
+  });
+
+  it("rejects portrait masks without any visible alpha", async () => {
+    const deps = dependencies();
+    const transparentMask = {
+      ...maskPixels,
+      data: new Uint8ClampedArray(maskPixels.data.length),
+    };
+    deps.loadPixels.mockImplementation((image: HTMLImageElement) =>
+      Promise.resolve(image === deps.portraitBase ? pixels : transparentMask),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await start({ ...deps, reducedMotion: true });
+
+    expect(deps.sample).not.toHaveBeenCalled();
+    expect(error.mock.calls[0]?.[1]).toEqual(
+      new Error("Portrait mask has no visible subject pixels."),
+    );
+    expect(deps.portraitStage.classList).toContain("portrait-stage--error");
     error.mockRestore();
   });
 });

@@ -5,7 +5,7 @@ import { renderHero } from "./render-hero";
 test("renders the editorial hero beneath the persistent site navigation", () => {
   const root = document.createElement("div");
 
-  renderHero(root, "/portrait.png");
+  renderHero(root, "/portrait.png", "/portrait-mask.png");
 
   expect(root.textContent).toContain("赵实旷");
   expect(root.textContent).toContain("Crafting");
@@ -24,17 +24,30 @@ test("renders the editorial hero beneath the persistent site navigation", () => 
 test("marks the sampling image as decorative and hidden from assistive technology", () => {
   const root = document.createElement("div");
 
-  renderHero(root, "/portrait.png");
+  renderHero(root, "/portrait.png", "/portrait-mask.png");
 
   const image = root.querySelector<HTMLImageElement>(".portrait-base");
   expect(image?.alt).toBe("");
   expect(image?.getAttribute("aria-hidden")).toBe("true");
+  expect(image?.hidden).toBe(true);
+});
+
+test("renders a hidden decorative portrait mask for particle sampling", () => {
+  const root = document.createElement("div");
+
+  renderHero(root, "/portrait.png", "/portrait-particle-mask.png");
+
+  const mask = root.querySelector<HTMLImageElement>(".portrait-mask");
+  expect(mask?.src).toContain("/portrait-particle-mask.png");
+  expect(mask?.alt).toBe("");
+  expect(mask?.getAttribute("aria-hidden")).toBe("true");
+  expect(mask?.hidden).toBe(true);
 });
 
 test("provides a concise portrait failure status", () => {
   const root = document.createElement("div");
 
-  renderHero(root, "/portrait.png");
+  renderHero(root, "/portrait.png", "/portrait-mask.png");
 
   expect(root.querySelector(".portrait-error")?.textContent).toBe(
     "Portrait visualization unavailable.",
@@ -44,7 +57,7 @@ test("provides a concise portrait failure status", () => {
 test("uses the supplied approved portrait only as a hidden particle source", () => {
   const root = document.createElement("div");
 
-  renderHero(root, "/portrait-resume-retouched-v1.png");
+  renderHero(root, "/portrait-resume-retouched-v1.png", "/portrait-mask.png");
 
   const source = root.querySelector<HTMLImageElement>(".portrait-base");
   expect(source?.src).toContain("portrait-resume-retouched-v1.png");
@@ -59,7 +72,7 @@ test("uses the supplied approved portrait only as a hidden particle source", () 
 test("mounts the permanent Chinese assistant and returns its scoped references", () => {
   const root = document.createElement("div");
 
-  const hero = renderHero(root, "/portrait.png");
+  const hero = renderHero(root, "/portrait.png", "/portrait-mask.png");
 
   expect(hero.chatRoot).toBe(root.querySelector("[data-chat-root]"));
   expect(hero.chat.root).toBe(hero.chatRoot);
@@ -71,10 +84,11 @@ test("mounts the permanent Chinese assistant and returns its scoped references",
 test("can render the hero assistant in English without changing portrait consumers", () => {
   const root = document.createElement("div");
 
-  const hero = renderHero(root, "/portrait.png", "en");
+  const hero = renderHero(root, "/portrait.png", "/portrait-mask.png", "en");
 
   expect(hero.canvas).toBeInstanceOf(HTMLCanvasElement);
   expect(hero.portraitBase).toBeInstanceOf(HTMLImageElement);
+  expect(hero.portraitMask).toBeInstanceOf(HTMLImageElement);
   expect(hero.portraitStage).toBeInstanceOf(HTMLElement);
   expect(hero.chat.input.getAttribute("aria-label")).toBe("Ask a question");
   expect(hero.chat.recommendations[0]?.textContent).toContain("one-minute");
@@ -83,7 +97,7 @@ test("can render the hero assistant in English without changing portrait consume
 test("keeps the portrait composition in a dedicated first-screen scene before chat", () => {
   const root = document.createElement("div");
 
-  const hero = renderHero(root, "/portrait.png");
+  const hero = renderHero(root, "/portrait.png", "/portrait-mask.png");
   const scene = root.querySelector<HTMLElement>(".hero-scene");
 
   expect(scene).not.toBeNull();

@@ -23,6 +23,7 @@ interface RendererLike {
 interface StartPortraitOptions {
   canvas: HTMLCanvasElement;
   portraitBase: HTMLImageElement;
+  portraitMask: HTMLImageElement;
   portraitStage: HTMLElement;
   reducedMotion?: boolean;
   loadPixels?: (image: HTMLImageElement) => Promise<PixelBuffer>;
@@ -136,6 +137,14 @@ function prefersReducedMotion(): boolean {
   return matchesMedia("(prefers-reduced-motion: reduce)", () => false);
 }
 
+function hasVisibleAlpha(mask: PixelBuffer): boolean {
+  for (let index = 3; index < mask.data.length; index += 4) {
+    if ((mask.data[index] ?? 0) > 0) return true;
+  }
+
+  return false;
+}
+
 function createRenderer(
   canvas: HTMLCanvasElement,
 ): RendererLike | undefined {
@@ -238,14 +247,23 @@ export async function startPortrait(
   };
 
   try {
-    const pixels = await (options.loadPixels ?? imageToPixels)(
-      options.portraitBase,
-    );
+    const loadPixels = options.loadPixels ?? imageToPixels;
+    const [pixels, mask] = await Promise.all([
+      loadPixels(options.portraitBase),
+      loadPixels(options.portraitMask),
+    ]);
+    if (pixels.width !== mask.width || pixels.height !== mask.height) {
+      throw new Error("Portrait mask dimensions must match source pixels.");
+    }
+    if (!hasVisibleAlpha(mask)) {
+      throw new Error("Portrait mask has no visible subject pixels.");
+    }
     const sample = options.sample ?? samplePortrait;
     let particleLimit = particleLimitForViewport();
     let particles = sample(pixels, {
       maxParticles: particleLimit,
       seed: PORTRAIT_SEED,
+      mask,
     });
     const resize = (): void => {
       renderer.resize(
@@ -260,6 +278,7 @@ export async function startPortrait(
         particles = sample(pixels, {
           maxParticles: nextParticleLimit,
           seed: PORTRAIT_SEED,
+          mask,
         });
         particleLimit = nextParticleLimit;
       }
