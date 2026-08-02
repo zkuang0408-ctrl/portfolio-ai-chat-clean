@@ -4,6 +4,7 @@ import {
   projects,
   type Project,
 } from "../content/portfolio";
+import { renderResume } from "../resume/render-resume";
 
 function escapeHtml(value: string): string {
   const entities: Record<string, string> = {
@@ -206,9 +207,17 @@ function renderContact(): string {
   `;
 }
 
-export function renderPortfolio(root: HTMLElement): void {
+export interface RenderPortfolioOptions {
+  readonly portraitUrl?: string;
+}
+
+export function renderPortfolio(
+  root: HTMLElement,
+  options: RenderPortfolioOptions = {},
+): void {
+  const portraitUrl = options.portraitUrl ?? "/portrait-resume-retouched-v1.png";
   root.insertAdjacentHTML(
     "beforeend",
-    `${renderAbout()}${renderProjects()}${renderDocuments()}${renderContact()}`,
+    `${renderResume(profile, portraitUrl)}${renderProjects()}${renderDocuments()}${renderContact()}`,
   );
 }

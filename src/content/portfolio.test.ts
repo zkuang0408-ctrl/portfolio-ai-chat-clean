@@ -34,4 +34,9 @@ test("keeps restricted resume details out of public content", () => {
   const serialized = JSON.stringify({ documents, profile, projects });
 
   expect(serialized).toContain("zkuang0408@gmail.com");
+  expect(serialized).toContain("2643414752@qq.com");
+  expect(serialized).toContain("Shanghai, China");
+  expect(serialized).not.toMatch(/\+?86|189\d{8}|上海市.+(?:路|号)/);
+  expect(profile.resumeHref).toBe("/documents/zhao-shikuang-resume-public.pdf");
+  expect(profile.resumeSections.length).toBeGreaterThan(3);
 });

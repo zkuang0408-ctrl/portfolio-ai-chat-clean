@@ -5,6 +5,12 @@ export interface Capability {
   items: readonly string[];
 }
 
+export interface ResumeSection {
+  readonly label: string;
+  readonly title: string;
+  readonly lines: readonly string[];
+}
+
 export interface Profile {
   name: string;
   discipline: string;
@@ -16,7 +22,10 @@ export interface Profile {
   };
   capabilities: readonly Capability[];
   email: string;
+  emails: readonly [string, string];
   location: string;
+  resumeHref: string;
+  resumeSections: readonly ResumeSection[];
 }
 
 export interface ProjectPageAsset {
@@ -83,7 +92,54 @@ export const profile: Profile = {
     },
   ],
   email: "zkuang0408@gmail.com",
+  emails: ["zkuang0408@gmail.com", "2643414752@qq.com"],
   location: "Shanghai, China",
+  resumeHref: "/documents/zhao-shikuang-resume-public.pdf",
+  resumeSections: [
+    {
+      label: "ABOUT",
+      title: "关于我",
+      lines: [
+        "工业设计大三学生，关注 AI 应用产品、智能交互与生成式设计。",
+        "以用户研究、场景洞察、产品原型与交互流程连接复杂问题和可验证方案。",
+      ],
+    },
+    {
+      label: "EDUCATION",
+      title: "同济大学设计创意学院",
+      lines: [
+        "工业设计本科 · 2023.09 — 至今",
+        "相关方向：用户研究、产品系统设计、智能硬件、XR 场景构建、机器学习。",
+      ],
+    },
+    {
+      label: "PROJECTS",
+      title: "核心项目",
+      lines: [
+        "INKSeat：智能座舱电子纸广告终端；负责系统分析、推荐逻辑、信息架构与界面表达。",
+        "EMOVUE：情绪感知可穿戴相机；负责产品定位、造型探索、交互流程与应用界面。",
+        "Fruit & Evolution：AI 辅助参数化食物生成；负责概念建构、参数模型与实体制作。",
+        "Atempo：呼吸引导智能交互产品；负责研究整理、交互闭环与界面展示。",
+      ],
+    },
+    {
+      label: "PRACTICE",
+      title: "实践经历",
+      lines: [
+        "腾讯未来信号空间站｜兴趣研究训练生：围绕游戏、娱乐与青年文化开展用户研究。",
+        "安徽超材料设计｜AI 辅助参数化结构设计：从运动产品需求到结构形态与性能验证。",
+      ],
+    },
+    {
+      label: "SKILLS",
+      title: "技能专长",
+      lines: [
+        "产品能力：用户研究、竞品分析、需求拆解、用户流程、功能定义、原型表达。",
+        "AI 产品：LLM 场景拆解、Prompt / Workflow、知识库 / RAG、输出质量评估。",
+        "工具：Figma、Rhino、Unity、Photoshop、Office。",
+      ],
+    },
+  ],
 };
 
 export const projects: readonly Project[] = [

@@ -6,9 +6,10 @@ import { renderPortfolio } from "./render-portfolio";
 test("renders accessible resume, project, document, and contact sections", () => {
   const root = document.createElement("main");
 
-  renderPortfolio(root);
+  renderPortfolio(root, { portraitUrl: "/portrait-resume-retouched-v1.png" });
 
-  expect(root.querySelector("#about h2")?.textContent).toContain("About");
+  expect(root.querySelector("#resume h2")?.textContent).toContain("赵实旷");
+  expect(root.querySelector("#about")).toBeNull();
   expect(root.querySelectorAll("#projects article")).toHaveLength(6);
   const readers = root.querySelectorAll<HTMLElement>("[data-project-reader]");
   expect(readers).toHaveLength(6);

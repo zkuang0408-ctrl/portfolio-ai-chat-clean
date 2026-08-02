@@ -65,7 +65,7 @@ const portrait = renderHero(app, portraitUrl, locale);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
-renderPortfolio(portfolioRoot);
+renderPortfolio(portfolioRoot, { portraitUrl });
 
 const stopChat = startPortfolioChat(portrait.chatRoot, {
   fetch: window.fetch.bind(window),
