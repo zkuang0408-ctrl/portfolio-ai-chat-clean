@@ -43,6 +43,15 @@ function setPixel(
   pixels.data[index + 2] = value;
 }
 
+function setAlpha(
+  pixels: PixelBuffer,
+  x: number,
+  y: number,
+  value: number,
+): void {
+  pixels.data[(y * pixels.width + x) * 4 + 3] = value;
+}
+
 function fixtureRegionAtPixel(
   x: number,
   y: number,
@@ -114,9 +123,9 @@ it("keeps dark core gaps below smooth and bright-edge visible contribution", () 
   expect(brightEdge).toBeGreaterThan(smoothCore);
 });
 
-it("preserves non-core acceptance and applies the spatial cluster factor", () => {
+it("keeps face acceptance denser than the matching outer edge", () => {
   expect(particleAcceptance(0.7, 0, 1, "face")).toBeCloseTo(0.416);
-  expect(particleAcceptance(0.7, 0, 1, "edge")).toBeCloseTo(0.416);
+  expect(particleAcceptance(0.7, 0, 1, "edge")).toBeCloseTo(0.217);
   expect(particleAcceptance(0.7, 0, 0, "face")).toBeCloseTo(0.416 * 0.34);
 });
 
@@ -131,7 +140,7 @@ it("clamps invalid particle acceptance inputs to finite bounds", () => {
 
   expect(invalidCore).toBeCloseTo(0.035 * 0.34);
   expect(Number.isFinite(invalidCore)).toBe(true);
-  expect(extremeEdge).toBeCloseTo(0.56);
+  expect(extremeEdge).toBeCloseTo(0.295);
   expect(invalidCore).toBeGreaterThanOrEqual(0);
   expect(extremeEdge).toBeLessThanOrEqual(0.94);
 });
@@ -264,6 +273,63 @@ it("keeps contour visuals bounded when inputs are non-finite", () => {
 });
 
 describe("samplePortrait", () => {
+  it("samples only pixels whose aligned subject-mask alpha is nonzero", () => {
+    const pixels = buffer(80, 120, 255);
+    const mask = buffer(80, 120, 255);
+
+    for (let y = 0; y < mask.height; y += 1) {
+      for (let x = 0; x < mask.width; x += 1) setAlpha(mask, x, y, 0);
+    }
+    for (let y = 34; y < 48; y += 1) {
+      for (let x = 34; x < 46; x += 1) setAlpha(mask, x, y, 255);
+    }
+
+    const particles = samplePortrait(pixels, {
+      maxParticles: 300,
+      seed: 20260802,
+      mask,
+    });
+
+    expect(particles.length).toBeGreaterThan(0);
+    expect(
+      particles.every(({ targetX, targetY }) => {
+        const maskIndex =
+          (Math.floor(targetY) * mask.width + Math.floor(targetX)) * 4 + 3;
+        return (mask.data[maskIndex] ?? 0) > 0;
+      }),
+    ).toBe(true);
+    expect(
+      particles.every(({ band, region }) =>
+        region !== "core" || (band !== "large" && band !== "splash"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects subject masks whose dimensions do not match the source", () => {
+    expect(() =>
+      samplePortrait(buffer(40, 60, 255), {
+        maxParticles: 100,
+        seed: 1,
+        mask: buffer(41, 60, 255),
+      }),
+    ).toThrowError("Portrait mask dimensions must match source pixels.");
+  });
+
+  it("returns no particles for an all-transparent subject mask", () => {
+    const mask = buffer(40, 60, 255);
+    for (let y = 0; y < mask.height; y += 1) {
+      for (let x = 0; x < mask.width; x += 1) setAlpha(mask, x, y, 0);
+    }
+
+    expect(
+      samplePortrait(buffer(40, 60, 255), {
+        maxParticles: 500,
+        seed: 1,
+        mask,
+      }),
+    ).toHaveLength(0);
+  });
+
   it("does not sample particles from a black portrait", () => {
     expect(
       samplePortrait(buffer(40, 60, 0), { maxParticles: 500, seed: 1 }),
@@ -414,17 +480,18 @@ describe("samplePortrait", () => {
     const second = samplePortrait(pixels, options);
 
     expect(second).toEqual(first);
-    // The fixture yields exactly 49 weak-face candidates; any additional
-    // face large would require an edgeScore at or above STRONG_FACE_EDGE.
+    // The lower outer-edge acceptance leaves exactly 51 weak-face candidates;
+    // any additional face large would require an edgeScore at or above
+    // STRONG_FACE_EDGE.
     expect(
       first.filter(({ band, region }) => region === "face" && band === "large"),
-    ).toHaveLength(49);
-    expect(first).toHaveLength(2_606);
+    ).toHaveLength(51);
+    expect(first).toHaveLength(1_895);
     expect(bandCounts(first)).toEqual({
-      micro: 1_694,
-      medium: 652,
-      large: 208,
-      splash: 52,
+      micro: 1_232,
+      medium: 474,
+      large: 151,
+      splash: 38,
     });
     expect(
       first.filter(
@@ -464,13 +531,13 @@ describe("samplePortrait", () => {
         edgeStrength(pixels, particle.targetX, particle.targetY) >= 0.18,
     );
 
-    expect(first).toHaveLength(2_653);
+    expect(first).toHaveLength(1_686);
     expect(second).toEqual(first);
     expect(bandCounts(first)).toEqual({
-      micro: 1_725,
-      medium: 663,
-      large: 212,
-      splash: 53,
+      micro: 1_096,
+      medium: 421,
+      large: 135,
+      splash: 34,
     });
     expect(new Set(strongCoreEdges.map(({ band }) => band))).toEqual(
       new Set(["micro"]),

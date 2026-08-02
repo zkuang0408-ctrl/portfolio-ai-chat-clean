@@ -145,7 +145,9 @@ export function particleAcceptance(
           0.94,
           0.035 + safeLight * 0.18 + safeEdge * 1.8 * edgeLuminanceSide,
         )
-      : Math.min(0.94, 0.08 + safeLight * 0.48 + safeEdge * 0.52);
+      : region === "face"
+        ? Math.min(0.94, 0.08 + safeLight * 0.48 + safeEdge * 0.52)
+        : Math.min(0.72, 0.035 + safeLight * 0.26 + safeEdge * 0.32);
 
   return base * clusterFactor;
 }
@@ -462,7 +464,15 @@ export function samplePortrait(
   buffer: PixelBuffer,
   options: SampleOptions,
 ): Particle[] {
-  const { maxParticles, seed } = options;
+  const { mask, maxParticles, seed } = options;
+
+  if (
+    mask !== undefined &&
+    (mask.width !== buffer.width || mask.height !== buffer.height)
+  ) {
+    throw new Error("Portrait mask dimensions must match source pixels.");
+  }
+
   const particleLimit = Number.isFinite(maxParticles)
     ? Math.min(MAX_PARTICLES, Math.max(0, Math.floor(maxParticles)))
     : 0;
@@ -482,6 +492,14 @@ export function samplePortrait(
   ) {
     const x = random() * buffer.width;
     const y = random() * buffer.height;
+
+    if (mask !== undefined) {
+      const maskX = Math.floor(x);
+      const maskY = Math.floor(y);
+      const alphaIndex = (maskY * mask.width + maskX) * 4 + 3;
+      if ((mask.data[alphaIndex] ?? 0) === 0) continue;
+    }
+
     const light = luminance(buffer, x, y);
 
     if (light < 0.035) continue;

@@ -26,6 +26,7 @@ export interface Particle {
 export interface SampleOptions {
   maxParticles: number;
   seed: number;
+  mask?: PixelBuffer;
 }
 
 export type RandomSource = () => number;
