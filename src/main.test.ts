@@ -47,10 +47,13 @@ test("renders the editorial homepage in the app root", async () => {
 
   const app = document.querySelector<HTMLDivElement>("#app");
 
+  expect(app?.firstElementChild?.matches("[data-site-nav]")).toBe(true);
+  expect(app?.querySelector("[data-site-nav]")?.classList).toContain("site-nav");
   expect(app?.querySelector(".hero")).not.toBeNull();
   expect(app?.querySelector("#hero-title")?.textContent).toContain("Crafting");
   expect(app?.querySelectorAll('nav [aria-disabled="true"]')).toHaveLength(0);
-  expect(app?.querySelectorAll("nav a")).toHaveLength(3);
+  expect(app?.querySelectorAll("[data-site-nav] nav a")).toHaveLength(3);
+  expect(app?.querySelector(".hero nav")).toBeNull();
   expect(app?.querySelector(".portfolio-content")).not.toBeNull();
   expect(app?.querySelectorAll("#projects article")).toHaveLength(6);
   expect(app?.querySelector<HTMLImageElement>(".portrait-base")?.src).toMatch(

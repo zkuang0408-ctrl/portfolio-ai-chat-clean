@@ -6,6 +6,7 @@ import { createSafeSessionStorage } from "./chat/session";
 import { navigateToSource } from "./chat/source-navigation";
 import type { ProjectPageAsset } from "./content/portfolio";
 import { renderHero } from "./hero/render-hero";
+import { renderNavigation } from "./navigation/render-navigation";
 import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
 import { renderPortfolio } from "./portfolio/render-portfolio";
@@ -58,6 +59,7 @@ if (!app) {
 const locale: ChatLocale = navigator.language.toLowerCase().startsWith("zh")
   ? "zh"
   : "en";
+renderNavigation(app);
 const portrait = renderHero(app, portraitUrl, locale);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";

@@ -14,17 +14,12 @@ export function renderHero(
   portraitUrl: string,
   locale: ChatLocale = "zh",
 ): HeroElements {
-  root.innerHTML = `
+  root.insertAdjacentHTML("beforeend", `
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-scene">
         <header class="identity">
           <p class="name">赵实旷.</p>
           <p class="role">PRODUCT · INTERACTION · FUTURE EXPERIENCE</p>
-          <nav aria-label="主要栏目">
-            <a href="#about">About</a>
-            <a href="#projects">Projects</a>
-            <a href="#contact">Contact</a>
-          </nav>
         </header>
 
         <div class="portrait-stage" aria-label="赵实旷肖像视觉">
@@ -47,7 +42,7 @@ export function renderHero(
 
       <aside class="hero-chat" data-chat-root></aside>
     </section>
-  `;
+  `);
 
   const canvas = root.querySelector<HTMLCanvasElement>(".portrait-canvas");
   const portraitBase = root.querySelector<HTMLImageElement>(".portrait-base");
