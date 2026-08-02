@@ -1,5 +1,6 @@
 import { resolveChatEndpoint } from "./chat/chat-endpoint";
 import { startPortfolioChat } from "./chat/chat-controller";
+import { startChatPresentation } from "./chat/chat-presentation";
 import type { ChatLocale } from "./chat/content";
 import { createSafeSessionStorage } from "./chat/session";
 import { navigateToSource } from "./chat/source-navigation";
@@ -62,7 +63,7 @@ if (!app) {
 const locale: ChatLocale = navigator.language.toLowerCase().startsWith("zh")
   ? "zh"
   : "en";
-renderNavigation(app);
+const navigation = renderNavigation(app);
 const portrait = renderHero(app, portraitUrl, locale);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
@@ -70,7 +71,7 @@ app.append(portfolioRoot);
 renderPortfolio(portfolioRoot, { portraitUrl });
 const stopProjectSelector = startProjectSelector(portfolioRoot);
 
-const stopChat = startPortfolioChat(portrait.chatRoot, {
+const stopChat = startPortfolioChat(portrait.chat, {
   fetch: window.fetch.bind(window),
   endpoint: resolveChatEndpoint(import.meta.env.VITE_CHAT_API_URL),
   storage: createSafeSessionStorage(() => window.sessionStorage),
@@ -80,6 +81,10 @@ const stopChat = startPortfolioChat(portrait.chatRoot, {
       document,
       open: window.open.bind(window),
     }),
+});
+const stopChatPresentation = startChatPresentation(portrait.chat, {
+  trigger: navigation.openChat,
+  window,
 });
 
 const stopReaders = startProjectReaders(portfolioRoot, {
@@ -93,6 +98,7 @@ function handlePageHide(event: PageTransitionEvent): void {
     return;
   }
   stopChat();
+  stopChatPresentation();
   stopReaders();
   stopProjectSelector();
   stopReaderRouting();

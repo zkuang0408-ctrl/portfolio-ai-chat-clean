@@ -13,13 +13,18 @@ const startProjectReaders = vi.hoisted(() =>
 );
 const stopChat = vi.hoisted(() => vi.fn());
 const startPortfolioChat = vi.hoisted(() =>
-  vi.fn((_root: HTMLElement, _dependencies: unknown) => stopChat),
+  vi.fn((_elements: unknown, _dependencies: unknown) => stopChat),
 );
 const navigateToSource = vi.hoisted(() => vi.fn());
+const stopChatPresentation = vi.hoisted(() => vi.fn());
+const startChatPresentation = vi.hoisted(() =>
+  vi.fn((_elements: unknown, _dependencies: unknown) => stopChatPresentation),
+);
 
 vi.mock("./particles/controller", () => ({ startPortrait }));
 vi.mock("./portfolio/image-reader", () => ({ startProjectReaders }));
 vi.mock("./chat/chat-controller", () => ({ startPortfolioChat }));
+vi.mock("./chat/chat-presentation", () => ({ startChatPresentation }));
 vi.mock("./chat/source-navigation", () => ({ navigateToSource }));
 
 beforeEach(() => {
@@ -32,6 +37,8 @@ beforeEach(() => {
   startProjectReaders.mockClear();
   startPortfolioChat.mockClear();
   stopChat.mockClear();
+  startChatPresentation.mockClear();
+  stopChatPresentation.mockClear();
   navigateToSource.mockClear();
   document.body.innerHTML = "";
 });
@@ -66,8 +73,8 @@ test("renders the editorial homepage in the app root", async () => {
     portraitStage: app?.querySelector(".portrait-stage"),
   });
   expect(startPortfolioChat).toHaveBeenCalledOnce();
-  expect(startPortfolioChat.mock.calls[0]?.[0]).toBe(
-    app?.querySelector("[data-chat-root]"),
+  expect(startPortfolioChat.mock.calls[0]?.[0]).toEqual(
+    expect.objectContaining({ root: app?.querySelector("[data-chat-root]") }),
   );
   const chatDependencies = startPortfolioChat.mock.calls[0]?.[1] as {
     navigateToSource(source: unknown): void;
@@ -78,6 +85,16 @@ test("renders the editorial homepage in the app root", async () => {
     app?.querySelector(".portfolio-content"),
     source,
     expect.objectContaining({ document, open: expect.any(Function) }),
+  );
+  expect(startChatPresentation).toHaveBeenCalledOnce();
+  expect(startChatPresentation.mock.calls[0]?.[0]).toEqual(
+    expect.objectContaining({ root: app?.querySelector("[data-chat-root]") }),
+  );
+  expect(startChatPresentation.mock.calls[0]?.[1]).toEqual(
+    expect.objectContaining({
+      trigger: app?.querySelector("[data-open-chat]"),
+      window,
+    }),
   );
 });
 
@@ -166,6 +183,7 @@ test("preserves chat and readers in BFCache and cleans both once on terminal pag
 
   expect(stopReaders).toHaveBeenCalledOnce();
   expect(stopChat).toHaveBeenCalledOnce();
+  expect(stopChatPresentation).toHaveBeenCalledOnce();
   expect(startPortrait).toHaveBeenCalledOnce();
 });
 

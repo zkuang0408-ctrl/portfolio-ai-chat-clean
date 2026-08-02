@@ -82,19 +82,17 @@ test("provides accessible live, composer, status, and source regions", () => {
   expect(elements.status.textContent).toContain("AI");
 });
 
-test("stays frameless and permanent without modal or close affordances", () => {
+test("renders a persistent collapsible assistant shell without a modal", () => {
   const root = document.createElement("aside");
 
-  renderChat(root, "zh");
+  const elements = renderChat(root, "zh");
 
-  expect(root.classList.contains("chat-scroll-region")).toBe(true);
+  expect(elements.panel.classList.contains("chat-scroll-region")).toBe(true);
   expect(root.querySelector('[role="dialog"]')).toBeNull();
   expect(root.querySelector("dialog")).toBeNull();
-  expect(root.querySelector("[data-chat-close]")).toBeNull();
-  expect(root.querySelector(".chat-panel")).toBeNull();
-  expect(
-    Array.from(root.querySelectorAll("button")).some((button) =>
-      /关闭|close/i.test(button.getAttribute("aria-label") ?? button.textContent ?? ""),
-    ),
-  ).toBe(false);
+  expect(elements.orb.getAttribute("aria-expanded")).toBe("false");
+  expect(elements.orb.getAttribute("aria-controls")).toBe(elements.panel.id);
+  expect(elements.panel.getAttribute("aria-hidden")).toBe("true");
+  expect(elements.collapse.getAttribute("aria-label")).toContain("收起");
+  expect(elements.panel.contains(elements.form)).toBe(true);
 });

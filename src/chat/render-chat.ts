@@ -2,6 +2,9 @@ import { CHAT_CONTENT, type ChatLocale } from "./content";
 
 export interface ChatElements {
   readonly root: HTMLElement;
+  readonly orb: HTMLButtonElement;
+  readonly panel: HTMLElement;
+  readonly collapse: HTMLButtonElement;
   readonly form: HTMLFormElement;
   readonly input: HTMLTextAreaElement;
   readonly send: HTMLButtonElement;
@@ -27,9 +30,49 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements {
   const content = CHAT_CONTENT[locale];
   root.replaceChildren();
-  root.classList.add("hero-chat", "chat-scroll-region");
+  root.classList.add("hero-chat", "portfolio-chat");
+  root.id ||= "portfolio-chat";
+  root.dataset.chatPresentation = "collapsed";
   root.lang = locale === "zh" ? "zh-CN" : "en";
   root.setAttribute("aria-label", content.transcriptLabel);
+
+  const panelId = `${root.id}-panel`;
+  const orb = createElement("button", "chat-orb");
+  orb.type = "button";
+  orb.dataset.chatOrb = "";
+  orb.setAttribute("aria-controls", panelId);
+  orb.setAttribute("aria-expanded", "false");
+  orb.setAttribute(
+    "aria-label",
+    locale === "zh" ? "打开赵实旷的 AI 助手" : "Open Shikuang Zhao's AI assistant",
+  );
+  orb.innerHTML = `
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 3.5c1.2 6.2 3.8 8.8 10 10-6.2 1.2-8.8 3.8-10 10-1.2-6.2-3.8-8.8-10-10 6.2-1.2 8.8-3.8 10-10Z" />
+      <circle cx="25.5" cy="6.5" r="2.2" />
+    </svg>
+  `;
+
+  const panel = createElement("section", "chat-panel chat-scroll-region");
+  panel.id = panelId;
+  panel.dataset.chatPanel = "";
+  panel.setAttribute("aria-hidden", "true");
+
+  const panelHeader = createElement("header", "chat-panel__header");
+  const panelTitle = createElement(
+    "p",
+    "chat-panel__title",
+    locale === "zh" ? "ASK SHIKUANG · AI" : "ASK SHIKUANG · AI",
+  );
+  const collapse = createElement("button", "chat-collapse");
+  collapse.type = "button";
+  collapse.dataset.chatCollapse = "";
+  collapse.setAttribute(
+    "aria-label",
+    locale === "zh" ? "收起 AI 助手" : "Collapse AI assistant",
+  );
+  collapse.innerHTML = '<span aria-hidden="true"></span>';
+  panelHeader.append(panelTitle, collapse);
 
   const heading = createElement("div", "chat-heading");
   const accent = createElement("span", "chat-accent");
@@ -80,7 +123,8 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
   status.dataset.chatStatus = "";
   status.setAttribute("role", "status");
 
-  root.append(
+  panel.append(
+    panelHeader,
     heading,
     intro,
     recommendationGroup,
@@ -89,9 +133,13 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
     form,
     status,
   );
+  root.append(orb, panel);
 
   return {
     root,
+    orb,
+    panel,
+    collapse,
     form,
     input,
     send,

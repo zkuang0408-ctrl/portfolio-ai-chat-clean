@@ -193,22 +193,21 @@ test("removes reader fades when reduced motion is requested", () => {
   );
 });
 
-test("keeps the frameless desktop assistant clear of the page index", () => {
+test("keeps the assistant fixed above safe areas as a compact persistent control", () => {
   const heroChat = rule(".hero-chat");
 
-  expect(heroChat).toMatch(/position:\s*absolute/);
-  expect(heroChat).toMatch(/z-index:\s*3/);
-  expect(heroChat).toMatch(/top:\s*39%/);
-  expect(heroChat).toMatch(/bottom:\s*clamp\(96px,\s*10vh,\s*112px\)/);
-  expect(heroChat).toMatch(/left:\s*6\.5%/);
-  expect(heroChat).toMatch(/width:\s*min\(330px,\s*24vw\)/);
-  expect(heroChat).toMatch(
-    /max-height:\s*calc\(61%\s*-\s*clamp\(96px,\s*10vh,\s*112px\)\)/,
-  );
+  expect(heroChat).toMatch(/position:\s*fixed/);
+  expect(heroChat).toMatch(/z-index:\s*180/);
+  expect(heroChat).toMatch(/right:\s*max\(/);
+  expect(heroChat).toMatch(/bottom:\s*max\(/);
   expect(heroChat).toMatch(/border:\s*0/);
-  expect(heroChat).toMatch(/border-radius:\s*0/);
   expect(heroChat).toMatch(/background:\s*transparent/);
-  expect(heroChat).toMatch(/box-shadow:\s*none/);
+  expect(rule(".chat-orb")).toMatch(/border-radius:\s*50%/);
+  expect(rule(".chat-orb")).toMatch(/min-width:\s*52px/);
+  expect(rule(".chat-panel")).toMatch(/width:\s*min\(400px/);
+  expect(rule(".chat-panel")).toMatch(/max-height:\s*min\(560px/);
+  expect(styles).toContain('[data-chat-presentation="collapsed"]');
+  expect(styles).toContain('[data-chat-presentation="expanded"]');
 });
 
 test("keeps the full desktop assistant reachable through bounded fallback scrolling", () => {
@@ -245,22 +244,17 @@ test("uses quiet underlined recommendations with accessible pointer targets", ()
   expect(recommendations).not.toMatch(/border-radius|box-shadow/);
 });
 
-test("moves the assistant into normal flow at the mobile breakpoint", () => {
+test("uses a safe-area-aware bottom sheet on mobile without changing the fixed navigation", () => {
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\s*\{[\s\S]*?position:\s*relative;[\s\S]*?top:\s*auto;[\s\S]*?left:\s*auto;[\s\S]*?width:\s*100%;/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:/,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\s*\{[\s\S]*?bottom:\s*auto;[\s\S]*?max-height:\s*none;/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?border-radius:\s*24px\s+24px\s+0\s+0/,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-scroll-region\s*\{[\s\S]*?overflow-y:\s*visible;/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?max-height:\s*min\(78dvh/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{[\s\S]*?padding-bottom:/,
-  );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-scene\s*\{[\s\S]*?position:\s*relative;[\s\S]*?height:\s*100svh;/,
-  );
+  expect(styles).toContain("--chat-viewport-inset");
 });
 
 test("removes assistant cursor and crossfade motion when requested", () => {

@@ -5,6 +5,7 @@ import {
   type PortfolioChatDependencies,
   startPortfolioChat,
 } from "./chat-controller";
+import { renderChat } from "./render-chat";
 
 const encoder = new TextEncoder();
 
@@ -62,7 +63,7 @@ function setup(
     createSessionId: () => "123e4567-e89b-42d3-a456-426614174000",
     ...overrides,
   };
-  const cleanup = startPortfolioChat(root, dependencies);
+  const cleanup = startPortfolioChat(renderChat(root, locale), dependencies);
   return { root, fetch, navigateToSource, cleanup };
 }
 

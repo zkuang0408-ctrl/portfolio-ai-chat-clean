@@ -1,5 +1,5 @@
 import { CHAT_CONTENT, type ChatLocale } from "./content";
-import { renderChat } from "./render-chat";
+import type { ChatElements } from "./render-chat";
 import {
   appendCompletedTurn,
   getOrCreateSessionId,
@@ -115,11 +115,10 @@ function sentenceBoundary(value: string): number {
 }
 
 export function startPortfolioChat(
-  chatRoot: HTMLElement,
+  elements: ChatElements,
   dependencies: PortfolioChatDependencies,
 ): () => void {
   const content = CHAT_CONTENT[dependencies.locale];
-  const elements = renderChat(chatRoot, dependencies.locale);
   const history = loadChatHistory(dependencies.storage);
   renderHistory(elements.transcript, history);
 
