@@ -52,6 +52,23 @@ function setAlpha(
   pixels.data[(y * pixels.width + x) * 4 + 3] = value;
 }
 
+function isMaskAccepted(mask: PixelBuffer, x: number, y: number): boolean {
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    x < 0 ||
+    y < 0 ||
+    x >= mask.width ||
+    y >= mask.height
+  ) {
+    return false;
+  }
+
+  const alphaIndex =
+    (Math.floor(y) * mask.width + Math.floor(x)) * 4 + 3;
+  return (mask.data[alphaIndex] ?? 0) > 0;
+}
+
 function fixtureRegionAtPixel(
   x: number,
   y: number,
@@ -292,15 +309,44 @@ describe("samplePortrait", () => {
 
     expect(particles.length).toBeGreaterThan(0);
     expect(
-      particles.every(({ targetX, targetY }) => {
-        const maskIndex =
-          (Math.floor(targetY) * mask.width + Math.floor(targetX)) * 4 + 3;
-        return (mask.data[maskIndex] ?? 0) > 0;
-      }),
+      particles.every(({ targetX, targetY }) =>
+        isMaskAccepted(mask, targetX, targetY),
+      ),
     ).toBe(true);
     expect(
       particles.every(({ band, region }) =>
         region !== "core" || (band !== "large" && band !== "splash"),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps displaced face and boundary-edge targets inside the subject mask", () => {
+    const pixels = buffer(120, 180, 255);
+    const mask = buffer(120, 180, 255);
+
+    for (let y = 0; y < mask.height; y += 1) {
+      for (let x = 0; x < mask.width; x += 1) setAlpha(mask, x, y, 0);
+    }
+    for (let y = 55; y < 95; y += 1) {
+      for (let x = 32; x < 38; x += 1) setAlpha(mask, x, y, 255);
+    }
+    for (let y = 80; y < 120; y += 1) {
+      for (let x = 0; x < 6; x += 1) setAlpha(mask, x, y, 255);
+    }
+
+    const particles = samplePortrait(pixels, {
+      maxParticles: 1_000,
+      seed: 20260802,
+      mask,
+    });
+
+    expect(particles.length).toBeGreaterThan(0);
+    const regions = new Set(particles.map(({ region }) => region));
+    expect(regions.has("face")).toBe(true);
+    expect(regions.has("edge")).toBe(true);
+    expect(
+      particles.every(({ targetX, targetY }) =>
+        isMaskAccepted(mask, targetX, targetY),
       ),
     ).toBe(true);
   });

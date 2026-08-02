@@ -71,6 +71,24 @@ function luminance(buffer: PixelBuffer, x: number, y: number): number {
   return (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
 }
 
+function hasOpaqueMaskPixel(mask: PixelBuffer, x: number, y: number): boolean {
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    x < 0 ||
+    y < 0 ||
+    x >= mask.width ||
+    y >= mask.height
+  ) {
+    return false;
+  }
+
+  const maskX = Math.floor(x);
+  const maskY = Math.floor(y);
+  const alphaIndex = (maskY * mask.width + maskX) * 4 + 3;
+  return (mask.data[alphaIndex] ?? 0) > 0;
+}
+
 export function edgeStrength(
   buffer: PixelBuffer,
   x: number,
@@ -493,12 +511,7 @@ export function samplePortrait(
     const x = random() * buffer.width;
     const y = random() * buffer.height;
 
-    if (mask !== undefined) {
-      const maskX = Math.floor(x);
-      const maskY = Math.floor(y);
-      const alphaIndex = (maskY * mask.width + maskX) * 4 + 3;
-      if ((mask.data[alphaIndex] ?? 0) === 0) continue;
-    }
+    if (mask !== undefined && !hasOpaqueMaskPixel(mask, x, y)) continue;
 
     const light = luminance(buffer, x, y);
 
@@ -524,6 +537,14 @@ export function samplePortrait(
       region,
       random,
     );
+
+    if (
+      mask !== undefined &&
+      !hasOpaqueMaskPixel(mask, targetX, targetY)
+    ) {
+      continue;
+    }
+
     const angle = random() * Math.PI * 2;
     const travel =
       region === "core"
