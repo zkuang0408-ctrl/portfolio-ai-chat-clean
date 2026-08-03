@@ -95,7 +95,7 @@ Georgia supplies the large editorial voice; the system sans stack carries naviga
 
 ## Layout
 
-Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an asymmetric editorial composition: copy occupies the upper left while the particle portrait rises beneath and to the right. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet. Short landscape phones use a dedicated left-copy/right-portrait composition.
+Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet. Short landscape phones preserve the centered portrait while moving the headline clear of the fixed assistant corner.
 
 ## Elevation & Depth
 
@@ -113,7 +113,7 @@ Fixed translucent black bar with a quiet hairline. Links provide 44px touch targ
 
 ### Particle Portrait
 
-Canvas-only output after loading; the source portrait never appears as a visible overlay. Fine particles dominate with occasional larger points. Entrance aggregation happens once, then motion settles; reduced-motion renders the final state directly.
+Canvas-only output after loading; neither the source portrait nor its same-size subject mask ever appears as a visible overlay. The centered crop shows only the head, shoulders, and clothing. Fine particles dominate with occasional larger points, while the face keeps dense micro-detail. Entrance aggregation happens once, then motion settles; reduced-motion renders the final state directly. Typography must not cover the face: the lower-right headline may cross only the lower clothing field, with roughly 10–15% overlap, supported by a local black fade rather than a panel.
 
 ### Project Selectors and Reader
 

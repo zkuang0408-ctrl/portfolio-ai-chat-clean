@@ -17,32 +17,60 @@ function rulesContaining(selector: string): string {
     .join("\n");
 }
 
-test("uses the visible viewport height at the mobile breakpoint", () => {
+test("composes a full-screen centered particle portrait", () => {
+  expect(styles).toMatch(/\.hero\s*\{[^}]*min-height:\s*100svh;/s);
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero\s*\{\s*min-height:\s*100svh;/,
+    /\.hero-scene\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*calc\(var\(--nav-height\)\s*\+\s*env\(safe-area-inset-top\)\)\s+0\s+0;/s,
   );
-  expect(styles).not.toMatch(/min-height:\s*760px/);
+  expect(styles).toMatch(
+    /\.portrait-stage\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;[^}]*width:\s*100%;/s,
+  );
+  expect(styles).toMatch(
+    /\.portrait-canvas\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s,
+  );
+  expect(styles).toMatch(
+    /\.portrait-base,\s*\.portrait-mask\s*\{[^}]*position:\s*absolute;[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
+  );
+  expect(styles).toMatch(
+    /\.hero-copy\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;[^}]*width:\s*100%;/s,
+  );
 });
 
-test("compresses the hero composition for short mobile viewports", () => {
+test("places role, headline, and supporting copy in approved desktop regions", () => {
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)/,
+    /\.hero-copy \.role\s*\{[^}]*position:\s*absolute;[^}]*top:\s*clamp\(52px,\s*8vh,\s*96px\);[^}]*left:\s*clamp\(24px,\s*5vw,\s*88px\);/s,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.identity\s*\{\s*top:\s*12px;/,
+    /\.hero-copy \.headline\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(64px,\s*10vh,\s*118px\);[^}]*max-width:\s*min\(780px,\s*58vw\);[^}]*text-align:\s*right;/s,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.portrait-stage\s*\{[\s\S]*?top:\s*80px;[\s\S]*?bottom:\s*18px;/,
+    /\.hero-supporting\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(24px,\s*4vh,\s*48px\);[^}]*max-width:\s*48ch;[^}]*text-align:\s*right;/s,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.headline-wrap\s*\{[\s\S]*?bottom:\s*18px;/,
+    /\.hero-copy \.headline::before\s*\{[^}]*background:[^;}]*gradient/s,
+  );
+  expect(rule(".hero-copy .headline::before")).not.toMatch(
+    /backdrop-filter|border|box-shadow/,
+  );
+});
+
+test("protects mobile and short-landscape hero geometry", () => {
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.role\s*\{[^}]*top:\s*26px;[^}]*left:\s*20px;/,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.headline\s*\{\s*font-size:\s*clamp\(38px,\s*12vw,\s*52px\);/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.headline\s*\{[^}]*right:\s*20px;[^}]*bottom:\s*max\(108px,\s*calc\(82px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[^}]*max-width:\s*calc\(100vw\s*-\s*40px\);[^}]*font-size:\s*clamp\(42px,\s*12\.5vw,\s*62px\);[^}]*text-align:\s*right;/,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)[\s\S]*?\.headline-wrap small\s*\{\s*margin-top:\s*8px;/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-supporting\s*\{[^}]*right:\s*20px;[^}]*bottom:\s*max\(60px,\s*calc\(36px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[^}]*max-width:\s*30ch;[^}]*font-size:\s*11px;/,
   );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)\s*and\s*\(orientation:\s*landscape\)[\s\S]*?\.hero-copy \.headline\s*\{[^}]*right:\s*72px;[^}]*bottom:\s*36px;[^}]*max-width:\s*50vw;[^}]*font-size:\s*clamp\(32px,\s*5\.7vw,\s*42px\);/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)\s*and\s*\(orientation:\s*landscape\)[\s\S]*?\.hero-supporting\s*\{\s*display:\s*none;/,
+  );
+  expect(rule(".site-nav nav :is(a, button)")).toMatch(/min-height:\s*44px/);
 });
 
 test("hides the canvas in controller fallback and error states", () => {
@@ -53,10 +81,7 @@ test("hides the canvas in controller fallback and error states", () => {
 
 test("never presents the portrait sampling image", () => {
   expect(styles).toMatch(
-    /\.portrait-base\s*\{[\s\S]*?opacity:\s*0;/,
-  );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.portrait-base\s*\{\s*opacity:\s*0;/,
+    /\.portrait-base,\s*\.portrait-mask\s*\{[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
   );
   expect(styles).toMatch(
     /\.portrait-stage--fallback \.portrait-base,\s*\.portrait-stage--error \.portrait-base,\s*\.portrait-stage\.is-error \.portrait-base\s*\{[\s\S]*?opacity:\s*0;/,

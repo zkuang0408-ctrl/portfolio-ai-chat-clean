@@ -514,6 +514,145 @@ test.afterEach(async ({ page }) => {
   assertNoBrowserErrors(page);
 });
 
+const centeredPortraitProjects = new Set([
+  "desktop-1440",
+  "mobile-390",
+  "mobile-430",
+  "mobile-320",
+  "mobile-landscape-667",
+]);
+
+test("centered particle portrait protects the face and fixed assistant", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !centeredPortraitProjects.has(testInfo.project.name),
+    "Only the five approved portrait viewports own this geometry contract.",
+  );
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await waitForCompleteCanvas(page);
+
+  const base = page.locator(".portrait-base");
+  const mask = page.locator(".portrait-mask");
+  for (const source of [base, mask]) {
+    await expect(source).toBeHidden();
+    await expect(source).toHaveCSS("visibility", "hidden");
+    await expect(source).toHaveCSS("pointer-events", "none");
+  }
+
+  const geometry = await page.evaluate(() => {
+    type Rect = {
+      bottom: number;
+      left: number;
+      right: number;
+      top: number;
+    };
+    const rect = (selector: string): Rect => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      const bounds = element.getBoundingClientRect();
+      return {
+        bottom: bounds.bottom,
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+      };
+    };
+    const headline = document.querySelector<HTMLElement>(".hero-copy .headline");
+    const portraitBase = document.querySelector<HTMLImageElement>(".portrait-base");
+    if (!headline || !portraitBase || portraitBase.naturalWidth === 0) {
+      throw new Error("Portrait geometry is not ready.");
+    }
+    const canvas = rect(".portrait-canvas");
+    const scene = rect(".hero-scene");
+    const stage = rect(".portrait-stage");
+    const canvasWidth = canvas.right - canvas.left;
+    const canvasHeight = canvas.bottom - canvas.top;
+    const sourceWidth = portraitBase.naturalWidth;
+    const sourceHeight = portraitBase.naturalHeight;
+    const mobile = canvasWidth <= 760;
+    const shortLandscape = mobile && canvasWidth > canvasHeight;
+    const widthFactor = shortLandscape ? 0.78 : mobile ? 1.1 : 0.7;
+    const heightFactor = shortLandscape ? 0.92 : mobile ? 0.78 : 1.12;
+    const scale = Math.max(
+      (canvasWidth / sourceWidth) * widthFactor,
+      (canvasHeight / sourceHeight) * heightFactor,
+    );
+    const offsetX = (canvasWidth - sourceWidth * scale) / 2;
+    const offsetY = canvasHeight * 0.11 - sourceHeight * 0.13 * scale;
+    // Source-grounded head rectangle: hair/face occupy x=.32-.76, y=.18-.60.
+    const protectedFace: Rect = {
+      left: canvas.left + offsetX + sourceWidth * scale * 0.32,
+      right: canvas.left + offsetX + sourceWidth * scale * 0.76,
+      top: canvas.top + offsetY + sourceHeight * scale * 0.18,
+      bottom: canvas.top + offsetY + sourceHeight * scale * 0.6,
+    };
+    const headlineText = Array.from(headline.querySelectorAll("span")).flatMap(
+      (span) => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        return Array.from(range.getClientRects()).map((bounds) => ({
+          bottom: bounds.bottom,
+          left: bounds.left,
+          right: bounds.right,
+          top: bounds.top,
+        }));
+      },
+    );
+    return {
+      canvas,
+      headline: rect(".hero-copy .headline"),
+      headlineText,
+      orb: rect("[data-chat-orb]"),
+      protectedFace,
+      scene,
+      stage,
+    };
+  });
+  const intersects = (a: typeof geometry.headline, b: typeof geometry.headline) =>
+    a.left < b.right - 1 && a.right > b.left + 1 &&
+    a.top < b.bottom - 1 && a.bottom > b.top + 1;
+
+  expect(geometry.stage).toEqual(geometry.scene);
+  expect(geometry.canvas).toEqual(geometry.scene);
+  expect(
+    geometry.headlineText.some((line) => intersects(line, geometry.protectedFace)),
+    `headline text must not cover the protected face: ${JSON.stringify(geometry)}`,
+  ).toBe(false);
+  expect(intersects(geometry.headline, geometry.orb)).toBe(false);
+});
+
+test("centered particle portrait mask failure preserves the portfolio path", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !centeredPortraitProjects.has(testInfo.project.name),
+    "Only the five approved portrait viewports own this fallback contract.",
+  );
+  expectOneFailedRequest(page, "/portrait-particle-mask.png");
+  expectOneConsoleError(page, "Failed to load resource: net::ERR_FAILED");
+  await page.route("**/portrait-particle-mask.png", (route) =>
+    route.abort("failed"),
+  );
+  await page.goto("/");
+
+  await expect(page.locator(".portrait-stage")).toHaveClass(
+    /portrait-stage--error/,
+  );
+  await expect(
+    page.getByRole("heading", {
+      name: /Crafting Future Through Objects & Systems\./i,
+    }),
+  ).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "主要栏目" });
+  await expect(navigation).toBeVisible();
+  for (const target of ["resume", "projects"] as const) {
+    await navigation.locator(`a[href="#${target}"]`).click();
+    await expect(page.locator(`#${target}`)).toBeInViewport();
+  }
+});
+
 test.describe("canonical grounded portfolio chat", () => {
   test.skip(
     ({ viewport }) => viewport?.width !== 1_440,
