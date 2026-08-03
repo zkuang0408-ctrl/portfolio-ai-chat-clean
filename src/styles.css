@@ -1642,6 +1642,10 @@ a:focus-visible {
   text-wrap: balance;
 }
 
+.hero-copy .headline span:nth-child(2) {
+  transform: translateX(16px);
+}
+
 .hero-supporting {
   position: absolute;
   right: clamp(28px, 6vw, 110px);
@@ -1679,6 +1683,10 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .hero-copy .headline span:nth-child(2) {
+    transform: none;
+  }
+
   .hero {
     min-height: 100svh;
     padding-bottom: 0;

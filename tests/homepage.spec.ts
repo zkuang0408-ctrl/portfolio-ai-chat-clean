@@ -529,7 +529,7 @@ test("centered particle portrait protects the face and fixed assistant", async (
 }, testInfo) => {
   test.skip(
     !centeredPortraitProjects.has(testInfo.project.name),
-    "Only the five approved portrait viewports own this geometry contract.",
+    "Only the six approved portrait viewports own this geometry contract.",
   );
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
@@ -573,16 +573,17 @@ test("centered particle portrait protects the face and fixed assistant", async (
     const canvasHeight = canvas.bottom - canvas.top;
     const sourceWidth = portraitBase.naturalWidth;
     const sourceHeight = portraitBase.naturalHeight;
-    const headlineText = Array.from(headline.querySelectorAll("span")).flatMap(
+    const headlineText = Array.from(headline.querySelectorAll("span")).map(
       (span) => {
         const range = document.createRange();
         range.selectNodeContents(span);
-        return Array.from(range.getClientRects()).map((bounds) => ({
+        const bounds = range.getBoundingClientRect();
+        return {
           bottom: bounds.bottom,
           left: bounds.left,
           right: bounds.right,
           top: bounds.top,
-        }));
+        };
       },
     );
     return {
@@ -652,7 +653,7 @@ test("centered particle portrait mask failure preserves the portfolio path", asy
 }, testInfo) => {
   test.skip(
     !centeredPortraitProjects.has(testInfo.project.name),
-    "Only the five approved portrait viewports own this fallback contract.",
+    "Only the six approved portrait viewports own this fallback contract.",
   );
   expectOneFailedRequest(page, "/portrait-particle-mask.png");
   expectOneConsoleError(page, "Failed to load resource: net::ERR_FAILED");
@@ -982,6 +983,7 @@ test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bo
   await page.locator("[data-chat-orb]").click();
   const panel = page.locator("[data-chat-panel]");
   await expect(panel).toBeVisible();
+  await expect(panel).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
   const panelBox = await panel.boundingBox();
   const expandedViewport = await page.evaluate(() => ({
     height: window.innerHeight,
