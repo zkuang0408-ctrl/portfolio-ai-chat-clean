@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   edgeStrength,
   hasFeasibleParticleSizeQuotas,
+  invertPortraitLuminance,
   isLargeParticleEligible,
   MAX_PARTICLES,
   particleAcceptance,
@@ -113,6 +114,28 @@ it("amplifies horizontal and vertical luminance edges equally", () => {
 
   expect(edgeStrength(horizontalEdge, 1, 1)).toBeCloseTo(0.36);
   expect(edgeStrength(verticalEdge, 1, 1)).toBeCloseTo(0.36);
+});
+
+it("inverts source luminance before portrait acceptance and visual mapping", () => {
+  const darkSource = invertPortraitLuminance(0.1);
+  const brightSource = invertPortraitLuminance(0.9);
+
+  expect(darkSource).toBeCloseTo(0.9);
+  expect(brightSource).toBeCloseTo(0.1);
+  expect(particleAcceptance(darkSource, 0, 1, "face")).toBeGreaterThan(
+    particleAcceptance(brightSource, 0, 1, "face"),
+  );
+
+  const darkVisual = visualForSample(darkSource, "face", 0.5, 0);
+  const brightVisual = visualForSample(brightSource, "face", 0.5, 0);
+  expect(darkVisual.alpha).toBeGreaterThan(brightVisual.alpha);
+  expect(darkVisual.tone).toBeGreaterThan(brightVisual.tone);
+});
+
+it("keeps inverted portrait luminance inside the normalized range", () => {
+  expect(invertPortraitLuminance(-1)).toBe(1);
+  expect(invertPortraitLuminance(2)).toBe(0);
+  expect(invertPortraitLuminance(Number.NaN)).toBe(1);
 });
 
 it("samples bright facial edge sides while preserving dark feature gaps", () => {
@@ -291,7 +314,7 @@ it("keeps contour visuals bounded when inputs are non-finite", () => {
 
 describe("samplePortrait", () => {
   it("samples only pixels whose aligned subject-mask alpha is nonzero", () => {
-    const pixels = buffer(80, 120, 255);
+    const pixels = buffer(80, 120, 0);
     const mask = buffer(80, 120, 255);
 
     for (let y = 0; y < mask.height; y += 1) {
@@ -321,7 +344,7 @@ describe("samplePortrait", () => {
   });
 
   it("keeps displaced face and boundary-edge targets inside the subject mask", () => {
-    const pixels = buffer(120, 180, 255);
+    const pixels = buffer(120, 180, 0);
     const mask = buffer(120, 180, 255);
 
     for (let y = 0; y < mask.height; y += 1) {
@@ -353,7 +376,7 @@ describe("samplePortrait", () => {
 
   it("rejects subject masks whose dimensions do not match the source", () => {
     expect(() =>
-      samplePortrait(buffer(40, 60, 255), {
+      samplePortrait(buffer(40, 60, 0), {
         maxParticles: 100,
         seed: 1,
         mask: buffer(41, 60, 255),
@@ -368,7 +391,7 @@ describe("samplePortrait", () => {
     }
 
     expect(
-      samplePortrait(buffer(40, 60, 255), {
+      samplePortrait(buffer(40, 60, 0), {
         maxParticles: 500,
         seed: 1,
         mask,
@@ -376,14 +399,14 @@ describe("samplePortrait", () => {
     ).toHaveLength(0);
   });
 
-  it("does not sample particles from a black portrait", () => {
+  it("does not sample particles from a white portrait", () => {
     expect(
-      samplePortrait(buffer(40, 60, 0), { maxParticles: 500, seed: 1 }),
+      samplePortrait(buffer(40, 60, 255), { maxParticles: 500, seed: 1 }),
     ).toHaveLength(0);
   });
 
   it("floors fractional particle limits and rejects negative limits", () => {
-    const pixels = buffer(80, 120, 255);
+    const pixels = buffer(80, 120, 0);
 
     expect(samplePortrait(pixels, { maxParticles: 0.5, seed: 8 })).toHaveLength(
       0,
@@ -397,7 +420,7 @@ describe("samplePortrait", () => {
   });
 
   it("rejects non-finite particle limits", () => {
-    const pixels = buffer(80, 120, 255);
+    const pixels = buffer(80, 120, 0);
 
     expect(
       samplePortrait(pixels, { maxParticles: Number.POSITIVE_INFINITY, seed: 8 }),
@@ -408,7 +431,7 @@ describe("samplePortrait", () => {
   });
 
   it("caps excessive particle limits", () => {
-    const particles = samplePortrait(buffer(80, 120, 255), {
+    const particles = samplePortrait(buffer(80, 120, 0), {
       maxParticles: MAX_PARTICLES + 1_000,
       seed: 8,
     });
@@ -417,7 +440,7 @@ describe("samplePortrait", () => {
   });
 
   it("is deterministic and fills a useful portion of the particle budget", () => {
-    const pixels = buffer(80, 120, 255);
+    const pixels = buffer(80, 120, 0);
     const options = { maxParticles: 300, seed: 8 };
     const first = samplePortrait(pixels, options);
     const second = samplePortrait(pixels, options);
@@ -434,7 +457,7 @@ describe("samplePortrait", () => {
   it.each([7_000, 14_000])(
     "assigns the final %i-particle production budget to exact 65/25/8/2 quotas",
     (maxParticles) => {
-      const pixels = buffer(320, 480, 255);
+      const pixels = buffer(320, 480, 0);
       const options = { maxParticles, seed: 20260714 };
       const first = samplePortrait(pixels, options);
       const second = samplePortrait(pixels, options);
@@ -470,7 +493,7 @@ describe("samplePortrait", () => {
   );
 
   it("keeps large and splash particles out of the facial core", () => {
-    const particles = samplePortrait(buffer(100, 150, 255), {
+    const particles = samplePortrait(buffer(100, 150, 0), {
       maxParticles: 1_000,
       seed: 12,
     });
@@ -483,11 +506,11 @@ describe("samplePortrait", () => {
   });
 
   it("reserves micro particles for strong edges in the facial core", () => {
-    const pixels = buffer(120, 180, 190);
-    for (let x = 42; x <= 52; x += 1) setPixel(pixels, x, 54, 8);
-    for (let x = 68; x <= 78; x += 1) setPixel(pixels, x, 54, 8);
-    for (let y = 58; y <= 78; y += 1) setPixel(pixels, 60, y, 12);
-    for (let x = 50; x <= 70; x += 1) setPixel(pixels, x, 86, 10);
+    const pixels = buffer(120, 180, 65);
+    for (let x = 42; x <= 52; x += 1) setPixel(pixels, x, 54, 247);
+    for (let x = 68; x <= 78; x += 1) setPixel(pixels, x, 54, 247);
+    for (let y = 58; y <= 78; y += 1) setPixel(pixels, 60, y, 243);
+    for (let x = 50; x <= 70; x += 1) setPixel(pixels, x, 86, 245);
 
     const particles = samplePortrait(pixels, {
       maxParticles: 3_000,
@@ -506,19 +529,19 @@ describe("samplePortrait", () => {
   });
 
   it("preserves exact quotas when large candidates are scarce", () => {
-    const pixels = buffer(120, 180, 0);
+    const pixels = buffer(120, 180, 255);
     for (let y = 0; y < pixels.height; y += 1) {
       for (let x = 0; x < pixels.width; x += 1) {
         if (
           fixtureRegionAtPixel(x, y, pixels.width, pixels.height) === "face" &&
           x % 4 < 2
         ) {
-          setPixel(pixels, x, y, 255);
+          setPixel(pixels, x, y, 0);
         }
       }
     }
     for (let x = 0; x < pixels.width; x += 1) {
-      setPixel(pixels, x, pixels.height - 1, 255);
+      setPixel(pixels, x, pixels.height - 1, 0);
     }
 
     const options = { maxParticles: 3_000, seed: 1 };
@@ -551,20 +574,20 @@ describe("samplePortrait", () => {
   });
 
   it("reduces output when strong core edges exhaust medium candidates", () => {
-    const pixels = buffer(120, 180, 0);
+    const pixels = buffer(120, 180, 255);
     for (let y = 0; y < pixels.height; y += 1) {
       for (let x = 0; x < pixels.width; x += 1) {
         if (
           fixtureRegionAtPixel(x, y, pixels.width, pixels.height) === "core" &&
           x % 4 < 2
         ) {
-          setPixel(pixels, x, y, 255);
+          setPixel(pixels, x, y, 0);
         }
       }
     }
     for (let y = pixels.height - 9; y < pixels.height; y += 1) {
       for (let x = 0; x < pixels.width; x += 1) {
-        setPixel(pixels, x, y, 255);
+        setPixel(pixels, x, y, 0);
       }
     }
 
@@ -602,7 +625,7 @@ describe("samplePortrait", () => {
   it("leaves spatial cells empty between populated particle clusters", () => {
     const width = 80;
     const height = 120;
-    const particles = samplePortrait(buffer(width, height, 255), {
+    const particles = samplePortrait(buffer(width, height, 0), {
       maxParticles: 1_000,
       seed: 2,
     });
@@ -628,7 +651,7 @@ describe("samplePortrait", () => {
   });
 
   it("changes samples with the seed while keeping visual values bounded", () => {
-    const pixels = buffer(80, 120, 255);
+    const pixels = buffer(80, 120, 0);
     const first = samplePortrait(pixels, { maxParticles: 300, seed: 4 });
     const second = samplePortrait(pixels, { maxParticles: 300, seed: 5 });
 

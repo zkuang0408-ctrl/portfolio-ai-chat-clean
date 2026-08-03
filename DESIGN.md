@@ -115,6 +115,8 @@ Fixed translucent black bar with a quiet hairline. Links provide 44px touch targ
 
 Canvas-only output after loading; neither the source portrait nor its same-size subject mask ever appears as a visible overlay. The centered crop shows only the head, shoulders, and clothing. Fine particles dominate with occasional larger points, while the face keeps dense micro-detail. Entrance aggregation happens once, then motion settles; reduced-motion renders the final state directly. Typography must not cover the face: the lower-right headline may cross only the lower clothing field, with roughly 10–15% overlap, supported by a local black fade rather than a panel.
 
+The source luminance is interpreted as a tonal negative: dark hair, eyes, facial shadow, and garment folds create the brightest and densest light particles, while source highlights remain open. The alpha mask, silhouette, geometry, and grayscale-on-black palette remain unchanged.
+
 ### Project Selectors and Reader
 
 Selectors contain real first-page imagery, metadata, and modest `1.03` hover scale. Opening a project enters a history-aware full-screen reader with translucent edge chevrons, page count, keyboard and touch navigation, and original-PDF access.

@@ -141,6 +141,11 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+export function invertPortraitLuminance(light: number): number {
+  const normalized = clamp01(Number.isFinite(light) ? light : 0);
+  return 1 - normalized;
+}
+
 function brightSideForLight(light: number): number {
   const safeLight = clamp01(Number.isFinite(light) ? light : 0);
   return clamp01((safeLight - 0.08) / 0.35);
@@ -513,7 +518,8 @@ export function samplePortrait(
 
     if (mask !== undefined && !hasOpaqueMaskPixel(mask, x, y)) continue;
 
-    const light = luminance(buffer, x, y);
+    const sourceLight = luminance(buffer, x, y);
+    const light = invertPortraitLuminance(sourceLight);
 
     if (light < 0.035) continue;
 
