@@ -517,6 +517,7 @@ test.afterEach(async ({ page }) => {
 
 const centeredPortraitProjects = new Set([
   "desktop-1440",
+  "desktop-1920",
   "mobile-390",
   "mobile-430",
   "mobile-320",
@@ -636,6 +637,13 @@ test("centered particle portrait protects the face and fixed assistant", async (
     expect(intersects(geometry.headline, protectedFace)).toBe(false);
     expect(geometry.headline.left).toBeGreaterThanOrEqual(protectedFace.right - 1);
     expect(geometry.headline.bottom).toBeLessThanOrEqual(geometry.orb.top - 1);
+  }
+  if (testInfo.project.name === "mobile-320") {
+    expect(geometry.headlineText).toHaveLength(3);
+    expect(intersects(geometry.headline, protectedFace)).toBe(false);
+    expect(geometry.headline.top).toBeGreaterThanOrEqual(
+      protectedFace.bottom - 1,
+    );
   }
 });
 

@@ -87,6 +87,7 @@ test("places role, headline, and supporting copy in approved desktop regions", (
 
 test("protects mobile and short-landscape hero geometry", () => {
   const mobile = "(max-width: 760px)";
+  const compactMobile = "(max-width: 390px)";
   const shortLandscape =
     "(max-width: 760px) and (max-height: 680px) and (orientation: landscape)";
   expect(mediaRule(mobile, ".hero-copy .role")).toMatch(
@@ -97,6 +98,9 @@ test("protects mobile and short-landscape hero geometry", () => {
   );
   expect(mediaRule(mobile, ".hero-supporting")).toMatch(
     /right:\s*20px;[\s\S]*bottom:\s*max\(60px,\s*calc\(36px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[\s\S]*max-width:\s*30ch;[\s\S]*font-size:\s*11px/,
+  );
+  expect(mediaRule(compactMobile, ".hero-copy .headline")).toMatch(
+    /font-size:\s*40px/,
   );
   expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
     /right:\s*20px;[\s\S]*bottom:\s*88px;[\s\S]*max-width:\s*26vw;[\s\S]*font-size:\s*clamp\(26px,\s*4\.5vw,\s*32px\)/,
