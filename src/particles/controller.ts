@@ -20,11 +20,12 @@ interface RendererLike {
   ): void;
 }
 
-interface StartPortraitOptions {
+export interface StartPortraitOptions {
   canvas: HTMLCanvasElement;
   portraitBase: HTMLImageElement;
   portraitMask: HTMLImageElement;
   portraitStage: HTMLElement;
+  portraitError: HTMLElement;
   reducedMotion?: boolean;
   loadPixels?: (image: HTMLImageElement) => Promise<PixelBuffer>;
   sample?: typeof samplePortrait;
@@ -159,10 +160,17 @@ function createRenderer(
 export async function startPortrait(
   options: StartPortraitOptions,
 ): Promise<() => void> {
+  options.portraitError.hidden = true;
+  options.portraitError.textContent = "";
+  const showPortraitError = (): void => {
+    options.portraitError.hidden = false;
+    options.portraitError.textContent = "Portrait visualization unavailable.";
+  };
   const renderer = options.renderer ?? createRenderer(options.canvas);
 
   if (!renderer) {
     options.portraitStage.classList.add("portrait-stage--fallback");
+    showPortraitError();
     return noop;
   }
 
@@ -213,6 +221,7 @@ export async function startPortrait(
     closed = true;
     release();
     options.portraitStage.classList.add("portrait-stage--error", "is-error");
+    showPortraitError();
 
     if (import.meta.env.DEV) {
       console.error("Portrait initialization failed", error);

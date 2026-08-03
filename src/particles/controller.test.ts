@@ -36,11 +36,13 @@ const particle: Particle = {
 
 function elements(width = 600, height = 800) {
   const portraitStage = document.createElement("div");
+  const portraitError = document.createElement("p");
   const canvas = document.createElement("canvas");
   const portraitBase = document.createElement("img");
   const portraitMask = document.createElement("img");
   portraitBase.hidden = true;
   portraitMask.hidden = true;
+  portraitError.hidden = true;
 
   portraitStage.append(portraitBase, portraitMask, canvas);
   Object.defineProperty(portraitStage, "clientWidth", {
@@ -52,7 +54,7 @@ function elements(width = 600, height = 800) {
     value: height,
   });
 
-  return { canvas, portraitBase, portraitMask, portraitStage };
+  return { canvas, portraitBase, portraitMask, portraitStage, portraitError };
 }
 
 function dependencies(width = 600) {
@@ -287,6 +289,8 @@ describe("startPortrait", () => {
     expect(deps.run).not.toHaveBeenCalled();
     expect(deps.renderer.resize).toHaveBeenCalledWith(600, 800, 1);
     expect(deps.renderer.draw).toHaveBeenLastCalledWith([particle], 1, pixels);
+    expect(deps.portraitError.hidden).toBe(true);
+    expect(deps.portraitError.textContent).toBe("");
   });
 
   it("keeps parallax disabled after resizing in reduced-motion mode", async () => {
@@ -633,7 +637,13 @@ describe("startPortrait", () => {
   });
 
   it("keeps a black particle-stage fallback when Canvas 2D is unavailable", async () => {
-    const { canvas, portraitBase, portraitMask, portraitStage } = elements();
+    const {
+      canvas,
+      portraitBase,
+      portraitMask,
+      portraitStage,
+      portraitError,
+    } = elements();
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
 
     await start({
@@ -641,10 +651,15 @@ describe("startPortrait", () => {
       portraitBase,
       portraitMask,
       portraitStage,
+      portraitError,
     });
 
     expect(portraitStage.classList.contains("portrait-stage--fallback")).toBe(
       true,
+    );
+    expect(portraitError.hidden).toBe(false);
+    expect(portraitError.textContent).toBe(
+      "Portrait visualization unavailable.",
     );
     expect(cleanup).toBeTypeOf("function");
   });
@@ -661,6 +676,10 @@ describe("startPortrait", () => {
       deps.portraitStage.classList.contains("portrait-stage--error"),
     ).toBe(true);
     expect(deps.portraitStage.classList.contains("is-error")).toBe(true);
+    expect(deps.portraitError.hidden).toBe(false);
+    expect(deps.portraitError.textContent).toBe(
+      "Portrait visualization unavailable.",
+    );
     expect(cleanup).toBeTypeOf("function");
     error.mockRestore();
   });

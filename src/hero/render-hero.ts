@@ -6,6 +6,7 @@ export interface HeroElements {
   portraitBase: HTMLImageElement;
   portraitMask: HTMLImageElement;
   portraitStage: HTMLElement;
+  portraitError: HTMLElement;
   chatRoot: HTMLElement;
   chat: ChatElements;
 }
@@ -33,8 +34,8 @@ export function renderHero(
           <img class="portrait-base" alt="" aria-hidden="true" hidden />
           <img class="portrait-mask" alt="" aria-hidden="true" hidden />
           <canvas class="portrait-canvas" aria-hidden="true"></canvas>
-          <p class="portrait-error" role="status">Portrait visualization unavailable.</p>
         </div>
+        <p class="portrait-error" role="status" hidden></p>
 
         <p class="hero-index"><strong>01</strong> / SELECTED IDENTITY</p>
       </div>
@@ -47,9 +48,17 @@ export function renderHero(
   const portraitBase = root.querySelector<HTMLImageElement>(".portrait-base");
   const portraitMask = root.querySelector<HTMLImageElement>(".portrait-mask");
   const portraitStage = root.querySelector<HTMLElement>(".portrait-stage");
+  const portraitError = root.querySelector<HTMLElement>(".portrait-error");
   const chatRoot = root.querySelector<HTMLElement>("[data-chat-root]");
 
-  if (!canvas || !portraitBase || !portraitMask || !portraitStage || !chatRoot) {
+  if (
+    !canvas ||
+    !portraitBase ||
+    !portraitMask ||
+    !portraitStage ||
+    !portraitError ||
+    !chatRoot
+  ) {
     throw new Error("Hero markup is missing required portrait elements.");
   }
 
@@ -57,5 +66,13 @@ export function renderHero(
   portraitMask.src = portraitMaskUrl;
   const chat = renderChat(chatRoot, locale);
 
-  return { canvas, portraitBase, portraitMask, portraitStage, chatRoot, chat };
+  return {
+    canvas,
+    portraitBase,
+    portraitMask,
+    portraitStage,
+    portraitError,
+    chatRoot,
+    chat,
+  };
 }

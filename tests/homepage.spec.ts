@@ -1,6 +1,7 @@
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
+import { portraitCompositionFor } from "../src/particles/renderer";
 
 interface CanvasSignature {
   alphaCoverage: number;
@@ -571,23 +572,6 @@ test("centered particle portrait protects the face and fixed assistant", async (
     const canvasHeight = canvas.bottom - canvas.top;
     const sourceWidth = portraitBase.naturalWidth;
     const sourceHeight = portraitBase.naturalHeight;
-    const mobile = canvasWidth <= 760;
-    const shortLandscape = mobile && canvasWidth > canvasHeight;
-    const widthFactor = shortLandscape ? 0.78 : mobile ? 1.1 : 0.7;
-    const heightFactor = shortLandscape ? 0.92 : mobile ? 0.78 : 1.12;
-    const scale = Math.max(
-      (canvasWidth / sourceWidth) * widthFactor,
-      (canvasHeight / sourceHeight) * heightFactor,
-    );
-    const offsetX = (canvasWidth - sourceWidth * scale) / 2;
-    const offsetY = canvasHeight * 0.11 - sourceHeight * 0.13 * scale;
-    // Source-grounded head rectangle: hair/face occupy x=.32-.76, y=.18-.60.
-    const protectedFace: Rect = {
-      left: canvas.left + offsetX + sourceWidth * scale * 0.32,
-      right: canvas.left + offsetX + sourceWidth * scale * 0.76,
-      top: canvas.top + offsetY + sourceHeight * scale * 0.18,
-      bottom: canvas.top + offsetY + sourceHeight * scale * 0.6,
-    };
     const headlineText = Array.from(headline.querySelectorAll("span")).flatMap(
       (span) => {
         const range = document.createRange();
@@ -605,11 +589,32 @@ test("centered particle portrait protects the face and fixed assistant", async (
       headline: rect(".hero-copy .headline"),
       headlineText,
       orb: rect("[data-chat-orb]"),
-      protectedFace,
       scene,
+      source: { height: sourceHeight, width: sourceWidth },
       stage,
+      viewport: { height: window.innerHeight, width: window.innerWidth },
     };
   });
+  const composition = portraitCompositionFor(
+    geometry.canvas.right - geometry.canvas.left,
+    geometry.canvas.bottom - geometry.canvas.top,
+    geometry.source,
+  );
+  // Source-grounded head rectangle: hair/face occupy x=.32-.76, y=.18-.60.
+  const protectedFace = {
+    left:
+      geometry.canvas.left + composition.offsetX +
+      geometry.source.width * composition.scale * 0.32,
+    right:
+      geometry.canvas.left + composition.offsetX +
+      geometry.source.width * composition.scale * 0.76,
+    top:
+      geometry.canvas.top + composition.offsetY +
+      geometry.source.height * composition.scale * 0.18,
+    bottom:
+      geometry.canvas.top + composition.offsetY +
+      geometry.source.height * composition.scale * 0.6,
+  };
   const intersects = (a: typeof geometry.headline, b: typeof geometry.headline) =>
     a.left < b.right - 1 && a.right > b.left + 1 &&
     a.top < b.bottom - 1 && a.bottom > b.top + 1;
@@ -617,10 +622,21 @@ test("centered particle portrait protects the face and fixed assistant", async (
   expect(geometry.stage).toEqual(geometry.scene);
   expect(geometry.canvas).toEqual(geometry.scene);
   expect(
-    geometry.headlineText.some((line) => intersects(line, geometry.protectedFace)),
-    `headline text must not cover the protected face: ${JSON.stringify(geometry)}`,
+    geometry.headlineText.some((line) => intersects(line, protectedFace)),
+    `headline text must not cover the protected face: ${JSON.stringify({ geometry, protectedFace })}`,
   ).toBe(false);
   expect(intersects(geometry.headline, geometry.orb)).toBe(false);
+  for (const line of geometry.headlineText) {
+    expect(line.left).toBeGreaterThanOrEqual(-1);
+    expect(line.right).toBeLessThanOrEqual(geometry.viewport.width + 1);
+    expect(line.top).toBeGreaterThanOrEqual(-1);
+    expect(line.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
+  }
+  if (testInfo.project.name === "mobile-landscape-667") {
+    expect(intersects(geometry.headline, protectedFace)).toBe(false);
+    expect(geometry.headline.left).toBeGreaterThanOrEqual(protectedFace.right - 1);
+    expect(geometry.headline.bottom).toBeLessThanOrEqual(geometry.orb.top - 1);
+  }
 });
 
 test("centered particle portrait mask failure preserves the portfolio path", async ({
@@ -639,6 +655,10 @@ test("centered particle portrait mask failure preserves the portfolio path", asy
 
   await expect(page.locator(".portrait-stage")).toHaveClass(
     /portrait-stage--error/,
+  );
+  await expect(page.getByRole("status")).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(
+    "Portrait visualization unavailable.",
   );
   await expect(
     page.getByRole("heading", {

@@ -83,6 +83,7 @@ test("renders the editorial homepage in the app root", async () => {
     portraitBase: app?.querySelector(".portrait-base"),
     portraitMask: app?.querySelector(".portrait-mask"),
     portraitStage: app?.querySelector(".portrait-stage"),
+    portraitError: app?.querySelector(".portrait-error"),
   });
   expect(startPortfolioChat).toHaveBeenCalledOnce();
   expect(startPortfolioChat.mock.calls[0]?.[0]).toEqual(

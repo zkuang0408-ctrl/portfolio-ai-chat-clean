@@ -119,4 +119,5 @@ void startPortrait({
   portraitBase: portrait.portraitBase,
   portraitMask: portrait.portraitMask,
   portraitStage: portrait.portraitStage,
+  portraitError: portrait.portraitError,
 });

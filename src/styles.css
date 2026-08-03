@@ -229,7 +229,7 @@ a:focus-visible {
   color: var(--muted);
   font-size: 11px;
   letter-spacing: 0.1em;
-  opacity: 0;
+  opacity: 1;
   transform: translateX(-50%);
 }
 
@@ -243,12 +243,6 @@ a:focus-visible {
 .portrait-stage--error .portrait-base,
 .portrait-stage.is-error .portrait-base {
   opacity: 0;
-}
-
-.portrait-stage--fallback .portrait-error,
-.portrait-stage--error .portrait-error,
-.portrait-stage.is-error .portrait-error {
-  opacity: 1;
 }
 
 .hero-chat {
@@ -1623,6 +1617,7 @@ a:focus-visible {
   bottom: clamp(64px, 10vh, 118px);
   max-width: min(780px, 58vw);
   font-size: clamp(48px, 3.9vw, 74px);
+  letter-spacing: -0.04em;
   line-height: 0.89;
   text-align: right;
   isolation: isolate;
@@ -1719,10 +1714,14 @@ a:focus-visible {
 
 @media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
   .hero-copy .headline {
-    right: 72px;
-    bottom: 36px;
-    max-width: 50vw;
-    font-size: clamp(32px, 5.7vw, 42px);
+    right: 20px;
+    bottom: 88px;
+    max-width: 26vw;
+    font-size: clamp(26px, 4.5vw, 32px);
+  }
+
+  .hero-copy .headline::before {
+    inset: -16% -5% -16% 0;
   }
 
   .hero-supporting {

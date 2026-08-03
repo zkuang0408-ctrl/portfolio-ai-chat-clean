@@ -18,7 +18,7 @@ typography:
     fontSize: "clamp(43px, 6.8vw, 108px)"
     fontWeight: 400
     lineHeight: 0.89
-    letterSpacing: "-0.045em"
+    letterSpacing: "-0.04em"
   body:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Microsoft YaHei, Helvetica, Arial, sans-serif"
     fontSize: "clamp(11px, 1.15vw, 17px)"
@@ -87,7 +87,7 @@ The palette is nearly monochrome, with warm paper reserved for the résumé and 
 
 Georgia supplies the large editorial voice; the system sans stack carries navigation, body copy, controls, and dense project facts.
 
-- **Display:** regular italic/outlined serif, `clamp(43px, 6.8vw, 108px)`, line-height `0.89`.
+- **Display:** regular italic/outlined serif, `clamp(43px, 6.8vw, 108px)`, line-height `0.89`, tracking `-0.04em`.
 - **Body:** system sans, typically `11–17px`, line-height `1.7–1.8`, with short readable measures.
 - **Label:** system sans, `8–10px`, uppercase, tracked `0.12–0.18em`.
 
@@ -95,7 +95,7 @@ Georgia supplies the large editorial voice; the system sans stack carries naviga
 
 ## Layout
 
-Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet. Short landscape phones preserve the centered portrait while moving the headline clear of the fixed assistant corner.
+Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet. Short landscape phones preserve the centered portrait while placing the headline in a narrow right-side corridor above the fixed assistant orb.
 
 ## Elevation & Depth
 

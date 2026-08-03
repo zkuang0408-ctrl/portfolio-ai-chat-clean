@@ -44,14 +44,18 @@ test("renders a hidden decorative portrait mask for particle sampling", () => {
   expect(mask?.hidden).toBe(true);
 });
 
-test("provides a concise portrait failure status", () => {
+test("keeps the portrait failure status outside the image role until needed", () => {
   const root = document.createElement("div");
 
-  renderHero(root, "/portrait.png", "/portrait-mask.png");
+  const hero = renderHero(root, "/portrait.png", "/portrait-mask.png");
+  const status = root.querySelector<HTMLElement>(".portrait-error");
 
-  expect(root.querySelector(".portrait-error")?.textContent).toBe(
-    "Portrait visualization unavailable.",
-  );
+  expect(status).toBe(hero.portraitError);
+  expect(status?.getAttribute("role")).toBe("status");
+  expect(status?.hidden).toBe(true);
+  expect(status?.textContent).toBe("");
+  expect(hero.portraitStage.contains(status)).toBe(false);
+  expect(hero.portraitStage.nextElementSibling).toBe(status);
 });
 
 test("uses the supplied approved portrait only as a hidden particle source", () => {
@@ -90,6 +94,7 @@ test("can render the hero assistant in English without changing portrait consume
   expect(hero.portraitBase).toBeInstanceOf(HTMLImageElement);
   expect(hero.portraitMask).toBeInstanceOf(HTMLImageElement);
   expect(hero.portraitStage).toBeInstanceOf(HTMLElement);
+  expect(hero.portraitError).toBeInstanceOf(HTMLElement);
   expect(hero.chat.input.getAttribute("aria-label")).toBe("Ask a question");
   expect(hero.chat.recommendations[0]?.textContent).toContain("one-minute");
 });

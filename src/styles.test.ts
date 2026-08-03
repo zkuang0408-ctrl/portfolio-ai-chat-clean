@@ -10,6 +10,36 @@ function rule(selector: string): string {
   return styles.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
 }
 
+function blockBodyAt(source: string, openingBrace: number): string {
+  let depth = 1;
+  for (let index = openingBrace + 1; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(openingBrace + 1, index);
+  }
+  return "";
+}
+
+function ruleWithin(source: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return source.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
+}
+
+function mediaRule(query: string, selector: string): string {
+  const token = `@media ${query} {`;
+  let cursor = 0;
+  let matchedRule = "";
+  while (cursor < styles.length) {
+    const headerIndex = styles.indexOf(token, cursor);
+    if (headerIndex < 0) break;
+    const body = blockBodyAt(styles, headerIndex + token.length - 1);
+    const candidate = ruleWithin(body, selector);
+    if (candidate) matchedRule = candidate;
+    cursor = headerIndex + token.length;
+  }
+  return matchedRule;
+}
+
 function rulesContaining(selector: string): string {
   return Array.from(styles.matchAll(/([^{}]+)\{([^{}]*)\}/g))
     .filter((match) => match[1]?.includes(selector))
@@ -52,23 +82,30 @@ test("places role, headline, and supporting copy in approved desktop regions", (
   expect(rule(".hero-copy .headline::before")).not.toMatch(
     /backdrop-filter|border|box-shadow/,
   );
+  expect(rule(".hero-copy .headline")).toMatch(/letter-spacing:\s*-0\.04em/);
 });
 
 test("protects mobile and short-landscape hero geometry", () => {
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.role\s*\{[^}]*top:\s*26px;[^}]*left:\s*20px;/,
+  const mobile = "(max-width: 760px)";
+  const shortLandscape =
+    "(max-width: 760px) and (max-height: 680px) and (orientation: landscape)";
+  expect(mediaRule(mobile, ".hero-copy .role")).toMatch(
+    /top:\s*26px;[\s\S]*left:\s*20px/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.headline\s*\{[^}]*right:\s*20px;[^}]*bottom:\s*max\(108px,\s*calc\(82px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[^}]*max-width:\s*calc\(100vw\s*-\s*40px\);[^}]*font-size:\s*clamp\(42px,\s*12\.5vw,\s*62px\);[^}]*text-align:\s*right;/,
+  expect(mediaRule(mobile, ".hero-copy .headline")).toMatch(
+    /right:\s*20px;[\s\S]*bottom:\s*max\(108px,\s*calc\(82px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[\s\S]*max-width:\s*calc\(100vw\s*-\s*40px\);[\s\S]*font-size:\s*clamp\(42px,\s*12\.5vw,\s*62px\);[\s\S]*text-align:\s*right/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-supporting\s*\{[^}]*right:\s*20px;[^}]*bottom:\s*max\(60px,\s*calc\(36px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[^}]*max-width:\s*30ch;[^}]*font-size:\s*11px;/,
+  expect(mediaRule(mobile, ".hero-supporting")).toMatch(
+    /right:\s*20px;[\s\S]*bottom:\s*max\(60px,\s*calc\(36px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[\s\S]*max-width:\s*30ch;[\s\S]*font-size:\s*11px/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)\s*and\s*\(orientation:\s*landscape\)[\s\S]*?\.hero-copy \.headline\s*\{[^}]*right:\s*72px;[^}]*bottom:\s*36px;[^}]*max-width:\s*50vw;[^}]*font-size:\s*clamp\(32px,\s*5\.7vw,\s*42px\);/,
+  expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
+    /right:\s*20px;[\s\S]*bottom:\s*88px;[\s\S]*max-width:\s*26vw;[\s\S]*font-size:\s*clamp\(26px,\s*4\.5vw,\s*32px\)/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*680px\)\s*and\s*\(orientation:\s*landscape\)[\s\S]*?\.hero-supporting\s*\{\s*display:\s*none;/,
+  expect(mediaRule(shortLandscape, ".hero-copy .headline::before")).toMatch(
+    /inset:\s*-16%\s+-5%\s+-16%\s+0/,
+  );
+  expect(mediaRule(shortLandscape, ".hero-supporting")).toMatch(
+    /display:\s*none/,
   );
   expect(rule(".site-nav nav :is(a, button)")).toMatch(/min-height:\s*44px/);
 });
@@ -90,9 +127,8 @@ test("never presents the portrait sampling image", () => {
 });
 
 test("reveals an accessible status message in error states", () => {
-  expect(styles).toMatch(
-    /\.portrait-stage--fallback \.portrait-error,\s*\.portrait-stage--error \.portrait-error,\s*\.portrait-stage\.is-error \.portrait-error\s*\{\s*opacity:\s*1;/,
-  );
+  expect(rule(".portrait-error")).toMatch(/opacity:\s*1/);
+  expect(styles).not.toMatch(/portrait-stage[^,{]* \.portrait-error/);
 });
 
 test("defines the editorial portfolio section system", () => {
