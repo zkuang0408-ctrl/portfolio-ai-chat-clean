@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 
 import type { ClientChatSource } from "./sse";
+import { ACTIVATE_PROJECT_EVENT } from "../portfolio/project-activation";
 import {
   OPEN_PROJECT_PAGE_EVENT,
   navigateToSource,
@@ -45,11 +46,19 @@ function setup(): {
 test("scrolls to a trusted project and dispatches its exact PDF page", () => {
   const { browser, portfolioRoot } = setup();
   const project = portfolioRoot.querySelector<HTMLElement>("#project-inkseat")!;
-  const scrollIntoView = vi.fn();
+  const order: string[] = [];
+  const scrollIntoView = vi.fn(() => order.push("scroll"));
   project.scrollIntoView = scrollIntoView;
   const received: OpenProjectPageDetail[] = [];
+  portfolioRoot.addEventListener(ACTIVATE_PROJECT_EVENT, (event) => {
+    order.push(
+      `activate:${(event as CustomEvent<{ projectId: string }>).detail.projectId}`,
+    );
+  });
   portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, (event) => {
-    received.push((event as CustomEvent<OpenProjectPageDetail>).detail);
+    const detail = (event as CustomEvent<OpenProjectPageDetail>).detail;
+    received.push(detail);
+    order.push(`page:${detail.page}`);
   });
 
   navigateToSource(portfolioRoot, source(), browser);
@@ -57,6 +66,7 @@ test("scrolls to a trusted project and dispatches its exact PDF page", () => {
   expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
   expect(scrollIntoView.mock.calls[0]?.[0]).not.toHaveProperty("behavior");
   expect(received).toEqual([{ projectId: "inkseat", page: 8 }]);
+  expect(order).toEqual(["activate:inkseat", "scroll", "page:8"]);
 });
 
 test("scrolls an owner-confirmed project source without a page to the project only", () => {
@@ -65,11 +75,16 @@ test("scrolls an owner-confirmed project source without a page to the project on
   const scrollIntoView = vi.fn();
   project.scrollIntoView = scrollIntoView;
   const listener = vi.fn();
+  const activations: Array<{ projectId: string }> = [];
+  portfolioRoot.addEventListener(ACTIVATE_PROJECT_EVENT, (event) => {
+    activations.push((event as CustomEvent<{ projectId: string }>).detail);
+  });
   portfolioRoot.addEventListener(OPEN_PROJECT_PAGE_EVENT, listener);
 
   navigateToSource(portfolioRoot, source({ page: undefined }), browser);
 
   expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  expect(activations).toEqual([{ projectId: "inkseat" }]);
   expect(listener).not.toHaveBeenCalled();
   expect(browser.open).not.toHaveBeenCalled();
 });

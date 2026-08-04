@@ -101,3 +101,31 @@ test("updates the shareable location after the existing reader changes page", ()
   );
   cleanup();
 });
+
+test("activates a direct reader route before presenting it fullscreen", () => {
+  const root = document.createElement("main");
+  root.innerHTML = `<figure data-project-reader data-project-id="emovue"></figure>`;
+  const order: string[] = [];
+  root.addEventListener("portfolio:activate-project", () => {
+    order.push(
+      root.querySelector("[data-project-reader]")?.classList.contains("is-fullscreen")
+        ? "activate-after-fullscreen"
+        : "activate-before-fullscreen",
+    );
+  });
+
+  const cleanup = startReaderRouting(root, {
+    viewport: new EventTarget(),
+    history: { pushState: vi.fn(), replaceState: vi.fn(), back: vi.fn() },
+    location: { hash: "#reader/emovue/02", pathname: "/", search: "" },
+    getScrollY: () => 0,
+    scrollTo: vi.fn(),
+    setScrollLocked: vi.fn(),
+  });
+
+  expect(order).toEqual(["activate-before-fullscreen"]);
+  expect(root.querySelector("[data-project-reader]")?.classList).toContain(
+    "is-fullscreen",
+  );
+  cleanup();
+});

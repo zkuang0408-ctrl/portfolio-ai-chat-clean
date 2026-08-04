@@ -1,5 +1,6 @@
 import { projects } from "../content/portfolio";
 import { OPEN_PROJECT_PAGE_EVENT } from "../chat/source-navigation";
+import { dispatchProjectActivation } from "./project-activation";
 
 export interface ReaderRoute {
   readonly projectId: string;
@@ -105,6 +106,7 @@ export function startReaderRouting(
   ): void => {
     const reader = readerFor(route.projectId);
     if (!reader || destroyed) return;
+    dispatchProjectActivation(root, route.projectId);
     if (active && active.projectId !== route.projectId) {
       readerFor(active.projectId)?.classList.remove("is-fullscreen");
     }

@@ -1,4 +1,5 @@
 import type { ClientChatSource } from "./sse";
+import { dispatchProjectActivation } from "../portfolio/project-activation";
 
 export const OPEN_PROJECT_PAGE_EVENT = "portfolio:open-project-page";
 
@@ -50,13 +51,18 @@ function isPositiveIntegerPage(page: number | undefined): page is number {
 }
 
 export function navigateToSource(
-  portfolioRoot: ParentNode,
+  portfolioRoot: HTMLElement,
   source: ClientChatSource,
   browser: SourceNavigationBrowser,
 ): void {
   if (isOwnerConfirmedProjectSource(source)) {
     if (source.page !== undefined && !isPositiveIntegerPage(source.page)) return;
-    if (!scrollTo(portfolioRoot, `#project-${source.projectId}`)) return;
+    const target = portfolioRoot.querySelector<HTMLElement>(
+      `#project-${source.projectId}`,
+    );
+    if (!target) return;
+    dispatchProjectActivation(portfolioRoot, source.projectId);
+    target.scrollIntoView({ block: "start" });
     if (source.page === undefined) return;
     const EventConstructor =
       browser.document.defaultView?.CustomEvent ?? CustomEvent;
