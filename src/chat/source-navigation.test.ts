@@ -47,7 +47,9 @@ test("scrolls to a trusted project and dispatches its exact PDF page", () => {
   const { browser, portfolioRoot } = setup();
   const project = portfolioRoot.querySelector<HTMLElement>("#project-inkseat")!;
   const order: string[] = [];
-  const scrollIntoView = vi.fn(() => order.push("scroll"));
+  const scrollIntoView = vi.fn((_options?: ScrollIntoViewOptions) => {
+    order.push("scroll");
+  });
   project.scrollIntoView = scrollIntoView;
   const received: OpenProjectPageDetail[] = [];
   portfolioRoot.addEventListener(ACTIVATE_PROJECT_EVENT, (event) => {
