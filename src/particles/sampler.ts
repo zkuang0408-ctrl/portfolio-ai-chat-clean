@@ -9,17 +9,17 @@ import type {
 } from "./types";
 
 const RADIUS_RANGES: Record<ParticleSizeBand, readonly [number, number]> = {
-  micro: [0.45, 1.2],
-  medium: [1.2, 2.35],
-  large: [2.4, 4.4],
+  micro: [0.37, 0.88],
+  medium: [0.9, 1.48],
+  large: [1.56, 2.34],
   splash: [4.5, 7.5],
 };
 
 const SIZE_BAND_SHARES: Record<ParticleSizeBand, number> = {
-  micro: 0.65,
-  medium: 0.25,
-  large: 0.08,
-  splash: 0.02,
+  micro: 0.82,
+  medium: 0.15,
+  large: 0.03,
+  splash: 0,
 };
 
 const SIZE_BANDS: readonly ParticleSizeBand[] = [
@@ -50,7 +50,7 @@ function between(
   return minimum + random() * (maximum - minimum);
 }
 
-function radiusByBand(
+export function radiusByBand(
   band: ParticleSizeBand,
   roll: number,
 ): number {
