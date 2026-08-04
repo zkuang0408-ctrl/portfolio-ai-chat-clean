@@ -179,7 +179,7 @@ export function portraitLightAt(
   const normalizedSource = clamp01(
     Number.isFinite(sourceLight) ? sourceLight : 0,
   );
-  return Math.max(inverted, normalizedSource * 0.52);
+  return Math.max(inverted, normalizedSource * 0.9);
 }
 
 function brightSideForLight(light: number): number {

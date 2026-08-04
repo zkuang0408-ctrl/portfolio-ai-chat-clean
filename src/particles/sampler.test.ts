@@ -146,7 +146,7 @@ it("restores the neck bridge without flattening the face or garment negative", (
   const darkGarment = portraitLightAt(0.15, 50, 84, 100, 100);
 
   expect(brightFace).toBeCloseTo(0.18);
-  expect(brightNeck).toBeCloseTo(0.4264);
+  expect(brightNeck).toBeCloseTo(0.738);
   expect(brightNeck).toBeGreaterThan(brightFace);
   expect(darkGarment).toBeCloseTo(0.85);
   expect(darkGarment).toBeGreaterThan(brightNeck);
