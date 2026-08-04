@@ -68,11 +68,19 @@ Manual selector clicks call the same internal activation function as external ev
 
 ## Flatter Selector Layout
 
-The cover remains a complete 16:10 image with `object-fit: contain`.
+The cover remains a complete 16:10 image with `object-fit: contain`. "Flatter"
+means reducing navigation chrome while protecting the complete PPT page; it
+does not mean cropping the cover into a shallower ratio.
 
-- Desktop metadata minimum height: 52px.
-- Desktop metadata spacing: approximately 2–3px gap with 8–10px vertical padding.
-- Desktop selector total height at 1440px: approximately 178–182px.
+- Give the 16:10 media box a restrained 6px safe inset so the card's rounded
+  outer corners clip only the dark media ground, never the PPT page corners.
+- Keep every label, title, active dot, and state indicator outside the cover.
+- Remove the existing internal image scale on hover/focus. Card-level hover may
+  remain, but the cover itself must remain completely visible in default,
+  hover, focus, and active states.
+- Desktop metadata minimum height: 48px.
+- Desktop metadata spacing: approximately 2px gap with 7–9px vertical padding.
+- Desktop selector total height at 1440px: approximately 174–176px.
 - Intermediate selector width: bounded near 180–240px.
 - Mobile selector width: at most 260px, retaining a visible preview of the next card.
 - Project number/type and title remain outside the cover image and retain ellipsis protection.
@@ -105,7 +113,8 @@ Use TDD for each behavior:
 - trusted AI sources activate before scroll and exact-page dispatch;
 - direct reader routes activate before full-screen presentation;
 - cleanup removes every new listener;
-- CSS locks the flatter selector dimensions and both wipe directions;
+- CSS locks the flatter selector dimensions, safe cover inset, absent image
+  zoom, and both wipe directions;
 - reduced-motion CSS removes wipe animation;
 - existing reader state and navigation tests continue to pass.
 
