@@ -172,7 +172,15 @@ it("keeps the new neck bridge dimensional with middle gray and edges", () => {
     1_104,
     1_425,
   );
-  const brightFace = portraitLightAt(
+  const smoothBrightFace = portraitLightAt(
+    0.82,
+    0,
+    535,
+    610,
+    1_104,
+    1_425,
+  );
+  const edgedBrightFace = portraitLightAt(
     0.82,
     0.35,
     535,
@@ -192,7 +200,10 @@ it("keeps the new neck bridge dimensional with middle gray and edges", () => {
   expect(smoothBrightNeck).toBeGreaterThan(0.45);
   expect(smoothBrightNeck).toBeLessThan(0.75);
   expect(edgedBrightNeck).toBeGreaterThan(smoothBrightNeck);
-  expect(brightFace).toBeCloseTo(0.18);
+  expect(smoothBrightFace).toBeGreaterThan(0.35);
+  expect(smoothBrightFace).toBeLessThan(0.45);
+  expect(edgedBrightFace).toBeGreaterThan(0.55);
+  expect(edgedBrightFace).toBeGreaterThan(smoothBrightFace);
   expect(darkGarment).toBeCloseTo(0.85);
 });
 

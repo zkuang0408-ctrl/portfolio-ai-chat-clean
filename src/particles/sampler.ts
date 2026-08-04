@@ -182,20 +182,31 @@ export function portraitLightAt(
 
   const normalizedX = x / width;
   const normalizedY = y / height;
-  if (!isNeckBridgeAt(normalizedX, normalizedY)) return inverted;
-
   const normalizedSource = clamp01(
     Number.isFinite(sourceLight) ? sourceLight : 0,
   );
   const normalizedEdge = clamp01(edgeScore);
   const middleGray = 1 - Math.abs(normalizedSource - 0.5) * 2;
 
+  if (isNeckBridgeAt(normalizedX, normalizedY)) {
+    return clamp01(
+      Math.max(
+        inverted,
+        normalizedSource * 0.64 +
+          middleGray * 0.18 +
+          normalizedEdge * 0.25,
+      ),
+    );
+  }
+
+  if (portraitRegionAt(x, y, width, height) === "edge") return inverted;
+
   return clamp01(
     Math.max(
       inverted,
-      normalizedSource * 0.64 +
+      normalizedSource * 0.38 +
         middleGray * 0.18 +
-        normalizedEdge * 0.25,
+        normalizedEdge * 0.55,
     ),
   );
 }
