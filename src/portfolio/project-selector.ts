@@ -1,36 +1,45 @@
-interface IntersectionObserverLike {
-  observe(target: Element): void;
-  disconnect(): void;
-}
+import {
+  ACTIVATE_PROJECT_EVENT,
+  readProjectActivation,
+} from "./project-activation";
 
-export interface ProjectSelectorObserverConstructor {
-  new (
-    callback: IntersectionObserverCallback,
-    options?: IntersectionObserverInit,
-  ): IntersectionObserverLike;
-}
+type ProjectDirection = "forward" | "backward";
 
-export interface ProjectSelectorDependencies {
-  readonly scrollIntoView: (target: HTMLElement) => void;
-  readonly IntersectionObserver?: ProjectSelectorObserverConstructor;
-}
-
-export function startProjectSelector(
-  root: HTMLElement,
-  overrides: Partial<ProjectSelectorDependencies> = {},
-): () => void {
+export function startProjectSelector(root: HTMLElement): () => void {
   const selectors = Array.from(
     root.querySelectorAll<HTMLElement>("[data-project-selector]"),
   );
   const chapters = Array.from(
     root.querySelectorAll<HTMLElement>("[data-project-chapter]"),
   );
-  const chapterById = new Map(
-    chapters.map((chapter) => [chapter.dataset.projectChapter, chapter]),
-  );
+  const chapterById = new Map<string, HTMLElement>();
+  for (const chapter of chapters) {
+    const projectId = chapter.dataset.projectChapter;
+    if (projectId && !chapterById.has(projectId)) {
+      chapterById.set(projectId, chapter);
+    }
+  }
+  const projectOrder = selectors.reduce<string[]>((order, selector) => {
+    const projectId = selector.dataset.projectSelector;
+    if (
+      projectId &&
+      chapterById.has(projectId) &&
+      !order.includes(projectId)
+    ) {
+      order.push(projectId);
+    }
+    return order;
+  }, []);
+  let activeProjectId: string | undefined;
   let destroyed = false;
 
-  const setActive = (projectId: string): void => {
+  const activate = (
+    projectId: string,
+    direction?: ProjectDirection,
+  ): boolean => {
+    const incoming = chapterById.get(projectId);
+    if (!incoming || destroyed || projectId === activeProjectId) return false;
+
     selectors.forEach((selector) => {
       if (selector.dataset.projectSelector === projectId) {
         selector.setAttribute("aria-current", "true");
@@ -38,52 +47,64 @@ export function startProjectSelector(
         selector.removeAttribute("aria-current");
       }
     });
+    chapters.forEach((chapter) => {
+      chapter.removeAttribute("data-project-transition");
+      if (chapter === incoming) {
+        chapter.hidden = false;
+        chapter.removeAttribute("aria-hidden");
+      } else {
+        chapter.hidden = true;
+        chapter.setAttribute("aria-hidden", "true");
+      }
+    });
+    if (direction) incoming.dataset.projectTransition = direction;
+    activeProjectId = projectId;
+    return true;
   };
 
-  const scrollIntoView =
-    overrides.scrollIntoView ??
-    ((target: HTMLElement) =>
-      target.scrollIntoView({ behavior: "smooth", block: "start" }));
-
-  const listeners = selectors.map((selector) => {
+  const selectorListeners = selectors.map((selector) => {
     const listener = (event: Event): void => {
-      event.preventDefault();
       const projectId = selector.dataset.projectSelector;
-      const chapter = projectId ? chapterById.get(projectId) : undefined;
-      if (!projectId || !chapter || destroyed) return;
-      setActive(projectId);
-      scrollIntoView(chapter);
+      const nextIndex = projectId ? projectOrder.indexOf(projectId) : -1;
+      const activeIndex = activeProjectId
+        ? projectOrder.indexOf(activeProjectId)
+        : -1;
+      if (!projectId || nextIndex < 0 || activeIndex < 0 || destroyed) return;
+      event.preventDefault();
+      activate(projectId, nextIndex > activeIndex ? "forward" : "backward");
     };
     selector.addEventListener("click", listener);
     return { selector, listener };
   });
 
-  const Observer = overrides.IntersectionObserver ?? globalThis.IntersectionObserver;
-  const observer = Observer
-    ? new Observer(
-        (entries) => {
-          if (destroyed) return;
-          const visible = entries
-            .filter((entry) => entry.isIntersecting)
-            .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-          const projectId = (visible?.target as HTMLElement | undefined)?.dataset
-            .projectChapter;
-          if (projectId) setActive(projectId);
-        },
-        { rootMargin: "-32% 0px -46%", threshold: [0.2, 0.5, 0.75] },
-      )
-    : undefined;
+  const animationListeners = chapters.map((chapter) => {
+    const listener = (event: Event): void => {
+      if (event.target === chapter) {
+        chapter.removeAttribute("data-project-transition");
+      }
+    };
+    chapter.addEventListener("animationend", listener);
+    return { chapter, listener };
+  });
 
-  chapters.forEach((chapter) => observer?.observe(chapter));
-  const initial = selectors[0]?.dataset.projectSelector;
-  if (initial) setActive(initial);
+  const handleExternalActivation = (event: Event): void => {
+    const detail = readProjectActivation(event);
+    if (detail) activate(detail.projectId);
+  };
+  root.addEventListener(ACTIVATE_PROJECT_EVENT, handleExternalActivation);
+
+  const initialProjectId = projectOrder[0];
+  if (initialProjectId) activate(initialProjectId);
 
   return () => {
     if (destroyed) return;
     destroyed = true;
-    observer?.disconnect();
-    listeners.forEach(({ selector, listener }) =>
+    selectorListeners.forEach(({ selector, listener }) =>
       selector.removeEventListener("click", listener),
     );
+    animationListeners.forEach(({ chapter, listener }) =>
+      chapter.removeEventListener("animationend", listener),
+    );
+    root.removeEventListener(ACTIVATE_PROJECT_EVENT, handleExternalActivation);
   };
 }

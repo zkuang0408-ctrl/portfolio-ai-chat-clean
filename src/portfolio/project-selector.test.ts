@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 
+import { dispatchProjectActivation } from "./project-activation";
 import { startProjectSelector } from "./project-selector";
 
 function createRoot(): HTMLElement {
@@ -10,52 +11,80 @@ function createRoot(): HTMLElement {
     <article id="project-inkseat" data-project-chapter="inkseat"></article>
     <article id="project-emovue" data-project-chapter="emovue"></article>
   `;
+  root.querySelectorAll<HTMLElement>("[data-project-chapter]").forEach((item) => {
+    item.scrollIntoView = vi.fn();
+  });
   return root;
 }
 
-test("maps selector activation to its matching chapter", () => {
+function selector(root: HTMLElement, id: string): HTMLElement {
+  return root.querySelector(`[data-project-selector="${id}"]`)!;
+}
+
+function chapter(root: HTMLElement, id: string): HTMLElement {
+  return root.querySelector(`[data-project-chapter="${id}"]`)!;
+}
+
+test("initializes INKSeat as the only visible mounted chapter", () => {
   const root = createRoot();
-  const scrollIntoView = vi.fn();
-  const cleanup = startProjectSelector(root, { scrollIntoView });
+  const cleanup = startProjectSelector(root);
 
-  root.querySelector<HTMLElement>('[data-project-selector="emovue"]')?.click();
-
-  expect(scrollIntoView).toHaveBeenCalledWith(
-    root.querySelector('[data-project-chapter="emovue"]'),
-  );
-  expect(
-    root.querySelector('[data-project-selector="emovue"]')?.getAttribute("aria-current"),
-  ).toBe("true");
+  expect(selector(root, "inkseat").getAttribute("aria-current")).toBe("true");
+  expect(chapter(root, "inkseat").hidden).toBe(false);
+  expect(chapter(root, "inkseat").hasAttribute("aria-hidden")).toBe(false);
+  expect(chapter(root, "emovue").hidden).toBe(true);
+  expect(chapter(root, "emovue").getAttribute("aria-hidden")).toBe("true");
+  expect(root.querySelectorAll("[data-project-chapter]")).toHaveLength(2);
   cleanup();
 });
 
-test("updates active state from visible chapters without stealing focus", () => {
+test("switches forward and backward without scrolling", () => {
   const root = createRoot();
-  let callback: IntersectionObserverCallback = () => undefined;
-  const disconnect = vi.fn();
-  class FakeIntersectionObserver {
-    constructor(value: IntersectionObserverCallback) {
-      callback = value;
-    }
-    observe = vi.fn();
-    unobserve = vi.fn();
-    disconnect = disconnect;
-  }
-  const activeElementBefore = document.activeElement;
-  const cleanup = startProjectSelector(root, {
-    IntersectionObserver: FakeIntersectionObserver,
-  });
-  const emovue = root.querySelector<HTMLElement>('[data-project-chapter="emovue"]')!;
+  const scrollInkseat = vi.fn();
+  const scrollEmovue = vi.fn();
+  chapter(root, "inkseat").scrollIntoView = scrollInkseat;
+  chapter(root, "emovue").scrollIntoView = scrollEmovue;
+  const cleanup = startProjectSelector(root);
 
-  callback(
-    [{ target: emovue, isIntersecting: true, intersectionRatio: 0.7 } as unknown as IntersectionObserverEntry],
-    {} as IntersectionObserver,
-  );
+  selector(root, "emovue").click();
+  expect(chapter(root, "inkseat").hidden).toBe(true);
+  expect(chapter(root, "emovue").hidden).toBe(false);
+  expect(chapter(root, "emovue").dataset.projectTransition).toBe("forward");
 
-  expect(
-    root.querySelector('[data-project-selector="emovue"]')?.getAttribute("aria-current"),
-  ).toBe("true");
-  expect(document.activeElement).toBe(activeElementBefore);
+  chapter(root, "emovue").dispatchEvent(new Event("animationend"));
+  selector(root, "inkseat").click();
+  expect(chapter(root, "inkseat").dataset.projectTransition).toBe("backward");
+  expect(selector(root, "inkseat").getAttribute("aria-current")).toBe("true");
+  expect(scrollInkseat).not.toHaveBeenCalled();
+  expect(scrollEmovue).not.toHaveBeenCalled();
   cleanup();
-  expect(disconnect).toHaveBeenCalledOnce();
+});
+
+test("does not restart the transition for an already active selector", () => {
+  const root = createRoot();
+  const cleanup = startProjectSelector(root);
+  selector(root, "emovue").click();
+  chapter(root, "emovue").dispatchEvent(new Event("animationend"));
+
+  selector(root, "emovue").click();
+
+  expect(chapter(root, "emovue").hasAttribute("data-project-transition")).toBe(false);
+  cleanup();
+});
+
+test("external activation switches immediately and cleanup removes all listeners", () => {
+  const root = createRoot();
+  const cleanup = startProjectSelector(root);
+
+  dispatchProjectActivation(root, "emovue");
+  expect(chapter(root, "emovue").hidden).toBe(false);
+  expect(chapter(root, "emovue").hasAttribute("data-project-transition")).toBe(false);
+
+  cleanup();
+  selector(root, "inkseat").click();
+  dispatchProjectActivation(root, "inkseat");
+  expect(chapter(root, "emovue").hidden).toBe(false);
+  chapter(root, "emovue").dataset.projectTransition = "forward";
+  chapter(root, "emovue").dispatchEvent(new Event("animationend"));
+  expect(chapter(root, "emovue").dataset.projectTransition).toBe("forward");
 });
