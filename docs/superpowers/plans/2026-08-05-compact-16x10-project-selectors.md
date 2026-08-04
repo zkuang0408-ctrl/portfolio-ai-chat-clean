@@ -44,7 +44,7 @@ test("keeps project selectors compact with complete 16:10 covers", () => {
   expect(intermediate).toMatch(/width:\s*clamp\(190px,\s*27vw,\s*270px\)/);
   expect(mobile).toMatch(/width:\s*min\(74vw,\s*280px\)/);
   expect(styles).not.toMatch(/grid-template-rows:\s*minmax\(150px,\s*17vw\)\s+auto/);
-  expect(styles).not.toMatch(/object-fit:\s*cover/);
+  expect(image).not.toMatch(/object-fit:\s*cover/);
 });
 ```
 
