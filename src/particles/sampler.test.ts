@@ -150,7 +150,7 @@ it.each([
   [550, 1030, "collar bridge"],
 ] as const)(
   "keeps %i,%i %s in the fixed identity core",
-  (x, y) => {
+  (x, y, _landmark) => {
     expect(portraitRegionAt(x, y, 1_104, 1_425)).toBe("core");
   },
 );
