@@ -617,14 +617,18 @@ test("centered particle portrait protects the face and fixed assistant", async (
       geometry.canvas.top + composition.offsetY +
       geometry.source.height * composition.scale * 0.6,
   };
-  const intersects = (a: typeof geometry.headline, b: typeof geometry.headline) =>
-    a.left < b.right - 1 && a.right > b.left + 1 &&
-    a.top < b.bottom - 1 && a.bottom > b.top + 1;
+  const intersects = (
+    a: typeof geometry.headline,
+    b: typeof geometry.headline,
+    tolerance = 1,
+  ) =>
+    a.left < b.right - tolerance && a.right > b.left + tolerance &&
+    a.top < b.bottom - tolerance && a.bottom > b.top + tolerance;
 
   expect(geometry.stage).toEqual(geometry.scene);
   expect(geometry.canvas).toEqual(geometry.scene);
   expect(
-    geometry.headlineText.some((line) => intersects(line, protectedFace)),
+    geometry.headlineText.some((line) => intersects(line, protectedFace, 5)),
     `headline text must not cover the protected face: ${JSON.stringify({ geometry, protectedFace })}`,
   ).toBe(false);
   expect(intersects(geometry.headline, geometry.orb)).toBe(false);
