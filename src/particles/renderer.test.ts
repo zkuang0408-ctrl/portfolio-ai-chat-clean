@@ -148,6 +148,15 @@ describe("ParticleRenderer", () => {
       clothingCrossesBottom: true,
     },
     {
+      name: "ultrawide desktop",
+      width: 2_040,
+      height: 1_026,
+      expectedScale: (1_026 / 1_425) * 1.62,
+      expectedOffsetY:
+        1_026 * 0.09 - 1_425 * 0.13 * ((1_026 / 1_425) * 1.62),
+      clothingCrossesBottom: true,
+    },
+    {
       name: "mobile portrait",
       width: 390,
       height: 722,
