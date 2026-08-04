@@ -2,86 +2,82 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 export const MASK_WIDTH = 1104;
 export const MASK_HEIGHT = 1425;
+
+export const CANONICAL_MASK_PATH = resolve(
+  process.env.PORTRAIT_MASK_SOURCE ??
+    "scripts/assets/portrait-subject-mask.png",
+);
 
 const MASK_PATH = resolve(
   process.env.PORTRAIT_MASK_OUTPUT ?? "public/portrait-particle-mask.png",
 );
 
 export function portraitMaskPng(): Buffer {
-  const canvas = createCanvas(MASK_WIDTH, MASK_HEIGHT);
-  const context = canvas.getContext("2d");
+  if (!existsSync(CANONICAL_MASK_PATH)) {
+    throw new Error("Canonical portrait subject mask is missing.");
+  }
 
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.moveTo(0.28 * MASK_WIDTH, 0.18 * MASK_HEIGHT);
-  context.bezierCurveTo(
-    0.34 * MASK_WIDTH,
-    0.1 * MASK_HEIGHT,
-    0.64 * MASK_WIDTH,
-    0.09 * MASK_HEIGHT,
-    0.76 * MASK_WIDTH,
-    0.18 * MASK_HEIGHT,
-  );
-  context.bezierCurveTo(
-    0.86 * MASK_WIDTH,
-    0.27 * MASK_HEIGHT,
-    0.84 * MASK_WIDTH,
-    0.52 * MASK_HEIGHT,
-    0.72 * MASK_WIDTH,
-    0.63 * MASK_HEIGHT,
-  );
-  context.bezierCurveTo(
-    0.69 * MASK_WIDTH,
-    0.68 * MASK_HEIGHT,
-    0.72 * MASK_WIDTH,
-    0.72 * MASK_HEIGHT,
-    0.82 * MASK_WIDTH,
-    0.75 * MASK_HEIGHT,
-  );
-  context.bezierCurveTo(
-    0.92 * MASK_WIDTH,
-    0.78 * MASK_HEIGHT,
-    0.98 * MASK_WIDTH,
-    0.86 * MASK_HEIGHT,
-    MASK_WIDTH,
-    MASK_HEIGHT,
-  );
-  context.lineTo(0, MASK_HEIGHT);
-  context.bezierCurveTo(
-    0.02 * MASK_WIDTH,
-    0.85 * MASK_HEIGHT,
-    0.12 * MASK_WIDTH,
-    0.78 * MASK_HEIGHT,
-    0.31 * MASK_WIDTH,
-    0.74 * MASK_HEIGHT,
-  );
-  context.bezierCurveTo(
-    0.39 * MASK_WIDTH,
-    0.72 * MASK_HEIGHT,
-    0.41 * MASK_WIDTH,
-    0.68 * MASK_HEIGHT,
-    0.38 * MASK_WIDTH,
-    0.63 * MASK_HEIGHT,
-  );
-  context.bezierCurveTo(
-    0.25 * MASK_WIDTH,
-    0.54 * MASK_HEIGHT,
-    0.22 * MASK_WIDTH,
-    0.3 * MASK_HEIGHT,
-    0.28 * MASK_WIDTH,
-    0.18 * MASK_HEIGHT,
-  );
-  context.closePath();
-  context.fill();
-
-  return canvas.toBuffer("image/png");
+  return readFileSync(CANONICAL_MASK_PATH);
 }
 
-function main(): void {
+const REQUIRED_POINTS = [
+  [0.52, 0.17],
+  [0.37, 0.36],
+  [0.55, 0.37],
+  [0.48, 0.49],
+  [0.43, 0.58],
+  [0.49, 0.66],
+  [0.5, 0.75],
+  [0.88, 0.83],
+  [0.5, 0.92],
+] as const;
+
+const FORBIDDEN_POINTS = [
+  [0.05, 0.05],
+  [0.12, 0.45],
+  [0.9, 0.56],
+  [0.92, 0.75],
+  [0.97, 0.68],
+  [0.97, 0.9],
+] as const;
+
+export async function validatePortraitMask(png: Buffer): Promise<void> {
+  const image = await loadImage(png);
+
+  if (image.width !== MASK_WIDTH || image.height !== MASK_HEIGHT) {
+    throw new Error(
+      `Portrait subject mask must be ${MASK_WIDTH}x${MASK_HEIGHT}.`,
+    );
+  }
+
+  const canvas = createCanvas(MASK_WIDTH, MASK_HEIGHT);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0);
+  const alphaAt = ([normalizedX, normalizedY]: readonly [
+    number,
+    number,
+  ]): number => {
+    const x = Math.round(normalizedX * (MASK_WIDTH - 1));
+    const y = Math.round(normalizedY * (MASK_HEIGHT - 1));
+    return context.getImageData(x, y, 1, 1).data[3] ?? 0;
+  };
+
+  if (REQUIRED_POINTS.some((point) => alphaAt(point) <= 200)) {
+    throw new Error("Portrait subject mask omits a required subject landmark.");
+  }
+
+  if (FORBIDDEN_POINTS.some((point) => alphaAt(point) !== 0)) {
+    throw new Error(
+      "Portrait subject mask includes a forbidden environment region.",
+    );
+  }
+}
+
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const verify = args.length === 1 && args[0] === "--verify";
 
@@ -92,6 +88,7 @@ function main(): void {
   }
 
   const expected = portraitMaskPng();
+  await validatePortraitMask(expected);
 
   if (verify) {
     if (!existsSync(MASK_PATH)) {
@@ -119,5 +116,8 @@ if (
   process.argv[1] &&
   fileURLToPath(import.meta.url) === resolve(process.argv[1])
 ) {
-  main();
+  void main().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }

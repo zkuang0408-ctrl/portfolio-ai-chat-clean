@@ -4,7 +4,7 @@
 
 **Goal:** Replace the homepage particle source with the approved real side-profile photograph, isolate only Zhao Shikuang, and make the glasses, facial structure, jaw, Adam's apple, neck, and collar immediately recognizable without changing the pure-particle style or surrounding UI.
 
-**Architecture:** Wire the homepage Canvas to `src/assets/portrait.png` while leaving the résumé portrait URL unchanged. Store the hand-refined subject alpha as a canonical authoring asset and make the existing mask script copy and validate it deterministically. Keep the current sampler pipeline, but align its normalized regions to the new photograph and combine negative luminance, middle-gray preservation, and edge contribution only in the chin-to-collar bridge.
+**Architecture:** Wire the homepage Canvas to `src/assets/portrait.png` while leaving the résumé portrait URL unchanged. Preserve the original upload separately and constrain the user-authorized generated sweater-arm repair to a tested lower-right region. Store the hand-refined subject alpha as a canonical authoring asset and make the existing mask script copy and validate it deterministically. Keep the current sampler pipeline, but align its normalized regions to the new photograph and combine negative luminance, middle-gray preservation, and edge contribution only in the chin-to-collar bridge.
 
 **Tech Stack:** TypeScript, Vitest, `@napi-rs/canvas`, Pillow/NumPy for one-time local mask authoring, Vite, Playwright CLI, Impeccable detector.
 
@@ -14,7 +14,9 @@
 
 - Create `src/particles/assets.ts`: own the distinct homepage-particle and résumé portrait URLs.
 - Create `src/particles/assets.test.ts`: prove those two consumers remain intentionally separate.
-- Replace `src/assets/portrait.png`: store the approved unmodified `1104 × 1425` photograph used only as hidden Canvas input.
+- Replace `src/assets/portrait.png`: store the approved `1104 × 1425` photograph with only the user-authorized lower-right sweater-arm repair, used solely as hidden Canvas input.
+- Create `scripts/assets/portrait-original.png`: preserve the immutable user upload used to prove identity pixels remain unchanged.
+- Create `scripts/portrait-source.test.ts`: constrain generated repair pixels to the approved lower-right sweater arm.
 - Create `scripts/assets/portrait-subject-mask.png`: store the reviewed canonical subject alpha.
 - Modify `scripts/build-portrait-mask.ts`: validate and emit the canonical mask deterministically.
 - Modify `scripts/build-portrait-mask.test.ts`: verify dimensions, required landmarks, forbidden environment/right-arm points, and CLI behavior.
@@ -128,6 +130,9 @@ git commit -m "feat: wire side-profile particle source"
 - Modify: `scripts/build-portrait-mask.test.ts`
 - Modify: `scripts/build-portrait-mask.ts`
 - Regenerate: `public/portrait-particle-mask.png`
+- Create: `scripts/assets/portrait-original.png`
+- Create: `scripts/portrait-source.test.ts`
+- Modify: `src/assets/portrait.png` only inside the approved lower-right repair region
 
 - [ ] **Step 1: Write failing subject-scope tests**
 

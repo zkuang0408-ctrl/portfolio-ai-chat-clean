@@ -19,10 +19,32 @@ import {
 } from "./build-portrait-mask";
 
 const maskPath = resolve("public/portrait-particle-mask.png");
+const canonicalMaskPath = resolve("scripts/assets/portrait-subject-mask.png");
 const scriptPath = resolve("scripts/build-portrait-mask.ts");
 const tsxPath = resolve("node_modules/tsx/dist/cli.mjs");
 let temporaryDirectory: string;
 let temporaryMaskPath: string;
+
+const requiredSubjectPoints = [
+  [0.52, 0.17, "hair crown"],
+  [0.37, 0.36, "left glasses and eye"],
+  [0.55, 0.37, "right glasses and eye"],
+  [0.48, 0.49, "nose and mouth core"],
+  [0.43, 0.58, "chin"],
+  [0.49, 0.66, "Adam's apple"],
+  [0.5, 0.75, "collar"],
+  [0.88, 0.83, "repaired right sleeve bridge"],
+  [0.5, 0.92, "lower garment"],
+] as const;
+
+const forbiddenEnvironmentPoints = [
+  [0.05, 0.05, "upper-left wall"],
+  [0.12, 0.45, "left furniture"],
+  [0.9, 0.56, "right background gap"],
+  [0.92, 0.75, "foreign arm seam above repair"],
+  [0.97, 0.68, "raised foreign forearm"],
+  [0.97, 0.9, "foreign black sleeve"],
+] as const;
 
 beforeEach(() => {
   temporaryDirectory = mkdtempSync(join(tmpdir(), "portrait-mask-test-"));
@@ -39,6 +61,7 @@ function runCli(args: string[] = []) {
     encoding: "utf8",
     env: {
       ...process.env,
+      PORTRAIT_MASK_SOURCE: canonicalMaskPath,
       PORTRAIT_MASK_OUTPUT: temporaryMaskPath,
     },
   });
@@ -58,11 +81,15 @@ describe.sequential("portrait particle mask", () => {
     expect(existsSync(maskPath)).toBe(true);
   });
 
+  it("has a committed canonical subject mask", () => {
+    expect(existsSync(canonicalMaskPath)).toBe(true);
+  });
+
   it("matches the deterministic generator byte for byte", () => {
     expect(portraitMaskPng().equals(readFileSync(maskPath))).toBe(true);
   });
 
-  it("has the expected dimensions and subject-only alpha", async () => {
+  it("retains required identity and clothing points while excluding the environment", async () => {
     const image = await loadImage(readFileSync(maskPath));
     expect([image.width, image.height]).toEqual([MASK_WIDTH, MASK_HEIGHT]);
 
@@ -76,12 +103,12 @@ describe.sequential("portrait particle mask", () => {
       return context.getImageData(x, y, 1, 1).data[3]!;
     };
 
-    expect(alphaAt(0.05, 0.05)).toBe(0);
-    expect(alphaAt(0.93, 0.48)).toBe(0);
-    expect(alphaAt(0.98, 0.65)).toBe(0);
-    expect(alphaAt(0.5, 0.34)).toBe(255);
-    expect(alphaAt(0.5, 0.6)).toBe(255);
-    expect(alphaAt(0.5, 0.9)).toBe(255);
+    for (const [x, y, label] of requiredSubjectPoints) {
+      expect(alphaAt(x, y), label).toBeGreaterThan(200);
+    }
+    for (const [x, y, label] of forbiddenEnvironmentPoints) {
+      expect(alphaAt(x, y), label).toBe(0);
+    }
   });
 
   it("reports an actionable error when the isolated mask is missing", () => {

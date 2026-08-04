@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace the homepage's old front-facing portrait with the supplied black-and-white three-quarter side-profile glasses photograph while making Zhao Shikuang immediately recognizable. The result remains a pure Canvas particle portrait: it uses the real photograph's pixels and a precise subject mask, never a generated or visibly overlaid portrait.
+Replace the homepage's old front-facing portrait with the supplied black-and-white three-quarter side-profile glasses photograph while making Zhao Shikuang immediately recognizable. The result remains a pure Canvas particle portrait: identity-bearing pixels come from the real photograph and a precise subject mask, with one user-authorized generated repair limited to a small missing section of the gray sweater arm; no photograph is visibly overlaid.
 
 ## Approved Source and Subject Scope
 
@@ -23,7 +23,9 @@ The mask must remove:
 
 ## Asset and Mask Pipeline
 
-Use a segmentation model only to obtain an initial alpha estimate. It must not generate, inpaint, redraw, beautify, or otherwise replace any portrait pixels. Refine the alpha mask manually around hair, glasses arms, jaw, neck, collar, shoulders, and the bottom garment boundary.
+Use a segmentation model only to obtain an initial alpha estimate. It must not generate, inpaint, redraw, beautify, or otherwise replace identity-bearing portrait pixels. Refine the alpha mask manually around hair, glasses arms, jaw, neck, collar, shoulders, and the bottom garment boundary.
+
+The user separately authorized image generation to reconstruct a small portion of Zhao's own gray sweater arm after excluding the unrelated raised arm. Preserve the untouched uploaded photograph as `scripts/assets/portrait-original.png`; generated pixels may differ only inside the tested lower-right sweater repair region (`x >= 920`, `y >= 980`). The face, hair, glasses, neck, body proportions, and all pixels outside that region must remain byte-for-byte derived from the original upload.
 
 Commit the refined mask as a canonical bitmap source under `scripts/assets/portrait-subject-mask.png`. Update `scripts/build-portrait-mask.ts` to normalize that source deterministically to `1104 × 1425`, validate required and forbidden regions, and generate `public/portrait-particle-mask.png`. Production tests and builds must not download or execute the segmentation model.
 
@@ -94,7 +96,7 @@ Use one bounded batch of desktop screenshots, fix all visible defects together, 
 
 ## Out of Scope
 
-- Generating, redrawing, retouching, or beautifying the person's identity.
+- Generating, redrawing, retouching, or beautifying the person's identity; the approved lower-right sweater-arm repair is the only generated exception.
 - Displaying the source photograph or mask as a visible layer.
 - Increasing the production particle budget or changing particle-size ratios.
 - Changing homepage text, navigation, AI assistant behavior, project surfaces, résumé, or any other page layout.
