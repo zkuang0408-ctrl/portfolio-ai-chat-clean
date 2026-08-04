@@ -160,6 +160,7 @@ function renderProjects(): string {
           class="project-selector"
           href="#project-${escapeHtml(project.id)}"
           data-project-selector="${escapeHtml(project.id)}"
+          aria-controls="project-${escapeHtml(project.id)}"
         >
           <span class="project-selector__media">
             <picture>

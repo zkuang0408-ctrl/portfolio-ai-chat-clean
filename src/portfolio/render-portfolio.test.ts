@@ -161,6 +161,19 @@ test("renders the approved selector order and matching editorial chapters", () =
   expect(root.querySelectorAll("[data-project-chapter]")).toHaveLength(6);
   expect(root.querySelector("#project-inkseat")?.getAttribute("data-project-chapter"))
     .toBe("inkseat");
+  expect(
+    Array.from(
+      root.querySelectorAll<HTMLElement>("[data-project-selector]"),
+      (card) => card.getAttribute("aria-controls"),
+    ),
+  ).toEqual([
+    "project-inkseat",
+    "project-emovue",
+    "project-evolution-fruit",
+    "project-atempo",
+    "project-urosense",
+    "project-first-fly",
+  ]);
   expect(root.querySelectorAll(".project-selector__media picture")).toHaveLength(6);
   expect(root.querySelector("[data-project-selector]")?.textContent).toContain("INKSeat");
 });
