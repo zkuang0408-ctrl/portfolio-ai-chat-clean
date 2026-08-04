@@ -190,10 +190,12 @@ test("keeps resting project selectors flat with complete 16:10 covers", () => {
   const mobile = mediaRule("(max-width: 760px)", ".project-selector");
 
   expect(media).toMatch(/aspect-ratio:\s*16\s*\/\s*10/);
+  expect(media).toMatch(/min-width:\s*0/);
   expect(media).toMatch(/padding:\s*6px/);
   expect(image).toMatch(/object-fit:\s*contain/);
   expect(image).toMatch(/object-position:\s*50%\s+50%/);
   expect(meta).toMatch(/min-height:\s*48px/);
+  expect(meta).toMatch(/min-width:\s*0/);
   expect(meta).toMatch(/gap:\s*2px/);
   expect(meta).toMatch(/padding:\s*8px\s+14px/);
   expect(intermediate).toMatch(

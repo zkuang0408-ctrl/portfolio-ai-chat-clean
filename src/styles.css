@@ -2072,6 +2072,7 @@ a:focus-visible {
 
 .project-selector__media {
   display: block;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   aspect-ratio: 16 / 10;
@@ -2095,6 +2096,7 @@ a:focus-visible {
 
 .project-selector__meta {
   display: flex;
+  min-width: 0;
   min-height: 48px;
   flex-direction: column;
   justify-content: flex-end;
