@@ -146,6 +146,42 @@ export function invertPortraitLuminance(light: number): number {
   return 1 - normalized;
 }
 
+export function portraitLightAt(
+  sourceLight: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): number {
+  const inverted = invertPortraitLuminance(sourceLight);
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return inverted;
+  }
+
+  const normalizedX = x / width;
+  const normalizedY = y / height;
+  const neckProgress = clamp01((normalizedY - 0.55) / 0.22);
+  const neckHalfWidth = 0.14 + neckProgress * 0.18;
+  const isNeckBridge =
+    normalizedY >= 0.55 &&
+    normalizedY <= 0.77 &&
+    Math.abs(normalizedX - 0.5) <= neckHalfWidth;
+
+  if (!isNeckBridge) return inverted;
+
+  const normalizedSource = clamp01(
+    Number.isFinite(sourceLight) ? sourceLight : 0,
+  );
+  return Math.max(inverted, normalizedSource * 0.52);
+}
+
 function brightSideForLight(light: number): number {
   const safeLight = clamp01(Number.isFinite(light) ? light : 0);
   return clamp01((safeLight - 0.08) / 0.35);
@@ -519,7 +555,16 @@ export function samplePortrait(
     if (mask !== undefined && !hasOpaqueMaskPixel(mask, x, y)) continue;
 
     const sourceLight = luminance(buffer, x, y);
-    const light = invertPortraitLuminance(sourceLight);
+    const light =
+      mask === undefined
+        ? invertPortraitLuminance(sourceLight)
+        : portraitLightAt(
+            sourceLight,
+            x,
+            y,
+            buffer.width,
+            buffer.height,
+          );
 
     if (light < 0.035) continue;
 
