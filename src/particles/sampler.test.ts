@@ -7,6 +7,7 @@ import {
   isLargeParticleEligible,
   MAX_PARTICLES,
   particleAcceptance,
+  radiusByBand,
   samplePortrait,
   settledTargetForRegion,
   visualForRegion,
@@ -193,11 +194,21 @@ it("restricts large particles to edges and weak face candidates", () => {
   expect(isLargeParticleEligible("core", 0)).toBe(false);
 });
 
+it.each([
+  ["micro", 0, 0.37],
+  ["micro", 1, 0.88],
+  ["medium", 0, 0.9],
+  ["medium", 1, 1.48],
+  ["large", 0, 1.56],
+  ["large", 1, 2.34],
+] as const)("maps %s radius roll %s to %s", (band, roll, expected) => {
+  expect(radiusByBand(band, roll)).toBeCloseTo(expected, 8);
+});
+
 it("checks every hard capacity when evaluating particle quota feasibility", () => {
-  expect(hasFeasibleParticleSizeQuotas(2_606, 211, 260, 0)).toBe(true);
-  expect(hasFeasibleParticleSizeQuotas(2_607, 211, 260, 0)).toBe(false);
-  expect(hasFeasibleParticleSizeQuotas(2_606, 51, 260, 0)).toBe(false);
-  expect(hasFeasibleParticleSizeQuotas(2_606, 211, 260, 1_695)).toBe(false);
+  expect(hasFeasibleParticleSizeQuotas(100, 0, 3, 82)).toBe(true);
+  expect(hasFeasibleParticleSizeQuotas(100, 0, 2, 82)).toBe(false);
+  expect(hasFeasibleParticleSizeQuotas(100, 0, 3, 83)).toBe(false);
 });
 
 it("keeps core particles exactly on their sampled landmark coordinates", () => {
@@ -455,7 +466,7 @@ describe("samplePortrait", () => {
   });
 
   it.each([7_000, 14_000])(
-    "assigns the final %i-particle production budget to exact 65/25/8/2 quotas",
+    "assigns the final %i-particle production budget to exact 82/15/3/0 quotas",
     (maxParticles) => {
       const pixels = buffer(320, 480, 0);
       const options = { maxParticles, seed: 20260714 };
@@ -473,10 +484,10 @@ describe("samplePortrait", () => {
       expect(first).toHaveLength(maxParticles);
       expect(second).toEqual(first);
       expect(counts).toEqual({
-        micro: maxParticles * 0.65,
-        medium: maxParticles * 0.25,
-        large: maxParticles * 0.08,
-        splash: maxParticles * 0.02,
+        micro: maxParticles * 0.82,
+        medium: maxParticles * 0.15,
+        large: maxParticles * 0.03,
+        splash: 0,
       });
       expect(
         first.filter(
@@ -528,7 +539,7 @@ describe("samplePortrait", () => {
     );
   });
 
-  it("preserves exact quotas when large candidates are scarce", () => {
+  it("preserves the full M2 quota when large candidates are scarce", () => {
     const pixels = buffer(120, 180, 255);
     for (let y = 0; y < pixels.height; y += 1) {
       for (let x = 0; x < pixels.width; x += 1) {
@@ -549,18 +560,12 @@ describe("samplePortrait", () => {
     const second = samplePortrait(pixels, options);
 
     expect(second).toEqual(first);
-    // The lower outer-edge acceptance leaves exactly 51 weak-face candidates;
-    // any additional face large would require an edgeScore at or above
-    // STRONG_FACE_EDGE.
-    expect(
-      first.filter(({ band, region }) => region === "face" && band === "large"),
-    ).toHaveLength(51);
-    expect(first).toHaveLength(1_895);
+    expect(first).toHaveLength(3_000);
     expect(bandCounts(first)).toEqual({
-      micro: 1_232,
-      medium: 474,
-      large: 151,
-      splash: 38,
+      micro: 2_460,
+      medium: 450,
+      large: 90,
+      splash: 0,
     });
     expect(
       first.filter(
@@ -573,7 +578,7 @@ describe("samplePortrait", () => {
     ).toHaveLength(0);
   });
 
-  it("reduces output when strong core edges exhaust medium candidates", () => {
+  it("keeps strong core edges micro-only under the M2 profile", () => {
     const pixels = buffer(120, 180, 255);
     for (let y = 0; y < pixels.height; y += 1) {
       for (let x = 0; x < pixels.width; x += 1) {
@@ -600,13 +605,13 @@ describe("samplePortrait", () => {
         edgeStrength(pixels, particle.targetX, particle.targetY) >= 0.18,
     );
 
-    expect(first).toHaveLength(1_686);
+    expect(first).toHaveLength(3_000);
     expect(second).toEqual(first);
     expect(bandCounts(first)).toEqual({
-      micro: 1_096,
-      medium: 421,
-      large: 135,
-      splash: 34,
+      micro: 2_460,
+      medium: 450,
+      large: 90,
+      splash: 0,
     });
     expect(new Set(strongCoreEdges.map(({ band }) => band))).toEqual(
       new Set(["micro"]),
@@ -674,12 +679,15 @@ describe("samplePortrait", () => {
       expect(particle.tone).toBeLessThanOrEqual(255);
       expect(particle.alpha).toBeGreaterThanOrEqual(0);
       expect(particle.alpha).toBeLessThanOrEqual(0.96);
-      expect(particle.radius).toBeGreaterThanOrEqual(0.45);
-      expect(particle.radius).toBeLessThanOrEqual(7.5);
+      expect(particle.radius).toBeGreaterThanOrEqual(0.37);
+      expect(particle.radius).toBeLessThanOrEqual(2.34);
       expect(particle.stretch).toBeGreaterThanOrEqual(0.82);
       expect(particle.stretch).toBeLessThanOrEqual(1.55);
       expect(particle.delay).toBeGreaterThanOrEqual(0.1);
       expect(particle.delay).toBeLessThanOrEqual(0.72);
     }
+    expect(
+      [...first, ...second].every(({ band }) => band !== "splash"),
+    ).toBe(true);
   });
 });
