@@ -8,6 +8,10 @@ import type { ProjectPageAsset } from "./content/portfolio";
 import { renderHero } from "./hero/render-hero";
 import { renderNavigation } from "./navigation/render-navigation";
 import { startSectionState } from "./navigation/section-state";
+import {
+  PARTICLE_PORTRAIT_URL,
+  RESUME_PORTRAIT_URL,
+} from "./particles/assets";
 import { startPortrait } from "./particles/controller";
 import { startProjectReaders } from "./portfolio/image-reader";
 import { startProjectSelector } from "./portfolio/project-selector";
@@ -15,7 +19,6 @@ import { startReaderRouting } from "./portfolio/reader-route";
 import { renderPortfolio } from "./portfolio/render-portfolio";
 import "./styles.css";
 
-const portraitUrl = "/portrait-resume-retouched-v1.png";
 const portraitMaskUrl = "/portrait-particle-mask.png";
 
 function selectedPageUrl(asset: ProjectPageAsset): string {
@@ -66,11 +69,16 @@ const locale: ChatLocale = navigator.language.toLowerCase().startsWith("zh")
   ? "zh"
   : "en";
 const navigation = renderNavigation(app);
-const portrait = renderHero(app, portraitUrl, portraitMaskUrl, locale);
+const portrait = renderHero(
+  app,
+  PARTICLE_PORTRAIT_URL,
+  portraitMaskUrl,
+  locale,
+);
 const portfolioRoot = document.createElement("main");
 portfolioRoot.className = "portfolio-content";
 app.append(portfolioRoot);
-renderPortfolio(portfolioRoot, { portraitUrl });
+renderPortfolio(portfolioRoot, { portraitUrl: RESUME_PORTRAIT_URL });
 // Keep the assistant above every editorial section instead of trapping it in
 // the hero's isolated stacking context. Moving the existing node preserves the
 // chat controller state and avoids rendering a second assistant instance.
