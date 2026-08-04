@@ -221,7 +221,7 @@ describe("ParticleRenderer", () => {
 
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(50 + 4 * particle.depth);
-    expect(ellipseCall?.[1]).toBeCloseTo(62.04 - 2 * particle.depth);
+    expect(ellipseCall?.[1]).toBeCloseTo(61.572 - 2 * particle.depth);
   });
 
   it("keeps portrait composition consistent when the viewport is tall", () => {
@@ -232,9 +232,9 @@ describe("ParticleRenderer", () => {
 
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(100);
-    expect(ellipseCall?.[1]).toBeCloseTo(238.3);
-    expect(ellipseCall?.[2]).toBeCloseTo(4.68);
-    expect(ellipseCall?.[3]).toBeCloseTo(3.9);
+    expect(ellipseCall?.[1]).toBeCloseTo(235.5);
+    expect(ellipseCall?.[2]).toBeCloseTo(4.8);
+    expect(ellipseCall?.[3]).toBeCloseTo(4);
     expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
   });
 
@@ -388,14 +388,14 @@ describe("ParticleRenderer", () => {
     renderer.draw([particle], 0.55, { width: 100, height: 120 });
 
     const progress = 0.96875;
-    const scale = 1.1;
+    const scale = 1.13;
     const radius = scale * (0.55 + progress * 0.45);
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(
-      -5 + (-40 + (50 - -40) * progress) * scale,
+      -6.5 + (-40 + (50 - -40) * progress) * scale,
     );
     expect(ellipseCall?.[1]).toBeCloseTo(
-      -3.96 + (10 + (60 - 10) * progress) * scale,
+      -6.228 + (10 + (60 - 10) * progress) * scale,
     );
     expect(ellipseCall?.[2]).toBeCloseTo(radius * 1.2);
     expect(ellipseCall?.[3]).toBeCloseTo(radius);
