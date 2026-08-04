@@ -75,9 +75,11 @@ does not mean cropping the cover into a shallower ratio.
 - Give the 16:10 media box a restrained 6px safe inset so the card's rounded
   outer corners clip only the dark media ground, never the PPT page corners.
 - Keep every label, title, active dot, and state indicator outside the cover.
-- Remove the existing internal image scale on hover/focus. Card-level hover may
-  remain, but the cover itself must remain completely visible in default,
-  hover, focus, and active states.
+- In the resting state, including an active card that is not being hovered, the
+  complete cover must remain visible with zero cropping.
+- Pointer hover may retain a restrained internal image scale (approximately
+  `1.03` to `1.045`) and its temporary edge crop. Keyboard focus keeps the
+  complete cover visible and uses the card outline/lift for feedback instead.
 - Desktop metadata minimum height: 48px.
 - Desktop metadata spacing: approximately 2px gap with 7–9px vertical padding.
 - Desktop selector total height at 1440px: approximately 174–176px.
@@ -113,8 +115,9 @@ Use TDD for each behavior:
 - trusted AI sources activate before scroll and exact-page dispatch;
 - direct reader routes activate before full-screen presentation;
 - cleanup removes every new listener;
-- CSS locks the flatter selector dimensions, safe cover inset, absent image
-  zoom, and both wipe directions;
+- CSS locks the flatter selector dimensions, safe resting-state cover inset,
+  hover-only image zoom, complete keyboard-focus cover, and both wipe
+  directions;
 - reduced-motion CSS removes wipe animation;
 - existing reader state and navigation tests continue to pass.
 
