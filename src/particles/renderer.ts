@@ -21,8 +21,9 @@ export function portraitCompositionFor(
 ): PortraitComposition {
   const mobile = width <= 760;
   const shortLandscape = mobile && width > height;
-  const widthFactor = shortLandscape ? 0.78 : mobile ? 1.10 : 0.70;
-  const heightFactor = shortLandscape ? 0.92 : mobile ? 0.78 : 1.12;
+  const widthFactor = shortLandscape ? 0.8 : mobile ? 1.13 : 0.725;
+  const heightFactor = shortLandscape ? 0.94 : mobile ? 0.8 : 1.16;
+  const viewportYAnchor = shortLandscape ? 0.09 : mobile ? 0.095 : 0.09;
   const scale = Math.max(
     (width / source.width) * widthFactor,
     (height / source.height) * heightFactor,
@@ -31,7 +32,7 @@ export function portraitCompositionFor(
   return {
     scale,
     offsetX: (width - source.width * scale) / 2,
-    offsetY: height * 0.11 - source.height * 0.13 * scale,
+    offsetY: height * viewportYAnchor - source.height * 0.13 * scale,
   };
 }
 
