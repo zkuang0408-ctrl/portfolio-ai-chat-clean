@@ -142,24 +142,27 @@ describe("ParticleRenderer", () => {
       name: "desktop",
       width: 1_440,
       height: 836,
-      expectedScale: (1_440 / 1_104) * 0.7,
-      expectedOffsetY: 836 * 0.11 - 1_425 * 0.13 * ((1_440 / 1_104) * 0.7),
+      expectedScale: (1_440 / 1_104) * 0.725,
+      expectedOffsetY:
+        836 * 0.09 - 1_425 * 0.13 * ((1_440 / 1_104) * 0.725),
       clothingCrossesBottom: true,
     },
     {
       name: "mobile portrait",
       width: 390,
       height: 722,
-      expectedScale: (722 / 1_425) * 0.78,
-      expectedOffsetY: 722 * 0.11 - 1_425 * 0.13 * ((722 / 1_425) * 0.78),
+      expectedScale: (722 / 1_425) * 0.8,
+      expectedOffsetY:
+        722 * 0.095 - 1_425 * 0.13 * ((722 / 1_425) * 0.8),
       clothingCrossesBottom: false,
     },
     {
       name: "short mobile landscape",
       width: 667,
       height: 375,
-      expectedScale: (667 / 1_104) * 0.78,
-      expectedOffsetY: 375 * 0.11 - 1_425 * 0.13 * ((667 / 1_104) * 0.78),
+      expectedScale: (667 / 1_104) * 0.8,
+      expectedOffsetY:
+        375 * 0.09 - 1_425 * 0.13 * ((667 / 1_104) * 0.8),
       clothingCrossesBottom: true,
     },
   ])(
@@ -196,9 +199,9 @@ describe("ParticleRenderer", () => {
     expect(context.beginPath).toHaveBeenCalledTimes(1);
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(200);
-    expect(ellipseCall?.[1]).toBeCloseTo(171.528);
-    expect(ellipseCall?.[2]).toBeCloseTo(3.744);
-    expect(ellipseCall?.[3]).toBeCloseTo(3.12);
+    expect(ellipseCall?.[1]).toBeCloseTo(169.08);
+    expect(ellipseCall?.[2]).toBeCloseTo(3.84);
+    expect(ellipseCall?.[3]).toBeCloseTo(3.2);
     expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
     expect(context.fill).toHaveBeenCalledTimes(1);
     expect(fillStates).toEqual([
