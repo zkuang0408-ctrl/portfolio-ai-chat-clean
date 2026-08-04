@@ -176,28 +176,52 @@ test("uses a clipped 16:9 reader stage and a centered editorial counter", () => 
   expect(styles).not.toMatch(/\.project-media\s+img\s*\{/);
 });
 
-test("keeps project selectors compact with complete 16:10 covers", () => {
-  const selector = rule(".project-selector");
+test("keeps resting project selectors flat with complete 16:10 covers", () => {
   const media = rule(".project-selector__media");
   const image = rulesContaining(".project-selector__media img");
   const meta = rule(".project-selector__meta");
+  const hoverImage = rule(
+    ".project-selector:hover .project-selector__media img",
+  );
+  const focusImage = rule(
+    ".project-selector:focus-visible .project-selector__media img",
+  );
   const intermediate = mediaRule("(max-width: 1179px)", ".project-selector");
   const mobile = mediaRule("(max-width: 760px)", ".project-selector");
 
-  expect(selector).toMatch(/grid-template-rows:\s*auto\s+auto/);
   expect(media).toMatch(/aspect-ratio:\s*16\s*\/\s*10/);
+  expect(media).toMatch(/padding:\s*6px/);
   expect(image).toMatch(/object-fit:\s*contain/);
   expect(image).toMatch(/object-position:\s*50%\s+50%/);
-  expect(meta).toMatch(/min-height:\s*68px/);
-  expect(meta).toMatch(/padding:\s*12px\s+14px\s+14px/);
+  expect(meta).toMatch(/min-height:\s*48px/);
+  expect(meta).toMatch(/gap:\s*2px/);
+  expect(meta).toMatch(/padding:\s*8px\s+14px/);
   expect(intermediate).toMatch(
-    /width:\s*clamp\(190px,\s*27vw,\s*270px\)/,
+    /width:\s*clamp\(180px,\s*24vw,\s*240px\)/,
   );
-  expect(mobile).toMatch(/width:\s*min\(74vw,\s*280px\)/);
-  expect(styles).not.toMatch(
-    /grid-template-rows:\s*minmax\(150px,\s*17vw\)\s+auto/,
+  expect(mobile).toMatch(/width:\s*min\(68vw,\s*260px\)/);
+  expect(hoverImage).toMatch(/transform:\s*scale\(1\.04\)/);
+  expect(focusImage).not.toMatch(/transform:\s*scale/);
+});
+
+test("reveals only the incoming project in the selected direction", () => {
+  expect(rule('[data-project-chapter][hidden]')).toMatch(/display:\s*none/);
+  expect(rule(".project-chapters .project-card")).toMatch(/padding-top:\s*0/);
+  expect(
+    rule('[data-project-chapter][data-project-transition="forward"]'),
+  ).toMatch(/project-reveal-forward\s+280ms/);
+  expect(
+    rule('[data-project-chapter][data-project-transition="backward"]'),
+  ).toMatch(/project-reveal-backward\s+280ms/);
+  expect(styles).toMatch(
+    /@keyframes\s+project-reveal-forward[\s\S]*?clip-path:[\s\S]*?translateX\(18px\)/,
   );
-  expect(image).not.toMatch(/object-fit:\s*cover/);
+  expect(styles).toMatch(
+    /@keyframes\s+project-reveal-backward[\s\S]*?clip-path:[\s\S]*?translateX\(-18px\)/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?data-project-transition[\s\S]*?animation:\s*none/,
+  );
 });
 
 test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
