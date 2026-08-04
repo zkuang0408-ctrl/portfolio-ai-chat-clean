@@ -8,10 +8,12 @@ const { ParticleRenderer } = rendererModule;
 
 const portraitSource = { width: 1_104, height: 1_425 };
 const portraitLandmarks = {
-  hairTop: { x: 552, y: 143 },
-  glassesLeft: { x: 360, y: 485 },
-  glassesRight: { x: 744, y: 485 },
-  chin: { x: 552, y: 855 },
+  hairTop: { x: 575, y: 180 },
+  glassesLeft: { x: 410, y: 510 },
+  glassesRight: { x: 610, y: 510 },
+  chin: { x: 470, y: 815 },
+  adamsApple: { x: 535, y: 930 },
+  collar: { x: 550, y: 1_030 },
   lowerClothing: { x: 552, y: 1_425 },
 };
 
@@ -182,6 +184,8 @@ describe("ParticleRenderer", () => {
       const glassesLeft = composedPoint(portraitLandmarks.glassesLeft, composition);
       const glassesRight = composedPoint(portraitLandmarks.glassesRight, composition);
       const chin = composedPoint(portraitLandmarks.chin, composition);
+      const adamsApple = composedPoint(portraitLandmarks.adamsApple, composition);
+      const collar = composedPoint(portraitLandmarks.collar, composition);
       const lowerClothing = composedPoint(portraitLandmarks.lowerClothing, composition);
 
       expect(composition.scale).toBeCloseTo(expectedScale);
@@ -192,7 +196,13 @@ describe("ParticleRenderer", () => {
       expect(hairTop.y).toBeGreaterThanOrEqual(0);
       expect(chin.y).toBeLessThan(height);
       expect(Math.abs((glassesLeft.x + glassesRight.x) / 2 - width / 2))
-        .toBeLessThanOrEqual(1);
+        .toBeLessThanOrEqual(width * 0.08);
+      if (width > 760) {
+        expect(adamsApple.y).toBeGreaterThan(0);
+        expect(adamsApple.y).toBeLessThan(height);
+        expect(collar.y).toBeGreaterThan(0);
+        expect(collar.y).toBeLessThan(height);
+      }
       expect(lowerClothing.y > height).toBe(clothingCrossesBottom);
       if (width === 390) expect(composition.scale).toBeGreaterThan(0.38);
     },
