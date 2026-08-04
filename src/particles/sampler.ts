@@ -117,7 +117,17 @@ function isInsideEllipse(
   return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
 }
 
-function regionAt(
+function isNeckBridgeAt(normalizedX: number, normalizedY: number): boolean {
+  if (normalizedY < 0.55 || normalizedY > 0.75) return false;
+
+  const progress = clamp01((normalizedY - 0.55) / 0.2);
+  const centerX = 0.46 + progress * 0.04;
+  const halfWidth = 0.075 + progress * 0.08;
+
+  return Math.abs(normalizedX - centerX) <= halfWidth;
+}
+
+export function portraitRegionAt(
   x: number,
   y: number,
   width: number,
@@ -126,11 +136,14 @@ function regionAt(
   const normalizedX = x / width;
   const normalizedY = y / height;
 
-  if (isInsideEllipse(normalizedX, normalizedY, 0.5, 0.34, 0.19, 0.23)) {
+  if (
+    isInsideEllipse(normalizedX, normalizedY, 0.47, 0.43, 0.2, 0.22) ||
+    isNeckBridgeAt(normalizedX, normalizedY)
+  ) {
     return "core";
   }
 
-  if (isInsideEllipse(normalizedX, normalizedY, 0.5, 0.39, 0.3, 0.34)) {
+  if (isInsideEllipse(normalizedX, normalizedY, 0.51, 0.4, 0.31, 0.33)) {
     return "face";
   }
 
@@ -148,6 +161,7 @@ export function invertPortraitLuminance(light: number): number {
 
 export function portraitLightAt(
   sourceLight: number,
+  edgeScore: number,
   x: number,
   y: number,
   width: number,
@@ -155,6 +169,7 @@ export function portraitLightAt(
 ): number {
   const inverted = invertPortraitLuminance(sourceLight);
   if (
+    !Number.isFinite(edgeScore) ||
     !Number.isFinite(x) ||
     !Number.isFinite(y) ||
     !Number.isFinite(width) ||
@@ -167,19 +182,22 @@ export function portraitLightAt(
 
   const normalizedX = x / width;
   const normalizedY = y / height;
-  const neckProgress = clamp01((normalizedY - 0.55) / 0.22);
-  const neckHalfWidth = 0.14 + neckProgress * 0.18;
-  const isNeckBridge =
-    normalizedY >= 0.55 &&
-    normalizedY <= 0.77 &&
-    Math.abs(normalizedX - 0.5) <= neckHalfWidth;
-
-  if (!isNeckBridge) return inverted;
+  if (!isNeckBridgeAt(normalizedX, normalizedY)) return inverted;
 
   const normalizedSource = clamp01(
     Number.isFinite(sourceLight) ? sourceLight : 0,
   );
-  return Math.max(inverted, normalizedSource * 0.9);
+  const normalizedEdge = clamp01(edgeScore);
+  const middleGray = 1 - Math.abs(normalizedSource - 0.5) * 2;
+
+  return clamp01(
+    Math.max(
+      inverted,
+      normalizedSource * 0.64 +
+        middleGray * 0.18 +
+        normalizedEdge * 0.25,
+    ),
+  );
 }
 
 function brightSideForLight(light: number): number {
@@ -202,7 +220,7 @@ export function particleAcceptance(
     region === "core"
       ? Math.min(
           0.94,
-          0.035 + safeLight * 0.18 + safeEdge * 1.8 * edgeLuminanceSide,
+          0.07 + safeLight * 0.24 + safeEdge * 1.8 * edgeLuminanceSide,
         )
       : region === "face"
         ? Math.min(0.94, 0.08 + safeLight * 0.48 + safeEdge * 0.52)
@@ -555,11 +573,13 @@ export function samplePortrait(
     if (mask !== undefined && !hasOpaqueMaskPixel(mask, x, y)) continue;
 
     const sourceLight = luminance(buffer, x, y);
+    const edge = edgeStrength(buffer, x, y);
     const light =
       mask === undefined
         ? invertPortraitLuminance(sourceLight)
         : portraitLightAt(
             sourceLight,
+            edge,
             x,
             y,
             buffer.width,
@@ -568,12 +588,11 @@ export function samplePortrait(
 
     if (light < 0.035) continue;
 
-    const edge = edgeStrength(buffer, x, y);
     const cluster = spatialNoise(Math.floor(x / 9), Math.floor(y / 9), seed);
 
     if (cluster < 0.26) continue;
 
-    const region = regionAt(x, y, buffer.width, buffer.height);
+    const region = portraitRegionAt(x, y, buffer.width, buffer.height);
     const acceptance = particleAcceptance(light, edge, cluster, region);
 
     if (random() > acceptance) continue;

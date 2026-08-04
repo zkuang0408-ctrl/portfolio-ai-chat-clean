@@ -8,6 +8,7 @@ import {
   MAX_PARTICLES,
   particleAcceptance,
   portraitLightAt,
+  portraitRegionAt,
   radiusByBand,
   samplePortrait,
   settledTargetForRegion,
@@ -140,16 +141,59 @@ it("keeps inverted portrait luminance inside the normalized range", () => {
   expect(invertPortraitLuminance(Number.NaN)).toBe(1);
 });
 
-it("restores the neck bridge without flattening the face or garment negative", () => {
-  const brightNeck = portraitLightAt(0.82, 50, 64, 100, 100);
-  const brightFace = portraitLightAt(0.82, 50, 42, 100, 100);
-  const darkGarment = portraitLightAt(0.15, 50, 84, 100, 100);
+it.each([
+  [410, 510, "left glasses"],
+  [610, 510, "right glasses"],
+  [520, 650, "nose and mouth"],
+  [470, 815, "chin and jaw"],
+  [535, 930, "Adam's apple"],
+  [550, 1030, "collar bridge"],
+] as const)(
+  "keeps %i,%i %s in the fixed identity core",
+  (x, y) => {
+    expect(portraitRegionAt(x, y, 1_104, 1_425)).toBe("core");
+  },
+);
 
+it("keeps the new neck bridge dimensional with middle gray and edges", () => {
+  const smoothBrightNeck = portraitLightAt(
+    0.82,
+    0,
+    535,
+    930,
+    1_104,
+    1_425,
+  );
+  const edgedBrightNeck = portraitLightAt(
+    0.82,
+    0.35,
+    535,
+    930,
+    1_104,
+    1_425,
+  );
+  const brightFace = portraitLightAt(
+    0.82,
+    0.35,
+    535,
+    610,
+    1_104,
+    1_425,
+  );
+  const darkGarment = portraitLightAt(
+    0.15,
+    0,
+    535,
+    1_250,
+    1_104,
+    1_425,
+  );
+
+  expect(smoothBrightNeck).toBeGreaterThan(0.45);
+  expect(smoothBrightNeck).toBeLessThan(0.75);
+  expect(edgedBrightNeck).toBeGreaterThan(smoothBrightNeck);
   expect(brightFace).toBeCloseTo(0.18);
-  expect(brightNeck).toBeCloseTo(0.738);
-  expect(brightNeck).toBeGreaterThan(brightFace);
   expect(darkGarment).toBeCloseTo(0.85);
-  expect(darkGarment).toBeGreaterThan(brightNeck);
 });
 
 it("samples bright facial edge sides while preserving dark feature gaps", () => {
@@ -157,10 +201,10 @@ it("samples bright facial edge sides while preserving dark feature gaps", () => 
   const darkEdge = particleAcceptance(0.1, 0.2, 1, "core");
   const brightEdge = particleAcceptance(0.7, 0.2, 1, "core");
 
-  expect(smoothCore).toBeCloseTo(0.161);
-  expect(darkEdge).toBeCloseTo(0.0735714286);
+  expect(smoothCore).toBeCloseTo(0.238);
+  expect(darkEdge).toBeCloseTo(0.1145714286);
   expect(darkEdge).toBeLessThan(smoothCore);
-  expect(brightEdge).toBeCloseTo(0.521);
+  expect(brightEdge).toBeCloseTo(0.598);
   expect(brightEdge).toBeGreaterThan(smoothCore);
   expect(particleAcceptance(0.5, 1, 1, "core")).toBe(0.94);
 });
@@ -192,7 +236,7 @@ it("clamps invalid particle acceptance inputs to finite bounds", () => {
   );
   const extremeEdge = particleAcceptance(10, -10, 10, "edge");
 
-  expect(invalidCore).toBeCloseTo(0.035 * 0.34);
+  expect(invalidCore).toBeCloseTo(0.07 * 0.34);
   expect(Number.isFinite(invalidCore)).toBe(true);
   expect(extremeEdge).toBeCloseTo(0.295);
   expect(invalidCore).toBeGreaterThanOrEqual(0);
