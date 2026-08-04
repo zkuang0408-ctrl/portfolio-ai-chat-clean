@@ -7,6 +7,7 @@ import {
   isLargeParticleEligible,
   MAX_PARTICLES,
   particleAcceptance,
+  portraitLightAt,
   radiusByBand,
   samplePortrait,
   settledTargetForRegion,
@@ -137,6 +138,18 @@ it("keeps inverted portrait luminance inside the normalized range", () => {
   expect(invertPortraitLuminance(-1)).toBe(1);
   expect(invertPortraitLuminance(2)).toBe(0);
   expect(invertPortraitLuminance(Number.NaN)).toBe(1);
+});
+
+it("restores the neck bridge without flattening the face or garment negative", () => {
+  const brightNeck = portraitLightAt(0.82, 50, 64, 100, 100);
+  const brightFace = portraitLightAt(0.82, 50, 42, 100, 100);
+  const darkGarment = portraitLightAt(0.15, 50, 84, 100, 100);
+
+  expect(brightFace).toBeCloseTo(0.18);
+  expect(brightNeck).toBeCloseTo(0.4264);
+  expect(brightNeck).toBeGreaterThan(brightFace);
+  expect(darkGarment).toBeCloseTo(0.85);
+  expect(darkGarment).toBeGreaterThan(brightNeck);
 });
 
 it("samples bright facial edge sides while preserving dark feature gaps", () => {
