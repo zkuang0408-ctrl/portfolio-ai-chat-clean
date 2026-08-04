@@ -24,16 +24,9 @@ export function portraitCompositionFor(
   const widthFactor = shortLandscape ? 0.8 : mobile ? 1.13 : 0.725;
   const heightFactor = shortLandscape ? 0.94 : mobile ? 0.8 : 1.16;
   const viewportYAnchor = shortLandscape ? 0.09 : mobile ? 0.095 : 0.09;
-  const preferredScale = Math.max(
-    (width / source.width) * widthFactor,
-    (height / source.height) * heightFactor,
-  );
-  // Keep ultrawide and browser-zoomed desktop viewports from enlarging the
-  // portrait faster than the available vertical space can accommodate.
-  const desktopHeightScaleLimit = (height / source.height) * 1.62;
-  const scale = mobile
-    ? preferredScale
-    : Math.min(preferredScale, desktopHeightScaleLimit);
+  const widthScale = (width / source.width) * widthFactor;
+  const heightScale = (height / source.height) * heightFactor;
+  const scale = mobile ? Math.max(widthScale, heightScale) : heightScale;
 
   return {
     scale,

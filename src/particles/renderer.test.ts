@@ -142,18 +142,18 @@ describe("ParticleRenderer", () => {
       name: "desktop",
       width: 1_440,
       height: 836,
-      expectedScale: (1_440 / 1_104) * 0.725,
+      expectedScale: (836 / 1_425) * 1.16,
       expectedOffsetY:
-        836 * 0.09 - 1_425 * 0.13 * ((1_440 / 1_104) * 0.725),
+        836 * 0.09 - 1_425 * 0.13 * ((836 / 1_425) * 1.16),
       clothingCrossesBottom: true,
     },
     {
       name: "ultrawide desktop",
       width: 2_040,
       height: 1_026,
-      expectedScale: (1_026 / 1_425) * 1.62,
+      expectedScale: (1_026 / 1_425) * 1.16,
       expectedOffsetY:
-        1_026 * 0.09 - 1_425 * 0.13 * ((1_026 / 1_425) * 1.62),
+        1_026 * 0.09 - 1_425 * 0.13 * ((1_026 / 1_425) * 1.16),
       clothingCrossesBottom: true,
     },
     {
