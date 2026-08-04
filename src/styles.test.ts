@@ -176,6 +176,30 @@ test("uses a clipped 16:9 reader stage and a centered editorial counter", () => 
   expect(styles).not.toMatch(/\.project-media\s+img\s*\{/);
 });
 
+test("keeps project selectors compact with complete 16:10 covers", () => {
+  const selector = rule(".project-selector");
+  const media = rule(".project-selector__media");
+  const image = rulesContaining(".project-selector__media img");
+  const meta = rule(".project-selector__meta");
+  const intermediate = mediaRule("(max-width: 1179px)", ".project-selector");
+  const mobile = mediaRule("(max-width: 760px)", ".project-selector");
+
+  expect(selector).toMatch(/grid-template-rows:\s*auto\s+auto/);
+  expect(media).toMatch(/aspect-ratio:\s*16\s*\/\s*10/);
+  expect(image).toMatch(/object-fit:\s*contain/);
+  expect(image).toMatch(/object-position:\s*50%\s+50%/);
+  expect(meta).toMatch(/min-height:\s*68px/);
+  expect(meta).toMatch(/padding:\s*12px\s+14px\s+14px/);
+  expect(intermediate).toMatch(
+    /width:\s*clamp\(190px,\s*27vw,\s*270px\)/,
+  );
+  expect(mobile).toMatch(/width:\s*min\(74vw,\s*280px\)/);
+  expect(styles).not.toMatch(
+    /grid-template-rows:\s*minmax\(150px,\s*17vw\)\s+auto/,
+  );
+  expect(image).not.toMatch(/object-fit:\s*cover/);
+});
+
 test("draws undecorated V6 edge chevrons with accessible hit targets", () => {
   const chevron = rule(".project-reader-chevron");
   const chevronRules = rulesContaining(".project-reader-chevron");
