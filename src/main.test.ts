@@ -72,7 +72,7 @@ test("renders the editorial homepage in the app root", async () => {
   expect(app?.querySelector("[data-chat-root]")?.parentElement).toBe(app);
   expect(app?.querySelectorAll("#projects article")).toHaveLength(6);
   expect(app?.querySelector<HTMLImageElement>(".portrait-base")?.src).toMatch(
-    /\/portrait-resume-retouched-v1\.png(?:\?.*)?$/,
+    /\/src\/assets\/portrait\.png(?:\?.*)?$/,
   );
   expect(app?.querySelector<HTMLImageElement>(".portrait-mask")?.src).toMatch(
     /\/portrait-particle-mask\.png(?:\?.*)?$/,
