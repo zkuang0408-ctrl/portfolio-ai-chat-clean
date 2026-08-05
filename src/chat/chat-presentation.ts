@@ -18,7 +18,7 @@ export function startChatPresentation(
   const { root, orb, panel, collapse } = elements;
   const idleMs = dependencies.scrollIdleMs ?? 250;
   const dragThreshold = 8;
-  const dockMetrics = { edge: 16, top: 72, bottom: 24, radius: 28 };
+  const dockMetrics = { edge: 16, top: 72, bottom: 24, radius: 38 };
   let destroyed = false;
   let scrollTimer: number | undefined;
   let dragStart: { x: number; y: number } | undefined;

@@ -345,6 +345,15 @@ test("treats the assistant as a visible hero guide that docks inward as a partic
   expect(rule(".chat-message--loading")).toMatch(/animation:/);
 });
 
+test("gives the collapsed assistant enough canvas room for a dense particle sphere", () => {
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"],\n.hero-chat[data-chat-presentation="expanded"]')).toMatch(/width:\s*76px/);
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/width:\s*76px/);
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/border:\s*0/);
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/backdrop-filter:\s*none/);
+  expect(rule(".chat-particle-canvas")).toMatch(/mix-blend-mode:\s*difference/);
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"]::before')).toMatch(/background:\s*#050505/);
+});
+
 test("keeps the full desktop assistant reachable through bounded fallback scrolling", () => {
   const scrollRegion = rule(".chat-scroll-region");
 

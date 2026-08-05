@@ -2159,6 +2159,7 @@ a:focus-visible {
   width: calc(100% + 20px);
   height: calc(100% + 20px);
   pointer-events: none;
+  mix-blend-mode: difference;
   opacity: 0;
   transition: opacity 420ms var(--ease-out);
 }
@@ -2197,11 +2198,11 @@ a:focus-visible {
 
 .hero-chat[data-chat-presentation="collapsed"],
 .hero-chat[data-chat-presentation="expanded"] {
-  top: calc(var(--chat-dock-y, 70vh) - 28px);
+  top: calc(var(--chat-dock-y, 70vh) - 38px);
   right: auto;
   bottom: auto;
-  left: calc(var(--chat-dock-x, 100vw) - 28px);
-  width: 56px;
+  left: calc(var(--chat-dock-x, 100vw) - 38px);
+  width: 76px;
 }
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-panel {
@@ -2209,12 +2210,17 @@ a:focus-visible {
 }
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-orb {
+  width: 76px;
+  min-width: 76px;
+  height: 76px;
+  min-height: 76px;
   opacity: 1;
   pointer-events: auto;
   transform: none;
-  border-color: rgb(232 229 222 / 0.28);
+  border: 0;
   background: transparent;
   box-shadow: none;
+  backdrop-filter: none;
 }
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-orb svg {
@@ -2223,6 +2229,16 @@ a:focus-visible {
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-particle-canvas {
   z-index: 2;
+}
+
+.hero-chat[data-chat-presentation="collapsed"]::before {
+  position: absolute;
+  z-index: 1;
+  inset: 4px;
+  border-radius: 50%;
+  background: #050505;
+  content: "";
+  pointer-events: none;
 }
 
 .hero-chat[data-chat-dock="left"] .chat-panel {
