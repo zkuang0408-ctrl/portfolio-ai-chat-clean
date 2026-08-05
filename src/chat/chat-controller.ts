@@ -73,6 +73,16 @@ function appendMessage(
   return message;
 }
 
+function appendLoadingMessage(
+  transcript: HTMLElement,
+  content: string,
+): HTMLParagraphElement {
+  const message = appendMessage(transcript, "assistant", content);
+  message.classList.add("chat-message--loading");
+  message.dataset.chatLoading = "";
+  return message;
+}
+
 function renderHistory(
   transcript: HTMLElement,
   history: readonly ClientChatMessage[],
@@ -162,7 +172,17 @@ export function startPortfolioChat(
 
     const requestHistory = loadChatHistory(dependencies.storage);
     if (renderUser) appendMessage(elements.transcript, "user", question);
-    const answerElement = appendMessage(elements.transcript, "assistant", "");
+    elements.input.value = "";
+    const loadingElement = appendLoadingMessage(
+      elements.transcript,
+      COPY[dependencies.locale].loading,
+    );
+    let answerElement: HTMLParagraphElement | undefined;
+    const ensureAnswerElement = () => {
+      loadingElement.remove();
+      answerElement ??= appendMessage(elements.transcript, "assistant", "");
+      return answerElement;
+    };
     elements.sources.replaceChildren();
     elements.status.textContent = COPY[dependencies.locale].loading;
     lastRetry = undefined;
@@ -175,7 +195,9 @@ export function startPortfolioChat(
     const flush = (all = false) => {
       const boundary = all ? answer.length : sentenceBoundary(answer);
       if (boundary > renderedLength) {
-        answerElement.append(document.createTextNode(answer.slice(renderedLength, boundary)));
+        ensureAnswerElement().append(
+          document.createTextNode(answer.slice(renderedLength, boundary)),
+        );
         renderedLength = boundary;
         elements.transcript.scrollTop = elements.transcript.scrollHeight;
       }
@@ -220,6 +242,7 @@ export function startPortfolioChat(
         } else if (streamEvent.type === "delta") {
           if (phase !== "streaming") throw new SseProtocolError();
           answer += streamEvent.data.text;
+          ensureAnswerElement();
           flush();
         } else if (streamEvent.type === "sources") {
           if (phase !== "streaming") throw new SseProtocolError();
@@ -236,21 +259,23 @@ export function startPortfolioChat(
       if (phase !== "done" || answer.replace(/[\s\p{Cf}]/gu, "").length === 0) {
         throw new SseProtocolError();
       }
+      ensureAnswerElement();
       flush(true);
       appendCompletedTurn(dependencies.storage, question, answer);
       elements.status.textContent = COPY[dependencies.locale].followUp;
-      elements.input.value = "";
     } catch (error) {
       controller.abort();
       if (destroyed) return;
+      loadingElement.remove();
       flush(true);
       elements.sources.replaceChildren();
       if (answer.replace(/[\s\p{Cf}]/gu, "").length === 0) {
-        answerElement.remove();
+        answerElement?.remove();
       }
       const code = error instanceof PublicStreamError ? error.code : undefined;
       showError(code, retry);
     } finally {
+      loadingElement.remove();
       if (activeController === controller) activeController = undefined;
       if (!destroyed) setBusy(false);
     }

@@ -358,3 +358,25 @@ test("removes an empty assistant placeholder when failure occurs before visible 
   expect(root.querySelector("[data-chat-retry]")).not.toBeNull();
   cleanup();
 });
+
+test("clears the sent input and shows an assistant-side evidence wait state immediately", () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(
+    () => new Promise<Response>(() => {}),
+  );
+  const { root, cleanup } = setup({ fetch });
+  const input = root.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
+  input.value = "我想了解他的作品方法";
+
+  root.querySelector<HTMLFormElement>("[data-chat-form]")?.requestSubmit();
+
+  expect(input.value).toBe("");
+  expect(root.querySelector(".chat-message--user")?.textContent).toBe(
+    "我想了解他的作品方法",
+  );
+  expect(root.querySelector("[data-chat-loading]")?.textContent).toContain(
+    "正在查找作品依据",
+  );
+  root.querySelector<HTMLFormElement>("[data-chat-form]")?.requestSubmit();
+  expect(fetch).toHaveBeenCalledOnce();
+  cleanup();
+});

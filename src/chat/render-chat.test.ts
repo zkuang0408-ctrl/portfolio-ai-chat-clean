@@ -21,6 +21,25 @@ test("renders the approved Chinese assistant copy and four balanced recommendati
   expect(elements.recommendations).toHaveLength(4);
 });
 
+test("renders a visible, hierarchical assistant guide with an anchored particle core", () => {
+  const root = document.createElement("aside");
+
+  const elements = renderChat(root, "zh");
+
+  expect(root.querySelector("[data-chat-guide]")).not.toBeNull();
+  expect(root.querySelector("[data-chat-primary-question]")?.textContent).toBe(
+    CHAT_CONTENT.zh.recommendations[0],
+  );
+  expect(root.querySelectorAll("[data-chat-topic]")).toHaveLength(2);
+  expect(root.querySelector("[data-chat-composer-label]")?.textContent).toBe(
+    "继续提问",
+  );
+  expect(root.querySelector("[data-chat-ball-anchor]")).not.toBeNull();
+  expect(Array.from(elements.recommendations, (button) => button.textContent)).toEqual(
+    CHAT_CONTENT.zh.recommendations,
+  );
+});
+
 test("localizes the assistant content and recommendation prompts in English", () => {
   const root = document.createElement("aside");
 
@@ -92,7 +111,7 @@ test("renders a persistent collapsible assistant shell without a modal", () => {
   expect(root.querySelector("dialog")).toBeNull();
   expect(elements.orb.getAttribute("aria-expanded")).toBe("false");
   expect(elements.orb.getAttribute("aria-controls")).toBe(elements.panel.id);
-  expect(elements.panel.getAttribute("aria-hidden")).toBe("true");
+  expect(elements.panel.getAttribute("aria-hidden")).toBe("false");
   expect(elements.collapse.getAttribute("aria-label")).toContain("收起");
   expect(elements.panel.contains(elements.form)).toBe(true);
 });

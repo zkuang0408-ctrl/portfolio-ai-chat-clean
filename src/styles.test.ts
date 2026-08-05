@@ -334,6 +334,17 @@ test("keeps the assistant fixed above safe areas as a compact persistent control
   expect(styles).toContain('[data-chat-presentation="expanded"]');
 });
 
+test("treats the assistant as a visible hero guide that docks inward as a particle core", () => {
+  expect(rule('.hero-chat[data-chat-presentation="guide"]')).toMatch(/left:/);
+  expect(rule(".chat-particle-canvas")).toMatch(/pointer-events:\s*none/);
+  expect(rule('.hero-chat[data-chat-dock="left"] .chat-panel')).toMatch(/left:/);
+  expect(rule('.hero-chat[data-chat-dock="right"] .chat-panel')).toMatch(/right:/);
+  expect(rule(".chat-panel")).toMatch(/border-radius:\s*30px\s+30px\s+22px\s+22px/);
+  expect(rule(".chat-message--user")).toMatch(/align-self:\s*flex-end/);
+  expect(rule(".chat-message--assistant")).toMatch(/align-self:\s*flex-start/);
+  expect(rule(".chat-message--loading")).toMatch(/animation:/);
+});
+
 test("keeps the full desktop assistant reachable through bounded fallback scrolling", () => {
   const scrollRegion = rule(".chat-scroll-region");
 

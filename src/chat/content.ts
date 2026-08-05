@@ -4,6 +4,11 @@ export interface ChatContent {
   readonly assistantLabel: string;
   readonly intro: string;
   readonly recommendationsLabel: string;
+  readonly quickStartLabel: string;
+  readonly quickStartDescription: string;
+  readonly topicLabel: string;
+  readonly topicLabels: readonly [string, string];
+  readonly composerLabel: string;
   readonly recommendations: readonly [string, string, string, string];
   readonly transcriptLabel: string;
   readonly inputLabel: string;
@@ -19,6 +24,11 @@ export const CHAT_CONTENT = {
     assistantLabel: "ASK SHIKUANG · AI",
     intro: "我是赵实旷的 AI 作品集助手。回答仅依据本网站的简历与作品资料。",
     recommendationsLabel: "推荐了解的问题",
+    quickStartLabel: "从这里开始",
+    quickStartDescription: "用一分钟了解他的背景、能力与方向。",
+    topicLabel: "按主题继续问",
+    topicLabels: ["能力与方向", "作品与方法"],
+    composerLabel: "继续提问",
     recommendations: [
       "请用一分钟介绍赵实旷",
       "赵实旷的核心能力是什么？",
@@ -38,6 +48,11 @@ export const CHAT_CONTENT = {
     intro:
       "I’m Shikuang Zhao’s AI portfolio assistant. Answers are grounded only in the résumé and project materials on this site.",
     recommendationsLabel: "Suggested questions",
+    quickStartLabel: "Start here",
+    quickStartDescription: "A one-minute view of his background, capabilities, and direction.",
+    topicLabel: "Explore by topic",
+    topicLabels: ["Capabilities & direction", "Work & method"],
+    composerLabel: "Continue the conversation",
     recommendations: [
       "Give me a one-minute introduction to Shikuang.",
       "What are Shikuang Zhao’s core capabilities?",

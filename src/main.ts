@@ -1,6 +1,7 @@
 import { resolveChatEndpoint } from "./chat/chat-endpoint";
 import { startPortfolioChat } from "./chat/chat-controller";
 import { startChatPresentation } from "./chat/chat-presentation";
+import { startParticleAssistant } from "./chat/particle-assistant";
 import type { ChatLocale } from "./chat/content";
 import { createSafeSessionStorage } from "./chat/session";
 import { navigateToSource } from "./chat/source-navigation";
@@ -101,6 +102,11 @@ const stopChatPresentation = startChatPresentation(portrait.chat, {
   trigger: navigation.openChat,
   window,
 });
+const stopParticleAssistant = startParticleAssistant({
+  root: portrait.chat.root,
+  canvas: portrait.chat.particleCanvas,
+  window,
+});
 
 const stopReaders = startProjectReaders(portfolioRoot, {
   load: loadProjectPage,
@@ -114,6 +120,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   }
   stopChat();
   stopChatPresentation();
+  stopParticleAssistant();
   stopReaders();
   stopProjectSelector();
   stopReaderRouting();
