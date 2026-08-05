@@ -1,5 +1,4 @@
 import {
-  documents,
   profile,
   projects,
   type Project,
@@ -209,27 +208,6 @@ function renderProjects(): string {
   `;
 }
 
-function renderDocuments(): string {
-  const links = documents
-    .map(
-      (document) => `
-        <a href="${document.href}" download="${document.filename}">
-          <span>${document.label}</span>
-          <strong>${document.format}</strong>
-        </a>
-      `,
-    )
-    .join("");
-
-  return `
-    <aside class="documents" aria-labelledby="documents-title">
-      <p class="documents-kicker">Portfolio files</p>
-      <h2 id="documents-title">View the complete process.</h2>
-      <div class="document-links">${links}</div>
-    </aside>
-  `;
-}
-
 function renderContact(): string {
   return `
     <section class="portfolio-section contact" id="contact" aria-labelledby="contact-title">
@@ -260,6 +238,6 @@ export function renderPortfolio(
   const portraitUrl = options.portraitUrl ?? "/portrait-resume-retouched-v1.png";
   root.insertAdjacentHTML(
     "beforeend",
-    `${renderResume(profile, portraitUrl)}${renderProjects()}${renderDocuments()}${renderContact()}`,
+    `${renderResume(profile, portraitUrl)}${renderProjects()}${renderContact()}`,
   );
 }

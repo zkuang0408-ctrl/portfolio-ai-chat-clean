@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { projects } from "../content/portfolio";
 import { renderPortfolio } from "./render-portfolio";
 
-test("renders accessible resume, project, document, and contact sections", () => {
+test("renders accessible resume, project, and contact sections", () => {
   const root = document.createElement("main");
 
   renderPortfolio(root, { portraitUrl: "/portrait-resume-retouched-v1.png" });
@@ -42,7 +42,16 @@ test("renders accessible resume, project, document, and contact sections", () =>
   expect(root.querySelectorAll(".project-tags li").length).toBeGreaterThanOrEqual(
     18,
   );
-  expect(root.querySelectorAll(".documents a[download]")).toHaveLength(2);
+  expect(root.querySelector(".documents")).toBeNull();
+  expect(
+    root.querySelector('a[href="/documents/zhao-shikuang-portfolio.pdf"]'),
+  ).toBeNull();
+  expect(
+    root.querySelector('a[href="/documents/zhao-shikuang-portfolio.pptx"]'),
+  ).toBeNull();
+  expect(root.querySelector("#projects")?.nextElementSibling).toBe(
+    root.querySelector("#contact"),
+  );
   expect(
     root.querySelector<HTMLAnchorElement>(
       'a[href="mailto:zkuang0408@gmail.com"]',

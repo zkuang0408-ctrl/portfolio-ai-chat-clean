@@ -147,11 +147,11 @@ test("defines the editorial portfolio section system", () => {
     ".project-reader",
     ".project-reader-stage",
     ".project-reader-counter",
-    ".documents",
     ".contact",
   ]) {
     expect(styles, selector).toContain(`${selector} {`);
   }
+  expect(styles).not.toMatch(/\.documents\b/);
   expect(styles).toMatch(/a:focus-visible\s*\{[\s\S]*?outline:/);
 });
 

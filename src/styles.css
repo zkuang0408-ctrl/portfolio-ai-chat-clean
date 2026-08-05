@@ -1113,69 +1113,6 @@ a:focus-visible {
   text-transform: uppercase;
 }
 
-.documents {
-  width: min(calc(100% - clamp(48px, 10.4vw, 184px)), 1416px);
-  margin: clamp(30px, 4vw, 66px) auto;
-  padding: clamp(44px, 6vw, 92px);
-  border: 1px solid #292929;
-  background: linear-gradient(125deg, #0a0a0a 0%, #111 100%);
-}
-
-.documents-kicker {
-  margin: 0;
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.documents h2 {
-  max-width: 800px;
-  margin: 22px 0 clamp(42px, 6vw, 76px);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(40px, 5vw, 82px);
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: -0.045em;
-  line-height: 0.98;
-}
-
-.document-links {
-  border-top: 1px solid #292929;
-}
-
-.document-links a {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 22px 0;
-  border-bottom: 1px solid #292929;
-  color: #aaa;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  transition: color 180ms ease;
-}
-
-.document-links a > * {
-  transition: transform 180ms var(--ease-out);
-}
-
-.document-links a:hover {
-  color: var(--paper);
-}
-
-.document-links a:hover > *,
-.document-links a:focus-visible > * {
-  transform: translateX(8px);
-}
-
-.document-links strong {
-  color: var(--accent);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-}
-
 .contact {
   min-height: 80svh;
   display: flex;
@@ -1432,12 +1369,6 @@ a:focus-visible {
 
   .project-summary {
     margin-top: 22px;
-  }
-
-  .documents {
-    width: calc(100% - 44px);
-    margin: 22px auto;
-    padding: 40px 22px;
   }
 
   .contact {
