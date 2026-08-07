@@ -41,6 +41,7 @@ typography:
     lineHeight: 1.4
     letterSpacing: "0.16em"
 rounded:
+  control: "10px"
   card: "24px"
   panel: "28px"
 spacing:
@@ -103,7 +104,7 @@ Most surfaces are flat and separated by tone or hairlines. Depth appears only wh
 
 ## Shapes
 
-Editorial content uses square fields and thin rules. Interactive objects use restrained 24–28px radii: project selectors, résumé panel, AI assistant, and its circular orb. Full-screen project imagery remains rectangular so the work is not visually softened.
+Editorial content uses square fields and thin rules. Small prompt controls use a restrained 10px radius; larger interactive objects use 24–28px radii for project selectors, the résumé panel, AI assistant, and its circular orb. Full-screen project imagery remains rectangular so the work is not visually softened.
 
 ## Components
 

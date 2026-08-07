@@ -342,7 +342,7 @@ test("treats the assistant as a visible hero guide that docks inward as a partic
   expect(rule(".chat-panel")).toMatch(/border-radius:\s*30px\s+30px\s+22px\s+22px/);
   expect(rule(".chat-message--user")).toMatch(/align-self:\s*flex-end/);
   expect(rule(".chat-message--assistant")).toMatch(/align-self:\s*flex-start/);
-  expect(rule(".chat-message--loading")).toMatch(/animation:/);
+  expect(rule(".chat-loading-dot")).toMatch(/animation:/);
 });
 
 test("gives the collapsed assistant enough canvas room for a dense particle sphere", () => {
@@ -386,6 +386,21 @@ test("uses quiet underlined recommendations with accessible pointer targets", ()
   expect(recommendations).toMatch(/border-bottom:\s*1px\s+solid/);
   expect(recommendations).toMatch(/background:\s*transparent/);
   expect(recommendations).not.toMatch(/border-radius|box-shadow/);
+});
+
+test("uses a compact rounded guide that yields to the transcript", () => {
+  expect(rule(".chat-guide-toggle")).toMatch(/min-height:\s*44px/);
+  expect(rule(".chat-guide-toggle")).toMatch(/font-size:\s*9px/);
+  expect(
+    rule(".chat-section-label,\n.chat-topic__title,\n.chat-composer-label"),
+  ).toMatch(/font-size:\s*8px/);
+  expect(rule(".chat-primary-description")).toMatch(/font-size:\s*10px/);
+  expect(rule(".chat-recommendation--primary")).toMatch(
+    /border-radius:\s*10px/,
+  );
+  expect(mediaRule("(prefers-reduced-motion: reduce)", ".chat-loading-dot")).toMatch(
+    /animation:\s*none/,
+  );
 });
 
 test("uses a safe-area-aware bottom sheet on mobile without changing the fixed navigation", () => {
