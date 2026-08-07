@@ -8,6 +8,8 @@ export interface ChatContent {
   readonly quickStartDescription: string;
   readonly topicLabel: string;
   readonly topicLabels: readonly [string, string];
+  readonly showGuideLabel: string;
+  readonly hideGuideLabel: string;
   readonly composerLabel: string;
   readonly recommendations: readonly [string, string, string, string];
   readonly transcriptLabel: string;
@@ -28,6 +30,8 @@ export const CHAT_CONTENT = {
     quickStartDescription: "用一分钟了解他的背景、能力与方向。",
     topicLabel: "按主题继续问",
     topicLabels: ["能力与方向", "作品与方法"],
+    showGuideLabel: "查看推荐问题",
+    hideGuideLabel: "收起推荐问题",
     composerLabel: "继续提问",
     recommendations: [
       "请用一分钟介绍赵实旷",
@@ -52,6 +56,8 @@ export const CHAT_CONTENT = {
     quickStartDescription: "A one-minute view of his background, capabilities, and direction.",
     topicLabel: "Explore by topic",
     topicLabels: ["Capabilities & direction", "Work & method"],
+    showGuideLabel: "View suggested questions",
+    hideGuideLabel: "Hide suggested questions",
     composerLabel: "Continue the conversation",
     recommendations: [
       "Give me a one-minute introduction to Shikuang.",

@@ -47,6 +47,28 @@ test("renders a visible, hierarchical assistant guide with an anchored particle 
   );
 });
 
+test("renders an accessible conversation-only guidance disclosure", () => {
+  const root = document.createElement("aside");
+
+  const elements = renderChat(root, "zh");
+
+  expect(elements.guidance.hidden).toBe(false);
+  expect(elements.guideToggle.hidden).toBe(true);
+  expect(elements.guideToggle.getAttribute("aria-controls")).toBe(
+    elements.guidance.id,
+  );
+  expect(elements.guideToggle.getAttribute("aria-expanded")).toBe("true");
+  expect(elements.guideToggle.textContent).toBe(CHAT_CONTENT.zh.hideGuideLabel);
+});
+
+test("localizes the guidance disclosure in English", () => {
+  const root = document.createElement("aside");
+
+  const elements = renderChat(root, "en");
+
+  expect(elements.guideToggle.textContent).toBe(CHAT_CONTENT.en.hideGuideLabel);
+});
+
 test("localizes the assistant content and recommendation prompts in English", () => {
   const root = document.createElement("aside");
 
