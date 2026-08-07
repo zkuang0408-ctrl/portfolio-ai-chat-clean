@@ -98,6 +98,51 @@ test("recommendation click submits the exact localized question", async () => {
   cleanup();
 });
 
+test("collapses guidance after submit and lets the visitor reopen it", async () => {
+  const { root, cleanup } = setup();
+  const guidance = root.querySelector<HTMLElement>("[data-chat-guidance]")!;
+  const toggle = root.querySelector<HTMLButtonElement>("[data-chat-guide-toggle]")!;
+
+  expect(guidance.hidden).toBe(false);
+  expect(toggle.hidden).toBe(true);
+
+  root.querySelector<HTMLButtonElement>("[data-chat-recommendation]")?.click();
+  await settle();
+
+  expect(guidance.hidden).toBe(true);
+  expect(toggle.hidden).toBe(false);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(toggle.textContent).toBe(CHAT_CONTENT.zh.showGuideLabel);
+
+  toggle.click();
+  expect(guidance.hidden).toBe(false);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(toggle.textContent).toBe(CHAT_CONTENT.zh.hideGuideLabel);
+
+  const input = root.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
+  input.value = "继续介绍他的项目";
+  root.querySelector<HTMLFormElement>("[data-chat-form]")?.requestSubmit();
+  expect(guidance.hidden).toBe(true);
+  cleanup();
+});
+
+test("starts with compact guidance when persisted conversation history exists", async () => {
+  const first = setup();
+  first.root.querySelector<HTMLButtonElement>("[data-chat-recommendation]")?.click();
+  await settle();
+  first.cleanup();
+  first.root.remove();
+
+  const second = setup();
+  const guidance = second.root.querySelector<HTMLElement>("[data-chat-guidance]")!;
+  const toggle = second.root.querySelector<HTMLButtonElement>("[data-chat-guide-toggle]")!;
+
+  expect(guidance.hidden).toBe(true);
+  expect(toggle.hidden).toBe(false);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  second.cleanup();
+});
+
 test("Enter submits while Shift+Enter and composing Enter do not", async () => {
   const { root, fetch, cleanup } = setup();
   const input = root.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;

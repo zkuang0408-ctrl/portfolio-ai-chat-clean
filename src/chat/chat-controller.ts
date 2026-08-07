@@ -135,7 +135,20 @@ export function startPortfolioChat(
   let destroyed = false;
   let activeController: AbortController | undefined;
   let lastRetry: (() => void) | undefined;
+  let conversationStarted = history.length > 0;
   const sourceByButton = new WeakMap<HTMLButtonElement, ClientChatSource>();
+
+  const setGuideExpanded = (expanded: boolean) => {
+    elements.guidance.hidden = !expanded;
+    elements.guideToggle.hidden = !conversationStarted;
+    elements.guideToggle.setAttribute("aria-expanded", String(expanded));
+    elements.guideToggle.textContent = expanded
+      ? content.hideGuideLabel
+      : content.showGuideLabel;
+  };
+
+  const onGuideToggle = () => setGuideExpanded(elements.guidance.hidden);
+  setGuideExpanded(!conversationStarted);
 
   const setBusy = (busy: boolean) => {
     elements.send.disabled = busy;
@@ -170,6 +183,8 @@ export function startPortfolioChat(
     const question = rawQuestion.trim();
     if (destroyed || activeController !== undefined || question.length === 0) return;
 
+    conversationStarted = true;
+    setGuideExpanded(false);
     const requestHistory = loadChatHistory(dependencies.storage);
     if (renderUser) appendMessage(elements.transcript, "user", question);
     elements.input.value = "";
@@ -314,6 +329,7 @@ export function startPortfolioChat(
 
   elements.form.addEventListener("submit", onSubmit);
   elements.input.addEventListener("keydown", onKeyDown);
+  elements.guideToggle.addEventListener("click", onGuideToggle);
   elements.sources.addEventListener("click", onSourceClick);
   elements.status.addEventListener("click", onStatusClick);
 
@@ -324,6 +340,7 @@ export function startPortfolioChat(
     activeController = undefined;
     elements.form.removeEventListener("submit", onSubmit);
     elements.input.removeEventListener("keydown", onKeyDown);
+    elements.guideToggle.removeEventListener("click", onGuideToggle);
     elements.sources.removeEventListener("click", onSourceClick);
     elements.status.removeEventListener("click", onStatusClick);
     for (const { button, listener } of recommendationListeners) {
