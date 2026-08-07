@@ -467,7 +467,10 @@ a:focus-visible {
   transition: opacity 160ms ease;
 }
 
-.chat-transcript:empty,
+.chat-transcript:not(:has(.chat-message)) {
+  display: none;
+}
+
 .chat-sources:empty {
   display: none;
 }

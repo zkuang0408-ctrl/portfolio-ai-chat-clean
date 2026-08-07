@@ -363,6 +363,11 @@ test("keeps the full desktop assistant reachable through bounded fallback scroll
   expect(rule(".chat-transcript")).toMatch(/overflow:\s*auto/);
 });
 
+test("hides an evidence region until the transcript has an answer", () => {
+  expect(rule(".chat-transcript:not(:has(.chat-message))")).toMatch(/display:\s*none/);
+  expect(rule(".chat-sources:empty")).toMatch(/display:\s*none/);
+});
+
 test("uses readable high-contrast colors and sizes for critical chat UI", () => {
   expect(rule(".chat-label")).toMatch(/color:\s*#bd5b52/i);
   expect(rule(".chat-label")).toMatch(/font-size:\s*10px/);

@@ -202,7 +202,40 @@ test("appends ordered sentence-batched deltas, trusted sources, and follow-up co
 });
 
 test("moves evidence after the newest answer on later turns", async () => {
-  const { root, cleanup } = setup();
+  const fetch = vi.fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(responseFromEvents([
+      event("start", { locale: "zh" }),
+      event("delta", { text: "第一轮回答。" }),
+      event("sources", {
+        sources: [{
+          id: "S1",
+          sourceId: "inkseat",
+          projectId: "inkseat",
+          page: 8,
+          title: "INKSeat",
+          citationLabel: "INKSEAT · P.08",
+          publicHref: "/documents/inkseat.pdf#page=8",
+        }],
+      }),
+      event("done", {}),
+    ]))
+    .mockResolvedValueOnce(responseFromEvents([
+      event("start", { locale: "zh" }),
+      event("delta", { text: "第二轮回答。" }),
+      event("sources", {
+        sources: [{
+          id: "S2",
+          sourceId: "emovue",
+          projectId: "emovue",
+          page: 12,
+          title: "EMOVUE",
+          citationLabel: "EMOVUE · P.12",
+          publicHref: "/documents/emovue.pdf#page=12",
+        }],
+      }),
+      event("done", {}),
+    ]));
+  const { root, navigateToSource, cleanup } = setup({ fetch });
   const form = root.querySelector<HTMLFormElement>("[data-chat-form]")!;
   const input = root.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
   input.value = "第一个问题";
@@ -216,6 +249,13 @@ test("moves evidence after the newest answer on later turns", async () => {
   expect(answers).toHaveLength(2);
   expect(answers[1]?.nextElementSibling).toBe(sources);
   expect(root.querySelector("[data-chat-transcript]")?.lastElementChild).toBe(sources);
+  const sourceButtons = root.querySelectorAll<HTMLButtonElement>("[data-chat-source]");
+  expect(sourceButtons).toHaveLength(1);
+  expect(sourceButtons[0]?.textContent).toBe("EMOVUE · P.12");
+  sourceButtons[0]?.click();
+  expect(navigateToSource).toHaveBeenCalledWith(
+    expect.objectContaining({ sourceId: "emovue", projectId: "emovue", page: 12 }),
+  );
   cleanup();
 });
 
