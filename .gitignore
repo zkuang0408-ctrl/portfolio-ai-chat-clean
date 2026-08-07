@@ -4,8 +4,9 @@ dist/
 coverage/
 test-results/
 playwright-report/
-output/playwright/
-output/portfolio-chat-scf.zip
+output/
+.playwright-cli/
+*.log
 .scf-build/
 .vercel/
 .superpowers/

@@ -1,9 +1,16 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { createParticleField, startParticleAssistant } from "./particle-assistant";
+import {
+  createParticleField,
+  startParticleAssistant,
+} from "./particle-assistant";
 
 afterEach(() => {
   document.body.innerHTML = "";
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "visible",
+  });
   vi.restoreAllMocks();
 });
 
@@ -12,8 +19,11 @@ test("builds a dense spherical shell with a sparse internal particle core", () =
   const shell = particles.filter((particle) => particle.layer === "shell");
   const core = particles.filter((particle) => particle.layer === "core");
 
-  expect(shell.length).toBeGreaterThanOrEqual(360);
-  expect(core.length).toBeGreaterThanOrEqual(72);
+  expect(shell.length).toBeGreaterThanOrEqual(1_200);
+  expect(core.length).toBeGreaterThanOrEqual(160);
+  expect(
+    shell.filter((particle) => Math.abs(particle.y) > 0.7).length / shell.length,
+  ).toBeGreaterThan(0.42);
   expect(shell.every((particle) => Math.hypot(particle.x, particle.y, particle.z) > 0.98)).toBe(true);
   expect(core.every((particle) => Math.hypot(particle.x, particle.y, particle.z) < 0.82)).toBe(true);
 });
@@ -66,5 +76,161 @@ test("resizes the particle canvas when the guide collapses into the smaller ball
   await Promise.resolve();
 
   expect(initialResizeCalls.mock.calls.length).toBeGreaterThan(initialCallCount);
+  stop();
+});
+
+test("keeps a matching particle layer alive in the expanded header anchor", async () => {
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "expanded";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+  const context = {
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(canvas, "getContext").mockReturnValue(context);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(context);
+  vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+
+  expect(root.dataset.chatParticles).toBe("ready");
+  expect((context.setTransform as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
+  stop();
+  await Promise.resolve();
+});
+
+test("draws only the particle canvas visible in the current presentation", () => {
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "expanded";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+  const makeContext = () => ({
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  }) as unknown as CanvasRenderingContext2D;
+  const mainContext = makeContext();
+  const headerContext = makeContext();
+  vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(headerContext);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+  frames.shift()?.(0);
+  expect((mainContext.arc as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+  expect((headerContext.arc as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+
+  const headerDrawCount = (headerContext.arc as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+  root.dataset.chatPresentation = "collapsed";
+  frames.shift()?.(40);
+  expect((mainContext.arc as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+  expect((headerContext.arc as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(
+    headerDrawCount,
+  );
+  stop();
+});
+
+test("limits animated particle drawing to about thirty frames per second", () => {
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "collapsed";
+  const canvas = document.createElement("canvas");
+  root.append(canvas);
+  document.body.append(root);
+  const context = {
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(canvas, "getContext").mockReturnValue(context);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+
+  const stop = startParticleAssistant({ root, canvas, window });
+  frames.shift()?.(0);
+  const firstDrawCount = (context.arc as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+  frames.shift()?.(16);
+  expect((context.arc as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(
+    firstDrawCount,
+  );
+  frames.shift()?.(34);
+  expect((context.arc as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
+    firstDrawCount,
+  );
+  stop();
+});
+
+test("caps assistant canvas resolution for animated particle rendering", () => {
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "collapsed";
+  const canvas = document.createElement("canvas");
+  root.append(canvas);
+  document.body.append(root);
+  const context = {
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(canvas, "getContext").mockReturnValue(context);
+  vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+  Object.defineProperty(window, "devicePixelRatio", {
+    configurable: true,
+    value: 2,
+  });
+
+  const stop = startParticleAssistant({ root, canvas, window });
+
+  expect((context.setTransform as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe(1.5);
+  stop();
+});
+
+test("does not schedule animated frames while the document is hidden", () => {
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "expanded";
+  const canvas = document.createElement("canvas");
+  root.append(canvas);
+  document.body.append(root);
+  const context = {
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(canvas, "getContext").mockReturnValue(context);
+  const requestAnimationFrame = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "hidden",
+  });
+
+  const stop = startParticleAssistant({ root, canvas, window });
+
+  expect(requestAnimationFrame).not.toHaveBeenCalled();
   stop();
 });

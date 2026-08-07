@@ -10,6 +10,15 @@ test("renders the editorial hero beneath the persistent site navigation", () => 
   expect(root.textContent).toContain("赵实旷");
   expect(root.textContent).toContain("Crafting");
   expect(root.textContent).toContain("Through Objects");
+  const headlineLines = Array.from(
+    root.querySelectorAll<HTMLElement>("#hero-title > span"),
+    (line) => line.textContent?.trim(),
+  );
+  expect(headlineLines).toEqual([
+    "Crafting Future",
+    "Through Objects & Systems.",
+  ]);
+  expect(root.querySelector("#hero-title")?.tagName).toBe("H1");
   expect(root.querySelector("nav")).toBeNull();
   expect(root.querySelector(".hero")?.id).toBe("top");
   expect(root.querySelector("[data-hero-supporting]")?.textContent).toBe(

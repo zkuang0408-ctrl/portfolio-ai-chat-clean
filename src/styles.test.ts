@@ -71,10 +71,10 @@ test("places role, headline, and supporting copy in approved desktop regions", (
     /\.hero-copy \.role\s*\{[^}]*position:\s*absolute;[^}]*top:\s*clamp\(52px,\s*8vh,\s*96px\);[^}]*left:\s*clamp\(24px,\s*5vw,\s*88px\);/s,
   );
   expect(styles).toMatch(
-    /\.hero-copy \.headline\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(64px,\s*10vh,\s*118px\);[^}]*max-width:\s*min\(780px,\s*58vw\);[^}]*text-align:\s*right;/s,
+    /\.hero-copy \.headline\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(64px,\s*10vh,\s*118px\);[^}]*max-width:\s*min\(980px,\s*70vw\);[^}]*text-align:\s*right;/s,
   );
   expect(styles).toMatch(
-    /\.hero-supporting\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(24px,\s*4vh,\s*48px\);[^}]*max-width:\s*48ch;[^}]*text-align:\s*right;/s,
+    /\.hero-supporting\s*\{[^}]*position:\s*absolute;[^}]*right:\s*clamp\(28px,\s*6vw,\s*110px\);[^}]*bottom:\s*clamp\(24px,\s*4vh,\s*48px\);[^}]*max-width:\s*none;[^}]*white-space:\s*nowrap;[^}]*text-align:\s*right;/s,
   );
   expect(styles).toMatch(
     /\.hero-copy \.headline::before\s*\{[^}]*background:[^;}]*gradient/s,
@@ -346,7 +346,7 @@ test("treats the assistant as a visible hero guide that docks inward as a partic
 });
 
 test("gives the collapsed assistant enough canvas room for a dense particle sphere", () => {
-  expect(rule('.hero-chat[data-chat-presentation="collapsed"],\n.hero-chat[data-chat-presentation="expanded"]')).toMatch(/width:\s*76px/);
+  expect(rule('.hero-chat[data-chat-presentation="collapsed"],\n.hero-chat[data-chat-presentation="expanding"],\n.hero-chat[data-chat-presentation="expanded"]')).toMatch(/width:\s*76px/);
   expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/width:\s*76px/);
   expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/border:\s*0/);
   expect(rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb')).toMatch(/backdrop-filter:\s*none/);
@@ -389,6 +389,12 @@ test("uses quiet underlined recommendations with accessible pointer targets", ()
 });
 
 test("uses a safe-area-aware bottom sheet on mobile without changing the fixed navigation", () => {
+  expect(
+    mediaRule(
+      "(max-width: 760px)",
+      '.hero-chat[data-chat-presentation="expanded"]',
+    ),
+  ).toMatch(/transform:\s*none/);
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:/,
   );
@@ -399,6 +405,117 @@ test("uses a safe-area-aware bottom sheet on mobile without changing the fixed n
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?max-height:\s*min\(78dvh/,
   );
   expect(styles).toContain("--chat-viewport-inset");
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-chat\[data-chat-presentation="expanded"\] \.chat-panel\s*\{[\s\S]*?bottom:\s*max\(\s*76px/,
+  );
+});
+
+test("replaces the header dot with the same non-interactive particle canvas", () => {
+  expect(rule(".chat-ball-anchor")).toMatch(/background:\s*transparent/);
+  expect(rule(".chat-ball-anchor")).toMatch(/box-shadow:\s*none/);
+  expect(rule(".chat-ball-anchor::after")).toMatch(/display:\s*none/);
+  expect(rule(".chat-header-particle-canvas")).toMatch(/pointer-events:\s*none/);
+  expect(styles).toContain(".chat-header-particle-canvas");
+});
+
+test("lifts the desktop panel and collapses it cleanly toward the docked particle ball", () => {
+  expect(styles).toMatch(
+    /@media\s*\(min-width:\s*761px\)[\s\S]*?data-chat-presentation="expanded"[\s\S]*?translateY\(calc\(-50% - 72px\)\)/,
+  );
+  const collapsing = rule('.hero-chat[data-chat-presentation="collapsing"] .chat-panel');
+  expect(collapsing).toMatch(/filter:\s*none/);
+  expect(collapsing).toMatch(/transition:[\s\S]*opacity[\s\S]*transform/);
+  expect(collapsing).toMatch(/opacity 220ms var\(--ease-out\)/);
+  expect(collapsing).not.toMatch(/ease-in/);
+  expect(collapsing).not.toMatch(/clip-path/);
+});
+
+test("uses a simple scale transition without panel particles or blur", () => {
+  expect(rule(".chat-panel-particle-canvas")).toBe("");
+  const collapsing = rule('.hero-chat[data-chat-presentation="collapsing"] .chat-panel');
+  expect(collapsing).toMatch(/transition:[\s\S]*transform/);
+  expect(collapsing).toMatch(/filter:\s*none/);
+  expect(collapsing).not.toMatch(/filter:\s*blur/);
+  expect(collapsing).not.toMatch(/clip-path/);
+  expect(styles).toMatch(
+    /data-chat-presentation="collapsing"\]\[data-chat-dock="left"\] \.chat-panel\s*\{[\s\S]*?scale\(0\.12\)/,
+  );
+});
+
+test("mirrors the collapse transform while the desktop panel expands from the ball", () => {
+  const expanding = rule('.hero-chat[data-chat-presentation="expanding"] .chat-panel');
+  expect(expanding).toMatch(/opacity:\s*0/);
+  expect(expanding).toMatch(/visibility:\s*visible/);
+  expect(expanding).toMatch(/pointer-events:\s*none/);
+  expect(rule('.hero-chat[data-chat-presentation="expanding"] .chat-orb')).toMatch(
+    /pointer-events:\s*none/,
+  );
+  expect(rulesContaining('.hero-chat[data-chat-presentation="expanded"] .chat-orb')).toMatch(
+    /width:\s*76px/,
+  );
+  expect(styles).toMatch(
+    /data-chat-presentation="expanding"\]\[data-chat-dock="left"\] \.chat-panel\s*\{[\s\S]*?translate\(-28px,\s*-50%\) scale\(0\.12\)/,
+  );
+  expect(styles).toMatch(
+    /data-chat-presentation="expanding"\]\[data-chat-dock="right"\] \.chat-panel\s*\{[\s\S]*?translate\(28px,\s*-50%\) scale\(0\.12\)/,
+  );
+  expect(rule('.hero-chat[data-chat-presentation="expanded"] .chat-panel')).toMatch(
+    /transform 380ms var\(--ease-out\)/,
+  );
+});
+
+test("removes positional easing while the particle ball is under direct pointer control", () => {
+  expect(rule('.hero-chat[data-chat-dragging="true"]')).toMatch(/transition:\s*none/);
+  expect(rule('.hero-chat[data-chat-dragging="true"] .chat-orb')).toMatch(
+    /cursor:\s*grabbing/,
+  );
+});
+
+test("moves the docked assistant with a compositor transform instead of layout properties", () => {
+  const docked = rule(
+    '.hero-chat[data-chat-presentation="collapsed"],\n.hero-chat[data-chat-presentation="expanding"],\n.hero-chat[data-chat-presentation="expanded"]',
+  );
+  const collapsing = rule('.hero-chat[data-chat-presentation="collapsing"]');
+  for (const state of [docked, collapsing]) {
+    expect(state).toMatch(/top:\s*0/);
+    expect(state).toMatch(/left:\s*0/);
+    expect(state).toMatch(/transform:\s*translate3d\(/);
+    expect(state).toMatch(/transition:\s*transform/);
+    expect(state).not.toMatch(/transition:[\s\S]*(?:top|left)/);
+  }
+});
+
+test("places the desktop guide in the upper-left safe zone with room below for page identity", () => {
+  expect(styles).toMatch(
+    /@media\s*\(min-width:\s*761px\)[\s\S]*?\.hero-chat\[data-chat-presentation="guide"\]\s*\{[\s\S]*?top:\s*clamp\(96px,\s*13vh,\s*152px\)/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(min-width:\s*761px\)[\s\S]*?\.hero-chat\[data-chat-presentation="guide"\] \.chat-panel\s*\{[\s\S]*?max-height:\s*min\(560px/,
+  );
+});
+
+test("keeps hero copy to two English lines and one Chinese line on desktop", () => {
+  expect(rule(".hero-copy .headline")).toMatch(/max-width:\s*min\(980px,\s*70vw\)/);
+  expect(rule(".hero-copy .headline span")).toMatch(/white-space:\s*nowrap/);
+  expect(rule(".hero-supporting")).toMatch(/white-space:\s*nowrap/);
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.headline span\s*\{[\s\S]*?white-space:\s*normal/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-supporting\s*\{[\s\S]*?white-space:\s*normal/,
+  );
+});
+
+test("reserves a 108px desktop gutter for the floating assistant without changing mobile spacing", () => {
+  expect(styles).toMatch(
+    /@media\s*\(min-width:\s*761px\)[\s\S]*?\.portfolio-section\s*\{[\s\S]*?padding-inline:\s*max\(clamp\(24px,\s*5\.2vw,\s*92px\),\s*108px\)/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(min-width:\s*761px\)[\s\S]*?\.resume-panel\s*\{[\s\S]*?width:\s*min\(calc\(100% - 216px\),\s*1540px\)/,
+  );
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.portfolio-section\s*\{[\s\S]*?padding:\s*92px\s+22px/,
+  );
 });
 
 test("removes assistant cursor and crossfade motion when requested", () => {

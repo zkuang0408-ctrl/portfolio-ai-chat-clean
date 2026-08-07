@@ -3,17 +3,34 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { renderChat } from "./render-chat";
 import { startChatPresentation } from "./chat-presentation";
 
-function setup() {
+function setup(options: { collapseDurationMs?: number; initialDock?: "left" | "right" } = {}) {
   const root = document.createElement("aside");
   const trigger = document.createElement("button");
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
   document.body.append(root, trigger);
+  if (options.initialDock) root.dataset.chatDock = options.initialDock;
   const elements = renderChat(root, "zh");
   const cleanup = startChatPresentation(elements, {
     trigger,
     window,
     scrollIdleMs: 250,
+    collapseDurationMs: options.collapseDurationMs,
   });
   return { root, trigger, elements, cleanup };
+}
+
+function pointerEvent(
+  type: string,
+  init: { pointerId: number; clientX: number; clientY: number; button?: number },
+): Event {
+  const event = new Event(type, { bubbles: true });
+  Object.defineProperties(event, {
+    button: { value: init.button ?? 0 },
+    clientX: { value: init.clientX },
+    clientY: { value: init.clientY },
+    pointerId: { value: init.pointerId },
+  });
+  return event;
 }
 
 beforeEach(() => {
@@ -22,7 +39,8 @@ beforeEach(() => {
 });
 
 test("opens from the orb or site navigation and collapses without replacing chat DOM", () => {
-  const { root, trigger, elements, cleanup } = setup();
+  vi.useFakeTimers();
+  const { root, trigger, elements, cleanup } = setup({ collapseDurationMs: 360 });
   const form = elements.form;
 
   expect(root.dataset.chatPresentation).toBe("guide");
@@ -32,27 +50,125 @@ test("opens from the orb or site navigation and collapses without replacing chat
   expect(elements.panel.getAttribute("aria-hidden")).toBe("false");
 
   elements.collapse.click();
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  vi.advanceTimersByTime(360);
   expect(root.dataset.chatPresentation).toBe("collapsed");
   trigger.click();
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  vi.advanceTimersByTime(20);
   expect(root.dataset.chatPresentation).toBe("expanded");
   expect(elements.form).toBe(form);
   cleanup();
 });
 
+test("expands from the docked ball through a mirrored scale state", () => {
+  vi.useFakeTimers();
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { root, trigger, elements, cleanup } = setup({ collapseDurationMs: 380 });
+  Object.defineProperty(elements.panel, "offsetHeight", {
+    configurable: true,
+    value: 556,
+  });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  vi.advanceTimersByTime(380);
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+
+  trigger.click();
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  expect(root.style.getPropertyValue("--chat-dock-y")).toBe("438px");
+  expect(elements.panel.getAttribute("aria-hidden")).toBe("false");
+  frames.shift()?.(0);
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  cleanup();
+});
+
+test("opens immediately from the dock when reduced motion is requested", () => {
+  const originalMatchMedia = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)),
+  });
+  const { root, trigger, cleanup } = setup();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+
+  trigger.click();
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  cleanup();
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: originalMatchMedia,
+  });
+});
+
 test("starts as a discoverable hero guide before it collapses into the dock", () => {
-  const { root, cleanup } = setup();
+  vi.useFakeTimers();
+  const { root, cleanup } = setup({ collapseDurationMs: 360 });
 
   expect(root.dataset.chatPresentation).toBe("guide");
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
   window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  vi.advanceTimersByTime(360);
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+  cleanup();
+});
+
+test("docks the particle ball on the left on its first collapse", () => {
+  vi.useFakeTimers();
+  const { root, cleanup } = setup({ collapseDurationMs: 360 });
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  vi.advanceTimersByTime(360);
+
+  expect(root.dataset.chatDock).toBe("left");
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("54px");
+  cleanup();
+});
+
+test("starts the docked particle orb in the upper-left safe zone", () => {
+  const { root, cleanup } = setup();
+
+  expect(root.dataset.chatDock).toBe("left");
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("54px");
+  expect(root.style.getPropertyValue("--chat-dock-y")).toBe("172px");
+  cleanup();
+});
+
+test("keeps the guide open for incidental scroll and collapses after the threshold", () => {
+  vi.useFakeTimers();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+  const { root, cleanup } = setup({ collapseDurationMs: 360 });
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 80 });
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("guide");
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 180 });
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  vi.advanceTimersByTime(360);
   expect(root.dataset.chatPresentation).toBe("collapsed");
   cleanup();
 });
 
 test("does not interpret the click emitted after a drag as an expand request", () => {
+  vi.useFakeTimers();
   const { root, elements, cleanup } = setup();
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
   window.dispatchEvent(new Event("scroll"));
+  vi.runOnlyPendingTimers();
 
   elements.orb.dispatchEvent(new MouseEvent("pointerdown", {
     bubbles: true,
@@ -77,26 +193,185 @@ test("does not interpret the click emitted after a drag as an expand request", (
   cleanup();
 });
 
+test("tracks the particle ball freely during drag and docks only after release", () => {
+  vi.useFakeTimers();
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 360 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  vi.advanceTimersByTime(360);
+  const startX = Number.parseFloat(root.style.getPropertyValue("--chat-dock-x"));
+  const startY = Number.parseFloat(root.style.getPropertyValue("--chat-dock-y"));
+
+  elements.orb.dispatchEvent(new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    clientX: startX,
+    clientY: startY,
+  }));
+  elements.orb.dispatchEvent(new MouseEvent("pointermove", {
+    bubbles: true,
+    clientX: 400,
+    clientY: 300,
+  }));
+
+  expect(root.dataset.chatDragging).toBe("true");
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("400px");
+  expect(root.style.getPropertyValue("--chat-dock-y")).toBe("300px");
+
+  elements.orb.dispatchEvent(new MouseEvent("pointerup", {
+    bubbles: true,
+    clientX: 400,
+    clientY: 300,
+  }));
+
+  expect(root.dataset.chatDragging).toBeUndefined();
+  expect(root.dataset.chatDock).toBe("left");
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("54px");
+  cleanup();
+});
+
+test("keeps one pointer in control of a particle-ball drag", () => {
+  vi.useFakeTimers();
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  const startX = Number.parseFloat(root.style.getPropertyValue("--chat-dock-x"));
+  const startY = Number.parseFloat(root.style.getPropertyValue("--chat-dock-y"));
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    clientX: startX,
+    clientY: startY,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 2,
+    clientX: 500,
+    clientY: 320,
+  }));
+  expect(root.dataset.chatDragging).toBeUndefined();
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("54px");
+
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    clientX: 400,
+    clientY: 300,
+  }));
+  expect(root.dataset.chatDragging).toBe("true");
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 2,
+    clientX: 500,
+    clientY: 320,
+  }));
+  expect(root.dataset.chatDragging).toBe("true");
+
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    clientX: 400,
+    clientY: 300,
+  }));
+  expect(root.dataset.chatDragging).toBeUndefined();
+  cleanup();
+});
+
+test("does not suppress the next click after a cancelled drag", () => {
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    clientX: 54,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    clientX: 400,
+    clientY: 300,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointercancel", {
+    pointerId: 1,
+    clientX: 400,
+    clientY: 300,
+  }));
+  elements.orb.click();
+
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  cleanup();
+});
+
+test("uses the layout viewport so the docked ball stays clear of desktop scrollbars", () => {
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1_000);
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_024 });
+  const { root, cleanup } = setup({ initialDock: "right" });
+
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("946px");
+  cleanup();
+});
+
+test("nudges the expanded panel away from protected hero content", () => {
+  const { root, elements, cleanup } = setup();
+  const headline = document.createElement("div");
+  headline.className = "hero-copy headline";
+  document.body.append(headline);
+  vi.spyOn(elements.panel, "getBoundingClientRect").mockReturnValue({
+    x: 900,
+    y: 500,
+    top: 500,
+    right: 1300,
+    bottom: 900,
+    left: 900,
+    width: 400,
+    height: 400,
+    toJSON: () => ({}),
+  } as DOMRect);
+  vi.spyOn(headline, "getBoundingClientRect").mockReturnValue({
+    x: 980,
+    y: 760,
+    top: 760,
+    right: 1400,
+    bottom: 900,
+    left: 980,
+    width: 420,
+    height: 140,
+    toJSON: () => ({}),
+  } as DOMRect);
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+
+  const before = Number.parseFloat(root.style.getPropertyValue("--chat-dock-y"));
+  elements.orb.click();
+  const after = Number.parseFloat(root.style.getPropertyValue("--chat-dock-y"));
+
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  expect(after).toBeLessThan(before);
+  cleanup();
+});
+
 test("collapses on scroll and does not reopen when scrolling stops", () => {
   vi.useFakeTimers();
   const { root, elements, cleanup } = setup();
   elements.orb.click();
 
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
   window.dispatchEvent(new Event("scroll"));
-  expect(root.dataset.chatPresentation).toBe("collapsed");
+  expect(root.dataset.chatPresentation).toBe("collapsing");
   expect(root.dataset.chatScrolling).toBe("true");
 
   vi.advanceTimersByTime(250);
   expect(root.dataset.chatScrolling).toBeUndefined();
+  vi.advanceTimersByTime(130);
   expect(root.dataset.chatPresentation).toBe("collapsed");
   cleanup();
 });
 
 test("rebuilds the homepage guide after returning to the hero top", () => {
+  vi.useFakeTimers();
   const { root, cleanup } = setup();
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 120 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
   window.dispatchEvent(new Event("scroll"));
+  vi.runOnlyPendingTimers();
   expect(root.dataset.chatPresentation).toBe("collapsed");
 
   Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
@@ -107,13 +382,28 @@ test("rebuilds the homepage guide after returning to the hero top", () => {
 });
 
 test("Escape collapses and cleanup removes all presentation listeners", () => {
-  const { root, trigger, elements, cleanup } = setup();
+  vi.useFakeTimers();
+  const { root, trigger, elements, cleanup } = setup({ collapseDurationMs: 360 });
   trigger.click();
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  vi.advanceTimersByTime(360);
   expect(root.dataset.chatPresentation).toBe("collapsed");
 
   cleanup();
   trigger.click();
   elements.orb.click();
   expect(root.dataset.chatPresentation).toBe("collapsed");
+});
+
+test("returns focus to the particle ball when the collapse control closes the panel", () => {
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  elements.orb.click();
+  elements.collapse.focus();
+
+  elements.collapse.click();
+
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+  expect(document.activeElement).toBe(elements.orb);
+  cleanup();
 });

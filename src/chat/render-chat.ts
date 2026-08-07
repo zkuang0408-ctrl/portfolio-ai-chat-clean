@@ -3,6 +3,7 @@ import { CHAT_CONTENT, type ChatLocale } from "./content";
 export interface ChatElements {
   readonly root: HTMLElement;
   readonly particleCanvas: HTMLCanvasElement;
+  readonly headerParticleCanvas: HTMLCanvasElement;
   readonly orb: HTMLButtonElement;
   readonly panel: HTMLElement;
   readonly collapse: HTMLButtonElement;
@@ -50,12 +51,6 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
     "aria-label",
     locale === "zh" ? "打开赵实旷的 AI 助手" : "Open Shikuang Zhao's AI assistant",
   );
-  orb.innerHTML = `
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M16 3.5c1.2 6.2 3.8 8.8 10 10-6.2 1.2-8.8 3.8-10 10-1.2-6.2-3.8-8.8-10-10 6.2-1.2 8.8-3.8 10-10Z" />
-      <circle cx="25.5" cy="6.5" r="2.2" />
-    </svg>
-  `;
 
   const panel = createElement("section", "chat-panel chat-scroll-region");
   panel.id = panelId;
@@ -71,6 +66,13 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
   const ballAnchor = createElement("span", "chat-ball-anchor");
   ballAnchor.dataset.chatBallAnchor = "";
   ballAnchor.setAttribute("aria-hidden", "true");
+  const headerParticleCanvas = createElement(
+    "canvas",
+    "chat-header-particle-canvas",
+  );
+  headerParticleCanvas.dataset.chatHeaderParticleCanvas = "";
+  headerParticleCanvas.setAttribute("aria-hidden", "true");
+  ballAnchor.append(headerParticleCanvas);
   const collapse = createElement("button", "chat-collapse");
   collapse.type = "button";
   collapse.dataset.chatCollapse = "";
@@ -186,6 +188,7 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
   return {
     root,
     particleCanvas,
+    headerParticleCanvas,
     orb,
     panel,
     collapse,

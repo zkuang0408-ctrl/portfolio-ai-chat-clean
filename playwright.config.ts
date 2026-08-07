@@ -6,6 +6,7 @@ export default defineConfig({
   testDir: "./tests",
   globalSetup: "./tests/global-setup.ts",
   fullyParallel: true,
+  workers: 4,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: "line",

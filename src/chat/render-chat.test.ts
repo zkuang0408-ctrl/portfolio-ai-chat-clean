@@ -35,6 +35,13 @@ test("renders a visible, hierarchical assistant guide with an anchored particle 
     "继续提问",
   );
   expect(root.querySelector("[data-chat-ball-anchor]")).not.toBeNull();
+  expect(root.querySelector("[data-chat-header-particle-canvas]")).toBeInstanceOf(
+    HTMLCanvasElement,
+  );
+  expect(elements.headerParticleCanvas).toBe(
+    root.querySelector("[data-chat-header-particle-canvas]"),
+  );
+  expect(root.querySelector("[data-chat-panel-particle-canvas]")).toBeNull();
   expect(Array.from(elements.recommendations, (button) => button.textContent)).toEqual(
     CHAT_CONTENT.zh.recommendations,
   );
@@ -113,5 +120,6 @@ test("renders a persistent collapsible assistant shell without a modal", () => {
   expect(elements.orb.getAttribute("aria-controls")).toBe(elements.panel.id);
   expect(elements.panel.getAttribute("aria-hidden")).toBe("false");
   expect(elements.collapse.getAttribute("aria-label")).toContain("收起");
+  expect(elements.orb.querySelector("svg")).toBeNull();
   expect(elements.panel.contains(elements.form)).toBe(true);
 });

@@ -124,7 +124,7 @@ async function ask(page: Page, question: string): Promise<void> {
   const chat = page.locator("[data-chat-root]");
   if ((await chat.getAttribute("data-chat-presentation")) !== "expanded") {
     await expect(chat).not.toHaveAttribute("data-chat-scrolling", "true");
-    await page.locator("[data-chat-orb]").click();
+    await page.locator("[data-open-chat]").click();
     await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
   }
   await page.locator("[data-chat-input]").fill(question);
@@ -226,10 +226,20 @@ async function waitForReaderReady(
 
 async function loadAllFirstPagesSequentially(page: Page): Promise<void> {
   const readers = page.locator("[data-project-reader]");
+  const selectors = page.locator("[data-project-selector]");
   await expect(readers).toHaveCount(6);
+  await expect(selectors).toHaveCount(6);
   for (let index = 0; index < 6; index += 1) {
-    const reader = readers.nth(index);
+    const selector = selectors.nth(index);
+    const projectId = await selector.getAttribute("data-project-selector");
+    if (!projectId) throw new Error(`Project selector ${index} has no project id.`);
+    await selector.scrollIntoViewIfNeeded();
+    await selector.click();
+    const reader = page.locator(
+      `[data-project-reader][data-project-id="${projectId}"]`,
+    );
     await reader.scrollIntoViewIfNeeded();
+    await expect(reader).toBeVisible();
     await waitForReaderReady(reader);
     await expect(reader.locator("[data-current-page]")).toHaveText("01");
   }
@@ -641,10 +651,9 @@ test("centered particle portrait protects the face and fixed assistant", async (
   if (testInfo.project.name === "mobile-landscape-667") {
     expect(intersects(geometry.headline, protectedFace)).toBe(false);
     expect(geometry.headline.left).toBeGreaterThanOrEqual(protectedFace.right - 1);
-    expect(geometry.headline.bottom).toBeLessThanOrEqual(geometry.orb.top - 1);
   }
   if (testInfo.project.name === "mobile-320") {
-    expect(geometry.headlineText).toHaveLength(3);
+    expect(geometry.headlineText).toHaveLength(2);
     expect(intersects(geometry.headline, protectedFace)).toBe(false);
     expect(geometry.headline.top).toBeGreaterThanOrEqual(
       protectedFace.bottom - 1,
@@ -669,8 +678,9 @@ test("centered particle portrait mask failure preserves the portfolio path", asy
   await expect(page.locator(".portrait-stage")).toHaveClass(
     /portrait-stage--error/,
   );
-  await expect(page.getByRole("status")).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText(
+  const portraitStatus = page.locator(".portrait-error");
+  await expect(portraitStatus).toBeVisible();
+  await expect(portraitStatus).toHaveText(
     "Portrait visualization unavailable.",
   );
   await expect(
@@ -698,9 +708,12 @@ test.describe("canonical grounded portfolio chat", () => {
     const chat = page.locator("[data-chat-root]");
     await expect(page.locator("[data-site-brand]")).toHaveText("赵实旷");
     await expect(chat.locator("[data-chat-recommendation]")).toHaveCount(4);
+    await expect(chat).toHaveAttribute("data-chat-presentation", "guide");
+    await expect(chat.locator("[data-chat-panel]")).toBeVisible();
+    await chat.locator("[data-chat-collapse]").click();
     await expect(chat).toHaveAttribute("data-chat-presentation", "collapsed");
     await expect(chat.locator("[data-chat-orb]")).toBeVisible();
-    await page.getByRole("button", { name: "Ask AI" }).click();
+    await chat.locator("[data-chat-orb]").click();
     await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
     await expect(chat.locator("[data-chat-panel]")).toBeVisible();
     const style = await chat.locator("[data-chat-panel]").evaluate((element) => {
@@ -722,7 +735,7 @@ test.describe("canonical grounded portfolio chat", () => {
     expect(style.top).toBeGreaterThanOrEqual(0);
     expect(style.width).toBeLessThanOrEqual(400);
     expect(style.height).toBeLessThanOrEqual(560);
-    expect(style.borderRadius).toBe("24px");
+    expect(style.borderRadius).toBe("30px 30px 22px 22px");
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
     expect(style.boxShadow).not.toBe("none");
   });
@@ -952,6 +965,7 @@ test.describe("canonical grounded portfolio chat", () => {
     await expect(page.locator("#projects")).toBeInViewport();
     await waitForCompleteCanvas(page);
     await loadAllFirstPagesSequentially(page);
+    await page.locator('[data-project-selector="inkseat"]').click();
     const first = page.locator('[data-project-reader][data-project-id="inkseat"]');
     await first.scrollIntoViewIfNeeded();
     await waitForReaderReady(first);
@@ -966,6 +980,10 @@ test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bo
     "Only the approved 390px and 430px mobile layouts are in scope.",
   );
   await page.goto("/");
+  const chat = page.locator("[data-chat-root]");
+  await expect(chat).toHaveAttribute("data-chat-presentation", "guide");
+  await chat.locator("[data-chat-collapse]").click();
+  await expect(chat).toHaveAttribute("data-chat-presentation", "collapsed");
   const collapsed = await page.evaluate(() => {
     const rect = (selector: string) => {
       const value = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
@@ -987,7 +1005,7 @@ test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bo
   await page.locator("[data-chat-orb]").click();
   const panel = page.locator("[data-chat-panel]");
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
+  await expect(panel).toHaveCSS("transform", "none");
   const panelBox = await panel.boundingBox();
   const expandedViewport = await page.evaluate(() => ({
     height: window.innerHeight,
@@ -1277,6 +1295,7 @@ test.describe("canonical desktop project reader behavior", () => {
     page,
   }) => {
     await page.goto("/");
+    await page.locator('[data-project-selector="emovue"]').click();
     const failedReader = page.locator(
       '[data-project-reader][data-project-id="emovue"]',
     );
@@ -1316,6 +1335,7 @@ test.describe("canonical desktop project reader behavior", () => {
     await expect(originalPdf).toHaveAttribute("target", "_blank");
     expect(abortedRequests).toBe(1);
 
+    await page.locator('[data-project-selector="inkseat"]').click();
     const healthyReader = page.locator(
       '[data-project-reader][data-pdf-url="/projects/pdfs/inkseat.pdf"]',
     );

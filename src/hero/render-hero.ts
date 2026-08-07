@@ -24,8 +24,7 @@ export function renderHero(
           <p class="role">PRODUCT · INTERACTION · FUTURE EXPERIENCE</p>
           <h1 class="headline" id="hero-title">
             <span>Crafting <em>Future</em></span>
-            <span>Through Objects</span>
-            <span>&amp; Systems.</span>
+            <span>Through Objects &amp; Systems.</span>
           </h1>
           <p class="hero-supporting" data-hero-supporting>从实体产品到智能系统，以研究、交互与原型塑造未来体验。</p>
         </div>

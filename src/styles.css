@@ -280,12 +280,6 @@ a:focus-visible {
     background-color 180ms var(--ease-out);
 }
 
-.chat-orb svg {
-  width: 27px;
-  height: 27px;
-  fill: currentColor;
-}
-
 .chat-orb:is(:hover, :focus-visible) {
   background: #252527;
   outline: 1px solid rgb(255 255 255 / 0.62);
@@ -366,11 +360,17 @@ a:focus-visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
-  transition-delay: 0s;
+  transition:
+    opacity 300ms var(--ease-out),
+    transform 380ms var(--ease-out);
   visibility: visible;
 }
 
 .hero-chat[data-chat-presentation="expanded"] .chat-orb {
+  width: 76px;
+  min-width: 76px;
+  height: 76px;
+  min-height: 76px;
   opacity: 0;
   pointer-events: none;
   transform: scale(0.82);
@@ -1590,7 +1590,7 @@ a:focus-visible {
   position: absolute;
   right: clamp(28px, 6vw, 110px);
   bottom: clamp(64px, 10vh, 118px);
-  max-width: min(780px, 58vw);
+  max-width: min(980px, 70vw);
   font-size: clamp(48px, 3.9vw, 74px);
   letter-spacing: -0.04em;
   line-height: 0.89;
@@ -1613,8 +1613,8 @@ a:focus-visible {
 }
 
 .hero-copy .headline span {
-  white-space: normal;
-  text-wrap: balance;
+  white-space: nowrap;
+  text-wrap: nowrap;
 }
 
 .hero-copy .headline span:nth-child(2) {
@@ -1625,13 +1625,14 @@ a:focus-visible {
   position: absolute;
   right: clamp(28px, 6vw, 110px);
   bottom: clamp(24px, 4vh, 48px);
-  max-width: 48ch;
+  max-width: none;
   margin: 0;
-  padding-right: 72px;
+  padding-right: 0;
   color: #a6a4a0;
   font-size: clamp(11px, 0.9vw, 14px);
   line-height: 1.65;
   letter-spacing: 0.035em;
+  white-space: nowrap;
   text-align: right;
 }
 
@@ -1692,6 +1693,12 @@ a:focus-visible {
     max-width: 30ch;
     padding-right: 68px;
     font-size: 11px;
+    white-space: normal;
+  }
+
+  .hero-copy .headline span {
+    white-space: normal;
+    text-wrap: balance;
   }
 }
 
@@ -2191,18 +2198,51 @@ a:focus-visible {
 }
 
 .hero-chat[data-chat-presentation="guide"] .chat-particle-canvas,
+.hero-chat[data-chat-presentation="expanding"] .chat-particle-canvas,
 .hero-chat[data-chat-presentation="collapsing"] .chat-particle-canvas,
 .hero-chat[data-chat-presentation="collapsed"] .chat-particle-canvas {
   opacity: 1;
 }
 
 .hero-chat[data-chat-presentation="collapsed"],
+.hero-chat[data-chat-presentation="expanding"],
 .hero-chat[data-chat-presentation="expanded"] {
-  top: calc(var(--chat-dock-y, 70vh) - 38px);
+  top: 0;
   right: auto;
   bottom: auto;
-  left: calc(var(--chat-dock-x, 100vw) - 38px);
+  left: 0;
   width: 76px;
+  transform: translate3d(
+    calc(var(--chat-dock-x, 54px) - 38px),
+    calc(var(--chat-dock-y, 172px) - 38px),
+    0
+  );
+  transition: transform 360ms var(--ease-out);
+  will-change: transform;
+}
+
+.hero-chat[data-chat-presentation="collapsing"] {
+  top: 0;
+  right: auto;
+  bottom: auto;
+  left: 0;
+  width: 76px;
+  transform: translate3d(
+    calc(var(--chat-dock-x, 54px) - 38px),
+    calc(var(--chat-dock-y, 172px) - 38px),
+    0
+  );
+  transition: transform 360ms var(--ease-out);
+  will-change: transform;
+}
+
+.hero-chat[data-chat-dragging="true"] {
+  transition: none;
+}
+
+.hero-chat[data-chat-dragging="true"] .chat-orb {
+  cursor: grabbing;
+  transform: scale(1.035);
 }
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-panel {
@@ -2221,17 +2261,50 @@ a:focus-visible {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+  touch-action: none;
 }
 
-.hero-chat[data-chat-presentation="collapsed"] .chat-orb svg {
-  opacity: 0;
+.hero-chat[data-chat-presentation="expanding"] .chat-orb,
+.hero-chat[data-chat-presentation="collapsing"] .chat-orb {
+  width: 76px;
+  min-width: 76px;
+  height: 76px;
+  min-height: 76px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  touch-action: none;
+}
+
+.hero-chat[data-chat-presentation="expanding"] .chat-orb {
+  pointer-events: none;
 }
 
 .hero-chat[data-chat-presentation="collapsed"] .chat-particle-canvas {
   z-index: 2;
 }
 
+.hero-chat[data-chat-presentation="expanding"] .chat-particle-canvas,
+.hero-chat[data-chat-presentation="collapsing"] .chat-particle-canvas {
+  z-index: 2;
+}
+
 .hero-chat[data-chat-presentation="collapsed"]::before {
+  position: absolute;
+  z-index: 1;
+  inset: 4px;
+  border-radius: 50%;
+  background: #050505;
+  content: "";
+  pointer-events: none;
+}
+
+.hero-chat[data-chat-presentation="expanding"]::before,
+.hero-chat[data-chat-presentation="collapsing"]::before {
   position: absolute;
   z-index: 1;
   inset: 4px;
@@ -2269,27 +2342,86 @@ a:focus-visible {
   transform: translateY(-50%) scale(1);
 }
 
+.hero-chat[data-chat-presentation="collapsing"] .chat-panel {
+  filter: none;
+  opacity: 0;
+  pointer-events: none;
+  visibility: visible;
+  will-change: transform, opacity;
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 380ms var(--ease-out);
+}
+
+.hero-chat[data-chat-presentation="expanding"] .chat-panel {
+  filter: none;
+  opacity: 0;
+  pointer-events: none;
+  visibility: visible;
+  will-change: transform, opacity;
+}
+
 .chat-ball-anchor {
   position: relative;
-  width: 17px;
-  height: 17px;
+  width: 30px;
+  height: 30px;
   margin-right: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #1a1a1a;
-  box-shadow: 0 0 0 1px rgb(232 229 222 / 0.3);
+  background: transparent;
+  box-shadow: none;
 }
 
 .chat-ball-anchor::after {
+  display: none;
+}
+
+.chat-header-particle-canvas {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #e8e5de;
-  box-shadow: 5px 2px #898983, 8px 7px #66655f, 2px 9px #bebcb4;
-  content: "";
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  pointer-events: none;
+}
+
+.hero-chat[data-chat-presentation="expanded"] .chat-particle-canvas {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-chat:not([data-chat-presentation="expanded"]) .chat-header-particle-canvas {
+  opacity: 0;
+}
+
+@media (min-width: 761px) {
+  .hero-chat[data-chat-presentation="guide"] {
+    top: clamp(96px, 13vh, 152px);
+    left: clamp(24px, 4vw, 64px);
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-panel {
+    max-height: min(560px, calc(100svh - var(--nav-height) - 180px));
+  }
+
+  .hero-chat[data-chat-presentation="expanded"] .chat-panel {
+    transform: translateY(calc(-50% - 72px)) scale(1);
+  }
+
+  .hero-chat[data-chat-presentation="collapsing"][data-chat-dock="left"] .chat-panel {
+    transform: translate(-28px, -50%) scale(0.12);
+  }
+
+  .hero-chat[data-chat-presentation="expanding"][data-chat-dock="left"] .chat-panel {
+    transform: translate(-28px, -50%) scale(0.12);
+  }
+
+  .hero-chat[data-chat-presentation="collapsing"][data-chat-dock="right"] .chat-panel {
+    transform: translate(28px, -50%) scale(0.12);
+  }
+
+  .hero-chat[data-chat-presentation="expanding"][data-chat-dock="right"] .chat-panel {
+    transform: translate(28px, -50%) scale(0.12);
+  }
 }
 
 .chat-guide {
@@ -2402,14 +2534,28 @@ a:focus-visible {
     padding: 14px 16px 16px;
   }
 
+  .hero-chat[data-chat-presentation="expanded"] {
+    top: 0;
+    left: 0;
+    transform: none;
+    transition: none;
+  }
+
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
     position: fixed;
     top: auto;
     right: 12px;
-    bottom: max(12px, var(--chat-viewport-inset, 0px));
+    bottom: max(
+      76px,
+      calc(60px + var(--chat-viewport-inset, 0px)),
+      env(safe-area-inset-bottom)
+    );
     left: 12px;
     width: auto;
-    max-height: min(70dvh, calc(100dvh - var(--nav-height) - 12px));
+    max-height: min(
+      70dvh,
+      calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
+    );
     transform: none;
   }
 }
@@ -2421,5 +2567,15 @@ a:focus-visible {
   .chat-message--loading {
     transition: none;
     animation: none;
+  }
+}
+
+@media (min-width: 761px) {
+  .portfolio-section {
+    padding-inline: max(clamp(24px, 5.2vw, 92px), 108px);
+  }
+
+  .resume-panel {
+    width: min(calc(100% - 216px), 1540px);
   }
 }

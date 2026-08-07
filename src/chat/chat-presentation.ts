@@ -1,5 +1,6 @@
 import type { ChatElements } from "./render-chat";
 import {
+  clampDockY,
   resolveDockPosition,
   type DockPosition,
   type DockSide,
@@ -9,6 +10,7 @@ export interface ChatPresentationDependencies {
   readonly trigger: HTMLButtonElement;
   readonly window: Window;
   readonly scrollIdleMs?: number;
+  readonly collapseDurationMs?: number;
 }
 
 export function startChatPresentation(
@@ -17,18 +19,34 @@ export function startChatPresentation(
 ): () => void {
   const { root, orb, panel, collapse } = elements;
   const idleMs = dependencies.scrollIdleMs ?? 250;
+  const collapseMs = dependencies.collapseDurationMs ?? 380;
+  const collapseScrollThreshold = 160;
+  const defaultDockY = 172;
   const dragThreshold = 8;
   const dockMetrics = { edge: 16, top: 72, bottom: 24, radius: 38 };
+  const desktopPanelTop = 88;
+  const desktopPanelLift = 72;
   let destroyed = false;
   let scrollTimer: number | undefined;
+  let collapseTimer: number | undefined;
+  let expandFrame: number | undefined;
+  let avoidTimer: number | undefined;
   let dragStart: { x: number; y: number } | undefined;
+  let dragOffset: { x: number; y: number } | undefined;
+  let activePointerId: number | null = null;
   let dragging = false;
   let ignoreNextOrbClick = false;
   let dock: DockPosition | undefined;
+  let collapseScrollAnchorY = dependencies.window.scrollY;
 
   const reducedMotion = dependencies.window.matchMedia?.(
     "(prefers-reduced-motion: reduce)",
   );
+
+  const viewportSize = () => ({
+    width: root.ownerDocument.documentElement.clientWidth || dependencies.window.innerWidth,
+    height: dependencies.window.innerHeight,
+  });
 
   const setDock = (next: DockPosition) => {
     dock = next;
@@ -37,29 +55,188 @@ export function startChatPresentation(
     root.style.setProperty("--chat-dock-y", `${Math.round(next.y)}px`);
   };
 
+  const setFreePosition = (x: number, y: number) => {
+    const viewport = viewportSize();
+    const minX = dockMetrics.edge + dockMetrics.radius;
+    const maxX = Math.max(
+      minX,
+      viewport.width - dockMetrics.edge - dockMetrics.radius,
+    );
+    const nextX = Math.min(Math.max(x, minX), maxX);
+    const nextY = clampDockY(y, viewport, dockMetrics);
+    dock = {
+      x: nextX,
+      y: nextY,
+      side: dock?.side ?? (nextX < viewport.width / 2 ? "left" : "right"),
+    };
+    root.style.setProperty("--chat-dock-x", `${Math.round(nextX)}px`);
+    root.style.setProperty("--chat-dock-y", `${Math.round(nextY)}px`);
+  };
+
   const clampDock = () => {
-    const previous = dock?.side ?? (root.dataset.chatDock as DockSide | undefined);
+    const viewport = viewportSize();
+    const previous = dock?.side
+      ?? (root.dataset.chatDock as DockSide | undefined)
+      ?? "left";
     setDock(resolveDockPosition(
-      { x: dock?.x ?? dependencies.window.innerWidth / 2, y: dock?.y ?? dependencies.window.innerHeight * 0.7 },
-      { width: dependencies.window.innerWidth, height: dependencies.window.innerHeight },
+      { x: dock?.x ?? viewport.width / 2, y: dock?.y ?? defaultDockY },
+      viewport,
       dockMetrics,
       previous,
     ));
   };
 
+  const prepareExpandedDock = () => {
+    if (!dock || panel.offsetHeight <= 0) return;
+    const viewport = viewportSize();
+    const minimumY = desktopPanelTop + desktopPanelLift + panel.offsetHeight / 2;
+    const nextY = clampDockY(Math.max(dock.y, minimumY), viewport, dockMetrics);
+    if (Math.abs(nextY - dock.y) > 0.5) setDock({ ...dock, y: nextY });
+  };
+
+  const avoidHeroContent = () => {
+    if (dependencies.window.innerWidth <= 760 || root.dataset.chatPresentation !== "expanded" || !dock) {
+      return;
+    }
+    const viewport = viewportSize();
+    const panelBounds = panel.getBoundingClientRect();
+    if (panelBounds.width <= 0 || panelBounds.height <= 0) return;
+    const protectedRects = [".hero-index", ".hero-copy .headline", ".hero-supporting"]
+      .flatMap((selector) => Array.from(root.ownerDocument.querySelectorAll<HTMLElement>(selector)))
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    const minTop = desktopPanelTop;
+    const maxBottom = viewport.height - 24;
+    const baseY = dock.y;
+    const candidates = [
+      baseY,
+      baseY + minTop - panelBounds.top,
+      baseY + maxBottom - panelBounds.bottom,
+      ...protectedRects.flatMap((rect) => [
+        baseY - (panelBounds.bottom - rect.top + 24),
+        baseY + (rect.bottom - panelBounds.top + 24),
+      ]),
+    ].map((candidate) => clampDockY(candidate, viewport, dockMetrics));
+    const score = (candidate: number) => {
+      const delta = candidate - baseY;
+      const top = panelBounds.top + delta;
+      const bottom = panelBounds.bottom + delta;
+      let total = Math.abs(delta) * 0.01;
+      if (top < minTop) total += (minTop - top) * 1000;
+      if (bottom > maxBottom) total += (bottom - maxBottom) * 1000;
+      for (const rect of protectedRects) {
+        const horizontal = panelBounds.left < rect.right && panelBounds.right > rect.left;
+        const vertical = top < rect.bottom && bottom > rect.top;
+        if (horizontal && vertical) {
+          total += Math.max(0, Math.min(bottom, rect.bottom) - Math.max(top, rect.top)) * 1000;
+        }
+      }
+      return total;
+    };
+    const bestY = candidates.reduce((best, candidate) =>
+      score(candidate) < score(best) ? candidate : best,
+    baseY);
+    if (Math.abs(bestY - baseY) > 0.5) {
+      setDock({ ...dock, y: bestY });
+    }
+  };
+
+  const clearCollapseTimer = () => {
+    if (collapseTimer === undefined) return;
+    dependencies.window.clearTimeout(collapseTimer);
+    collapseTimer = undefined;
+  };
+
+  const clearExpandFrame = () => {
+    if (expandFrame === undefined) return;
+    dependencies.window.cancelAnimationFrame(expandFrame);
+    expandFrame = undefined;
+  };
+
+  const clearAvoidTimer = () => {
+    if (avoidTimer === undefined) return;
+    dependencies.window.clearTimeout(avoidTimer);
+    avoidTimer = undefined;
+  };
+
+  const scheduleHeroAvoidance = () => {
+    clearAvoidTimer();
+    dependencies.window.requestAnimationFrame(() => {
+      avoidHeroContent();
+      dependencies.window.requestAnimationFrame(avoidHeroContent);
+      avoidTimer = dependencies.window.setTimeout(() => {
+        avoidTimer = undefined;
+        avoidHeroContent();
+      }, 320);
+    });
+  };
+
+  const finishCollapse = () => {
+    clearCollapseTimer();
+    root.dataset.chatPresentation = "collapsed";
+  };
+
+  const finishExpand = (focus: boolean) => {
+    expandFrame = undefined;
+    if (destroyed || root.dataset.chatPresentation !== "expanding") return;
+    root.dataset.chatPresentation = "expanded";
+    collapseScrollAnchorY = dependencies.window.scrollY;
+    scheduleHeroAvoidance();
+    if (focus) dependencies.window.requestAnimationFrame(() => elements.input.focus());
+  };
+
   const setExpanded = (expanded: boolean, focus = false) => {
     if (destroyed) return;
-    root.dataset.chatPresentation = expanded ? "expanded" : "collapsed";
+    if (!expanded && panel.contains(root.ownerDocument.activeElement)) {
+      orb.focus();
+    }
     orb.setAttribute("aria-expanded", String(expanded));
     panel.setAttribute("aria-hidden", String(!expanded));
-    if (expanded && focus) {
-      dependencies.window.requestAnimationFrame(() => elements.input.focus());
+    if (!expanded) {
+      clearExpandFrame();
+      if (
+        root.dataset.chatPresentation === "collapsed"
+        || root.dataset.chatPresentation === "collapsing"
+      ) {
+        return;
+      }
+      const canAnimate = !reducedMotion?.matches
+        && dependencies.window.innerWidth > 760
+        && collapseMs > 0;
+      if (!canAnimate) {
+        finishCollapse();
+        return;
+      }
+      clearCollapseTimer();
+      root.dataset.chatPresentation = "collapsing";
+      collapseTimer = dependencies.window.setTimeout(finishCollapse, collapseMs);
+      return;
     }
+    clearCollapseTimer();
+    clearExpandFrame();
+    const fromDock = root.dataset.chatPresentation === "collapsed"
+      || root.dataset.chatPresentation === "collapsing";
+    const canAnimate = fromDock
+      && !reducedMotion?.matches
+      && dependencies.window.innerWidth > 760;
+    if (canAnimate) {
+      root.dataset.chatPresentation = "expanding";
+      prepareExpandedDock();
+      expandFrame = dependencies.window.requestAnimationFrame(() => finishExpand(focus));
+      return;
+    }
+    root.dataset.chatPresentation = "expanded";
+    collapseScrollAnchorY = dependencies.window.scrollY;
+    scheduleHeroAvoidance();
+    if (focus) dependencies.window.requestAnimationFrame(() => elements.input.focus());
   };
 
   const showGuide = () => {
     if (destroyed) return;
+    clearCollapseTimer();
+    clearExpandFrame();
     root.dataset.chatPresentation = "guide";
+    collapseScrollAnchorY = dependencies.window.scrollY;
     orb.setAttribute("aria-expanded", "false");
     panel.setAttribute("aria-hidden", "false");
   };
@@ -87,6 +264,8 @@ export function startChatPresentation(
       showGuide();
       return;
     }
+    const distance = Math.abs(dependencies.window.scrollY - collapseScrollAnchorY);
+    if (distance < collapseScrollThreshold) return;
     root.dataset.chatScrolling = "true";
     close();
     if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
@@ -96,40 +275,60 @@ export function startChatPresentation(
     }, idleMs);
   };
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || activePointerId !== null) return;
+    activePointerId = event.pointerId ?? 0;
     dragStart = { x: event.clientX, y: event.clientY };
+    const viewport = viewportSize();
+    const currentX = dock?.x ?? viewport.width / 2;
+    const currentY = dock?.y ?? viewport.height * 0.7;
+    dragOffset = {
+      x: event.clientX - currentX,
+      y: event.clientY - currentY,
+    };
     dragging = false;
-    orb.setPointerCapture?.(event.pointerId);
+    orb.setPointerCapture?.(activePointerId);
   };
   const onPointerMove = (event: PointerEvent) => {
-    if (!dragStart) return;
+    if (activePointerId !== (event.pointerId ?? 0) || !dragStart) return;
     const moved = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
-    if (moved >= dragThreshold) dragging = true;
+    if (moved >= dragThreshold && !dragging) {
+      dragging = true;
+      root.dataset.chatDragging = "true";
+    }
     if (!dragging) return;
-    const side: DockSide = event.clientX < dependencies.window.innerWidth / 2 ? "left" : "right";
-    setDock(resolveDockPosition(
-      { x: event.clientX, y: event.clientY },
-      { width: dependencies.window.innerWidth, height: dependencies.window.innerHeight },
-      dockMetrics,
-      side,
-    ));
+    setFreePosition(
+      event.clientX - (dragOffset?.x ?? 0),
+      event.clientY - (dragOffset?.y ?? 0),
+    );
   };
-  const onPointerUp = (event: PointerEvent) => {
-    if (!dragStart) return;
+  const finishPointer = (event: PointerEvent, suppressClick: boolean) => {
+    if (activePointerId !== (event.pointerId ?? 0) || !dragStart) return;
+    const pointerId = activePointerId;
     const wasDragging = dragging;
+    activePointerId = null;
     dragStart = undefined;
+    dragOffset = undefined;
     dragging = false;
     if (wasDragging) {
-      ignoreNextOrbClick = true;
+      ignoreNextOrbClick = suppressClick;
+      delete root.dataset.chatDragging;
       setDock(resolveDockPosition(
-        { x: event.clientX, y: event.clientY },
-        { width: dependencies.window.innerWidth, height: dependencies.window.innerHeight },
+        { x: dock?.x ?? event.clientX, y: dock?.y ?? event.clientY },
+        viewportSize(),
         dockMetrics,
         dock?.side,
       ));
     }
+    orb.releasePointerCapture?.(pointerId);
   };
-  const onResize = () => clampDock();
+  const onPointerUp = (event: PointerEvent) => finishPointer(event, true);
+  const onPointerCancel = (event: PointerEvent) => finishPointer(event, false);
+  const onResize = () => {
+    clampDock();
+    if (root.dataset.chatPresentation === "expanded") {
+      scheduleHeroAvoidance();
+    }
+  };
   const updateMotionPreference = () => {
     root.dataset.chatMotion = reducedMotion?.matches ? "reduced" : "full";
   };
@@ -145,6 +344,7 @@ export function startChatPresentation(
   orb.addEventListener("pointerdown", onPointerDown);
   orb.addEventListener("pointermove", onPointerMove);
   orb.addEventListener("pointerup", onPointerUp);
+  orb.addEventListener("pointercancel", onPointerCancel);
   collapse.addEventListener("click", close);
   dependencies.trigger.addEventListener("click", open);
   dependencies.window.addEventListener("scroll", onScroll, { passive: true });
@@ -161,11 +361,17 @@ export function startChatPresentation(
   return () => {
     if (destroyed) return;
     destroyed = true;
+    activePointerId = null;
+    delete root.dataset.chatDragging;
     if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
+    clearCollapseTimer();
+    clearExpandFrame();
+    clearAvoidTimer();
     orb.removeEventListener("click", onOrbClick);
     orb.removeEventListener("pointerdown", onPointerDown);
     orb.removeEventListener("pointermove", onPointerMove);
     orb.removeEventListener("pointerup", onPointerUp);
+    orb.removeEventListener("pointercancel", onPointerCancel);
     collapse.removeEventListener("click", close);
     dependencies.trigger.removeEventListener("click", open);
     dependencies.window.removeEventListener("scroll", onScroll);

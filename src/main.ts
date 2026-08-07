@@ -105,6 +105,7 @@ const stopChatPresentation = startChatPresentation(portrait.chat, {
 const stopParticleAssistant = startParticleAssistant({
   root: portrait.chat.root,
   canvas: portrait.chat.particleCanvas,
+  headerCanvas: portrait.chat.headerParticleCanvas,
   window,
 });
 
