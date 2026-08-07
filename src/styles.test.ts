@@ -389,12 +389,12 @@ test("uses quiet underlined recommendations with accessible pointer targets", ()
 });
 
 test("uses a safe-area-aware bottom sheet on mobile without changing the fixed navigation", () => {
-  expect(
-    mediaRule(
-      "(max-width: 760px)",
-      '.hero-chat[data-chat-presentation="expanded"]',
-    ),
-  ).toMatch(/transform:\s*none/);
+  const expandedRoot = mediaRule(
+    "(max-width: 760px)",
+    '.hero-chat[data-chat-presentation="expanded"]',
+  );
+  expect(expandedRoot).toMatch(/transform:\s*none/);
+  expect(expandedRoot).toMatch(/will-change:\s*auto/);
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:/,
   );

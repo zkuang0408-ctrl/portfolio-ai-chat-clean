@@ -2539,6 +2539,7 @@ a:focus-visible {
     left: 0;
     transform: none;
     transition: none;
+    will-change: auto;
   }
 
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
