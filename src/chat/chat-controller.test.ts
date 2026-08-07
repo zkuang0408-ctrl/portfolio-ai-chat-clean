@@ -32,8 +32,8 @@ function setup(
   const root = document.createElement("aside");
   document.body.append(root);
   const navigateToSource = vi.fn();
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
-    responseFromEvents([
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(() =>
+    Promise.resolve(responseFromEvents([
       event("start", { locale }),
       event("delta", { text: locale === "zh" ? "依据作品，" : "Based on the work, " }),
       event("delta", { text: locale === "zh" ? "他善于系统思考。" : "he thinks in systems." }),
@@ -51,7 +51,7 @@ function setup(
         ],
       }),
       event("done", {}),
-    ]),
+    ])),
   );
   const dependencies: PortfolioChatDependencies = {
     fetch,
@@ -187,6 +187,9 @@ test("appends ordered sentence-batched deltas, trusted sources, and follow-up co
     "第一句。第二句！",
   );
   expect(root.querySelector("[data-chat-status]")?.textContent).toContain("继续");
+  const answer = root.querySelector<HTMLElement>(".chat-message--assistant")!;
+  const sources = root.querySelector<HTMLElement>("[data-chat-sources]")!;
+  expect(answer.nextElementSibling).toBe(sources);
   const source = root.querySelector<HTMLButtonElement>("[data-chat-source]")!;
   expect(source.textContent).toBe("个人资料");
   expect(source.querySelector("img")).toBeNull();
@@ -195,6 +198,24 @@ test("appends ordered sentence-batched deltas, trusted sources, and follow-up co
     expect.objectContaining({ sourceId: "profile" }),
   );
   expect(JSON.parse(sessionStorage.getItem("portfolio-chat-history-v1") ?? "[]")).toHaveLength(2);
+  cleanup();
+});
+
+test("moves evidence after the newest answer on later turns", async () => {
+  const { root, cleanup } = setup();
+  const form = root.querySelector<HTMLFormElement>("[data-chat-form]")!;
+  const input = root.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
+  input.value = "第一个问题";
+  form.requestSubmit();
+  await settle();
+  input.value = "第二个问题";
+  form.requestSubmit();
+  await settle();
+  const answers = root.querySelectorAll(".chat-message--assistant");
+  const sources = root.querySelector<HTMLElement>("[data-chat-sources]")!;
+  expect(answers).toHaveLength(2);
+  expect(answers[1]?.nextElementSibling).toBe(sources);
+  expect(root.querySelector("[data-chat-transcript]")?.lastElementChild).toBe(sources);
   cleanup();
 });
 

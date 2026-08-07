@@ -68,7 +68,8 @@ function appendMessage(
   message.className = `chat-message chat-message--${role}`;
   message.dataset.chatMessage = role;
   message.textContent = content;
-  transcript.append(message);
+  const sourceRegion = transcript.querySelector<HTMLElement>("[data-chat-sources]");
+  transcript.insertBefore(message, sourceRegion);
   transcript.scrollTop = transcript.scrollHeight;
   return message;
 }

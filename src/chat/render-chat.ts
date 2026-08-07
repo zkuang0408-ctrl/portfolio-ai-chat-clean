@@ -170,6 +170,7 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
   const sources = createElement("div", "chat-sources");
   sources.dataset.chatSources = "";
   sources.setAttribute("aria-label", content.sourcesLabel);
+  transcript.append(sources);
 
   const form = createElement("form", "chat-composer");
   form.dataset.chatForm = "";
@@ -197,7 +198,6 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
     guideToggle,
     guidance,
     transcript,
-    sources,
     form,
     status,
   );

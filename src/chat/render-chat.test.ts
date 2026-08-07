@@ -112,6 +112,14 @@ test("returns scoped typed controls for the future browser controller", () => {
   );
 });
 
+test("keeps the source region at the end of the transcript flow", () => {
+  const root = document.createElement("aside");
+  const elements = renderChat(root, "zh");
+
+  expect(elements.sources.parentElement).toBe(elements.transcript);
+  expect(elements.transcript.lastElementChild).toBe(elements.sources);
+});
+
 test("provides accessible live, composer, status, and source regions", () => {
   const root = document.createElement("aside");
 
