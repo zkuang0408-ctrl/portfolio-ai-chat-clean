@@ -354,13 +354,17 @@ test("gives the collapsed assistant enough canvas room for a dense particle sphe
   expect(rule('.hero-chat[data-chat-presentation="collapsed"]::before')).toMatch(/background:\s*#050505/);
 });
 
-test("keeps the full desktop assistant reachable through bounded fallback scrolling", () => {
-  const scrollRegion = rule(".chat-scroll-region");
+test("uses the assistant panel as the only chat scroll container", () => {
+  expect(rule(".chat-scroll-region")).toMatch(/overflow-y:\s*auto/);
+  expect(rulesContaining(".chat-transcript")).not.toMatch(/max-height\s*:|overflow\s*:/);
+});
 
-  expect(scrollRegion).toMatch(/min-height:\s*0/);
-  expect(scrollRegion).toMatch(/overflow-y:\s*auto/);
-  expect(scrollRegion).toMatch(/overscroll-behavior:\s*contain/);
-  expect(rule(".chat-transcript")).toMatch(/overflow:\s*auto/);
+test("renders evidence as tiny links beneath the assistant answer", () => {
+  expect(rule(".chat-sources")).toMatch(/align-self:\s*flex-start/);
+  expect(rule(".chat-sources")).toMatch(/max-width:\s*86%/);
+  expect(rule(".chat-sources :is(button, a)")).toMatch(/font-size:\s*8px/);
+  expect(rule(".chat-sources :is(button, a)")).toMatch(/border:\s*0/);
+  expect(rule(".chat-sources :is(button, a)::before")).toMatch(/inset:\s*-8px/);
 });
 
 test("hides an evidence region until the transcript has an answer", () => {
@@ -376,7 +380,7 @@ test("uses readable high-contrast colors and sizes for critical chat UI", () => 
   expect(rule(".chat-input::placeholder")).toMatch(/color:\s*#7a7a7a/i);
   expect(rule(".chat-status")).toMatch(/color:\s*#7a7a7a/i);
   expect(rule(".chat-status")).toMatch(/font-size:\s*10px/);
-  expect(rule(".chat-sources :is(button, a)")).toMatch(/font-size:\s*10px/);
+  expect(rule(".chat-sources :is(button, a)")).toMatch(/font-size:\s*8px/);
   expect(rule(".chat-accent")).toMatch(/background:\s*#bd5b52/i);
   expect(rule(".chat-scroll-region")).toMatch(
     /scrollbar-color:\s*#606060\s+transparent/i,

@@ -457,13 +457,10 @@ a:focus-visible {
 }
 
 .chat-transcript {
-  max-height: min(24vh, 210px);
   margin-top: 14px;
-  overflow: auto;
   color: #d3d3d3;
   font-size: 12px;
   line-height: 1.65;
-  scrollbar-width: thin;
   transition: opacity 160ms ease;
 }
 
@@ -477,23 +474,32 @@ a:focus-visible {
 
 .chat-sources {
   display: flex;
+  max-width: 86%;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 12px;
+  gap: 0 10px;
+  align-self: flex-start;
+  margin-top: -3px;
 }
 
 .chat-sources :is(button, a) {
+  position: relative;
   display: inline-flex;
-  min-height: 44px;
-  padding: 7px 10px;
+  min-height: 28px;
+  padding: 0;
   align-items: center;
-  border: 1px solid #343434;
+  border: 0;
   background: transparent;
   color: #999;
   font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 8px;
+  letter-spacing: 0.04em;
   cursor: pointer;
+}
+
+.chat-sources :is(button, a)::before {
+  position: absolute;
+  inset: -8px -4px;
+  content: "";
 }
 
 .chat-composer {
@@ -1277,10 +1283,6 @@ a:focus-visible {
     border-radius: 24px 24px 0 0;
     transform: translateY(18px) scale(0.985);
     transform-origin: center bottom;
-  }
-
-  .chat-transcript {
-    max-height: 28dvh;
   }
 
   .portfolio-section {
