@@ -418,9 +418,10 @@ test("clears the sent input and shows an assistant-side evidence wait state imme
   expect(root.querySelector(".chat-message--user")?.textContent).toBe(
     "我想了解他的作品方法",
   );
-  expect(root.querySelector("[data-chat-loading]")?.textContent).toContain(
-    "正在查找作品依据",
-  );
+  const loading = root.querySelector<HTMLElement>("[data-chat-loading]")!;
+  expect(loading.childNodes[0]?.textContent).toBe("正在查找作品依据");
+  expect(loading.querySelectorAll(".chat-loading-dot")).toHaveLength(3);
+  expect(root.querySelector("[data-chat-status]")?.textContent).toBe("");
   root.querySelector<HTMLFormElement>("[data-chat-form]")?.requestSubmit();
   expect(fetch).toHaveBeenCalledOnce();
   cleanup();

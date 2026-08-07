@@ -26,7 +26,7 @@ export interface PortfolioChatDependencies {
 
 const COPY = {
   zh: {
-    loading: "正在查找作品依据……",
+    loading: "正在查找作品依据",
     followUp: "回答完成，你还可以继续提问。",
     retry: "重试",
     errors: {
@@ -37,7 +37,7 @@ const COPY = {
     },
   },
   en: {
-    loading: "Finding portfolio evidence…",
+    loading: "Finding portfolio evidence",
     followUp: "Answer complete. You can ask a follow-up question.",
     retry: "Retry",
     errors: {
@@ -80,6 +80,15 @@ function appendLoadingMessage(
   const message = appendMessage(transcript, "assistant", content);
   message.classList.add("chat-message--loading");
   message.dataset.chatLoading = "";
+  const dots = document.createElement("span");
+  dots.className = "chat-loading-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    dot.className = "chat-loading-dot";
+    dots.append(dot);
+  }
+  message.append(dots);
   return message;
 }
 
@@ -199,7 +208,7 @@ export function startPortfolioChat(
       return answerElement;
     };
     elements.sources.replaceChildren();
-    elements.status.textContent = COPY[dependencies.locale].loading;
+    elements.status.textContent = "";
     lastRetry = undefined;
     setBusy(true);
     const controller = new AbortController();
