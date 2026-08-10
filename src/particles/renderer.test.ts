@@ -1,21 +1,37 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  DESKTOP_PORTRAIT_SCALE_MULTIPLIER,
+  originalFrameFor,
+  PORTRAIT_GEOMETRY,
+} from "./portrait-geometry";
 import * as rendererModule from "./renderer";
 import { portraitCompositionFor } from "./renderer";
 import type { Particle } from "./types";
 
 const { ParticleRenderer } = rendererModule;
 
-const portraitSource = { width: 1_104, height: 1_425 };
-const portraitLandmarks = {
-  hairTop: { x: 575, y: 180 },
-  glassesLeft: { x: 410, y: 510 },
-  glassesRight: { x: 610, y: 510 },
-  chin: { x: 470, y: 815 },
-  adamsApple: { x: 535, y: 930 },
-  collar: { x: 550, y: 1_030 },
-  lowerClothing: { x: 552, y: 1_425 },
+const portraitSource = {
+  width: PORTRAIT_GEOMETRY.width,
+  height: PORTRAIT_GEOMETRY.height,
 };
+const originalFrame = originalFrameFor(portraitSource.width, portraitSource.height);
+const sourceXForOriginalFrame = (x: number) =>
+  originalFrame.left +
+  (x / PORTRAIT_GEOMETRY.originalWidth) * originalFrame.width;
+const portraitLandmarks = {
+  hairTop: { x: sourceXForOriginalFrame(575), y: 180 },
+  glassesLeft: { x: sourceXForOriginalFrame(410), y: 510 },
+  glassesRight: { x: sourceXForOriginalFrame(610), y: 510 },
+  chin: { x: sourceXForOriginalFrame(470), y: 815 },
+  adamsApple: { x: sourceXForOriginalFrame(535), y: 930 },
+  collar: { x: sourceXForOriginalFrame(550), y: 1_030 },
+  lowerClothing: { x: sourceXForOriginalFrame(552), y: 1_425 },
+};
+const completedArmPoints = [
+  { x: 120, y: 1_220 },
+  { x: 1_180, y: 1_220 },
+];
 
 function composedPoint(
   point: { x: number; y: number },
@@ -144,36 +160,62 @@ describe("ParticleRenderer", () => {
       name: "desktop",
       width: 1_440,
       height: 836,
-      expectedScale: (836 / 1_425) * 1.16,
+      expectedScale:
+        (836 / PORTRAIT_GEOMETRY.height) *
+        1.16 *
+        DESKTOP_PORTRAIT_SCALE_MULTIPLIER,
       expectedOffsetY:
-        836 * 0.09 - 1_425 * 0.13 * ((836 / 1_425) * 1.16),
+        836 *
+          0.09 -
+        PORTRAIT_GEOMETRY.height *
+          0.13 *
+          ((836 / PORTRAIT_GEOMETRY.height) *
+            1.16 *
+            DESKTOP_PORTRAIT_SCALE_MULTIPLIER),
       clothingCrossesBottom: true,
     },
     {
       name: "ultrawide desktop",
       width: 2_040,
       height: 1_026,
-      expectedScale: (1_026 / 1_425) * 1.16,
+      expectedScale:
+        (1_026 / PORTRAIT_GEOMETRY.height) *
+        1.16 *
+        DESKTOP_PORTRAIT_SCALE_MULTIPLIER,
       expectedOffsetY:
-        1_026 * 0.09 - 1_425 * 0.13 * ((1_026 / 1_425) * 1.16),
+        1_026 *
+          0.09 -
+        PORTRAIT_GEOMETRY.height *
+          0.13 *
+          ((1_026 / PORTRAIT_GEOMETRY.height) *
+            1.16 *
+            DESKTOP_PORTRAIT_SCALE_MULTIPLIER),
       clothingCrossesBottom: true,
     },
     {
       name: "mobile portrait",
       width: 390,
       height: 722,
-      expectedScale: (722 / 1_425) * 0.8,
+      expectedScale: (722 / PORTRAIT_GEOMETRY.height) * 0.8,
       expectedOffsetY:
-        722 * 0.095 - 1_425 * 0.13 * ((722 / 1_425) * 0.8),
+        722 *
+          0.095 -
+        PORTRAIT_GEOMETRY.height *
+          0.13 *
+          ((722 / PORTRAIT_GEOMETRY.height) * 0.8),
       clothingCrossesBottom: false,
     },
     {
       name: "short mobile landscape",
       width: 667,
       height: 375,
-      expectedScale: (667 / 1_104) * 0.8,
+      expectedScale: (667 / PORTRAIT_GEOMETRY.width) * 0.8,
       expectedOffsetY:
-        375 * 0.09 - 1_425 * 0.13 * ((667 / 1_104) * 0.8),
+        375 *
+          0.09 -
+        PORTRAIT_GEOMETRY.height *
+          0.13 *
+          ((667 / PORTRAIT_GEOMETRY.width) * 0.8),
       clothingCrossesBottom: true,
     },
   ])(
@@ -205,6 +247,24 @@ describe("ParticleRenderer", () => {
       }
       expect(lowerClothing.y > height).toBe(clothingCrossesBottom);
       if (width === 390) expect(composition.scale).toBeGreaterThan(0.38);
+    },
+  );
+
+  it.each([
+    { width: 1_440, height: 1_000 },
+    { width: 1_920, height: 1_080 },
+    { width: 2_040, height: 1_080 },
+  ])(
+    "keeps completed arms inside the desktop viewport at $width x $height",
+    ({ width, height }) => {
+      const composition = portraitCompositionFor(width, height, portraitSource);
+
+      for (const armPoint of completedArmPoints) {
+        const { x } = composedPoint(armPoint, composition);
+
+        expect(x).toBeGreaterThanOrEqual(width * 0.04);
+        expect(x).toBeLessThanOrEqual(width * 0.96);
+      }
     },
   );
 
