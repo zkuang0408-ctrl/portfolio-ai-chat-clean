@@ -427,7 +427,7 @@ describe('production document assets', () => {
       'portfolio-pages:generate': 'python tools/render_project_pages.py',
       'portfolio-pages:verify': 'tsx scripts/verify-project-page-assets.ts',
       prebuild:
-        'npm run portrait-mask:verify && npm run knowledge:verify && npm run portfolio-pages:verify',
+        'npm run portrait-arm-assets:verify && npm run portrait-mask:verify && npm run knowledge:verify && npm run portfolio-pages:verify',
       build: 'tsc --noEmit && vite build && tsx scripts/check-client-bundle.ts',
       'scf:build': 'tsx scripts/build-scf-package.ts',
       'scf:verify': 'tsx scripts/build-scf-package.ts --verify',
