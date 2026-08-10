@@ -1,6 +1,7 @@
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
+import { originalFrameFor } from "../src/particles/portrait-geometry";
 import { portraitCompositionFor } from "../src/particles/renderer";
 
 interface CanvasSignature {
@@ -576,6 +577,34 @@ test("centered particle portrait protects the face and fixed assistant", async (
     if (!headline || !portraitBase || portraitBase.naturalWidth === 0) {
       throw new Error("Portrait geometry is not ready.");
     }
+    const canvasElement = document.querySelector<HTMLCanvasElement>(
+      ".portrait-canvas",
+    );
+    if (!canvasElement) throw new Error("Missing .portrait-canvas");
+    const context = canvasElement.getContext("2d");
+    if (!context) throw new Error("Portrait canvas context is unavailable.");
+    const imageData = context.getImageData(
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height,
+    );
+    let alphaMinX = canvasElement.width;
+    let alphaMaxX = -1;
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
+        if (imageData.data[(y * canvasElement.width + x) * 4 + 3] === 0) {
+          continue;
+        }
+        alphaMinX = Math.min(alphaMinX, x);
+        alphaMaxX = Math.max(alphaMaxX, x);
+      }
+    }
+    if (alphaMaxX < alphaMinX) {
+      throw new Error("Portrait canvas has no visible particles.");
+    }
+    const canvasBounds = canvasElement.getBoundingClientRect();
+    const canvasScaleX = canvasBounds.width / canvasElement.width;
     const canvas = rect(".portrait-canvas");
     const scene = rect(".hero-scene");
     const stage = rect(".portrait-stage");
@@ -597,6 +626,10 @@ test("centered particle portrait protects the face and fixed assistant", async (
       },
     );
     return {
+      alphaBounds: {
+        left: canvasBounds.left + alphaMinX * canvasScaleX,
+        right: canvasBounds.left + (alphaMaxX + 1) * canvasScaleX,
+      },
       canvas,
       headline: rect(".hero-copy .headline"),
       headlineText,
@@ -612,14 +645,18 @@ test("centered particle portrait protects the face and fixed assistant", async (
     geometry.canvas.bottom - geometry.canvas.top,
     geometry.source,
   );
+  const originalFrame = originalFrameFor(
+    geometry.source.width,
+    geometry.source.height,
+  );
   // Source-grounded head rectangle: hair/face occupy x=.32-.76, y=.18-.60.
   const protectedFace = {
     left:
       geometry.canvas.left + composition.offsetX +
-      geometry.source.width * composition.scale * 0.32,
+      (originalFrame.left + originalFrame.width * 0.32) * composition.scale,
     right:
       geometry.canvas.left + composition.offsetX +
-      geometry.source.width * composition.scale * 0.76,
+      (originalFrame.left + originalFrame.width * 0.76) * composition.scale,
     top:
       geometry.canvas.top + composition.offsetY +
       geometry.source.height * composition.scale * 0.18,
@@ -637,6 +674,15 @@ test("centered particle portrait protects the face and fixed assistant", async (
 
   expect(geometry.stage).toEqual(geometry.scene);
   expect(geometry.canvas).toEqual(geometry.scene);
+  expect(geometry.source).toEqual({ height: 1_425, width: 1_350 });
+  if (testInfo.project.name.startsWith("desktop-")) {
+    expect(geometry.alphaBounds.left).toBeGreaterThanOrEqual(
+      geometry.viewport.width * 0.02,
+    );
+    expect(geometry.alphaBounds.right).toBeLessThanOrEqual(
+      geometry.viewport.width * 0.98,
+    );
+  }
   expect(
     geometry.headlineText.some((line) => intersects(line, protectedFace, 5)),
     `headline text must not cover the protected face: ${JSON.stringify({ geometry, protectedFace })}`,
