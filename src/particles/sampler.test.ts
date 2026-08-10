@@ -155,45 +155,70 @@ it.each([
   },
 );
 
+it.each([
+  [533, 510, "left glasses"],
+  [733, 510, "right glasses"],
+  [643, 650, "nose and mouth"],
+  [593, 815, "chin and jaw"],
+  [658, 930, "Adam's apple"],
+  [673, 1030, "collar bridge"],
+] as const)(
+  "keeps %i,%i %s in the extended-source identity core",
+  (x, y, _landmark) => {
+    expect(portraitRegionAt(x, y, 1_350, 1_425)).toBe("core");
+  },
+);
+
+it.each([
+  [120, 1_220, "left completed sleeve"],
+  [1_180, 1_220, "right completed sleeve"],
+] as const)("keeps %i,%i %s in the garment edge", (x, y, _garment) => {
+  expect(portraitRegionAt(x, y, 1_350, 1_425)).toBe("edge");
+});
+
+it("keeps the neck's outer contour in the face region on the extended source", () => {
+  expect(portraitRegionAt(785, 930, 1_350, 1_425)).toBe("face");
+});
+
 it("keeps the new neck bridge dimensional with middle gray and edges", () => {
   const smoothBrightNeck = portraitLightAt(
     0.82,
     0,
-    535,
+    658,
     930,
-    1_104,
+    1_350,
     1_425,
   );
   const edgedBrightNeck = portraitLightAt(
     0.82,
     0.35,
-    535,
+    658,
     930,
-    1_104,
+    1_350,
     1_425,
   );
   const smoothBrightFace = portraitLightAt(
     0.82,
     0,
-    535,
+    658,
     610,
-    1_104,
+    1_350,
     1_425,
   );
   const edgedBrightFace = portraitLightAt(
     0.82,
     0.35,
-    535,
+    658,
     610,
-    1_104,
+    1_350,
     1_425,
   );
   const darkGarment = portraitLightAt(
     0.15,
     0,
-    535,
+    658,
     1_250,
-    1_104,
+    1_350,
     1_425,
   );
 
@@ -430,7 +455,7 @@ describe("samplePortrait", () => {
       for (let x = 0; x < mask.width; x += 1) setAlpha(mask, x, y, 0);
     }
     for (let y = 55; y < 95; y += 1) {
-      for (let x = 32; x < 38; x += 1) setAlpha(mask, x, y, 255);
+      for (let x = 20; x < 26; x += 1) setAlpha(mask, x, y, 255);
     }
     for (let y = 80; y < 120; y += 1) {
       for (let x = 0; x < 6; x += 1) setAlpha(mask, x, y, 255);

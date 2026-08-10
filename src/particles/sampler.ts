@@ -1,3 +1,4 @@
+import { originalFrameNormalizedX } from "./portrait-geometry";
 import { createRandom, spatialNoise } from "./random";
 import type {
   Particle,
@@ -133,7 +134,7 @@ export function portraitRegionAt(
   width: number,
   height: number,
 ): ParticleRegion {
-  const normalizedX = x / width;
+  const normalizedX = originalFrameNormalizedX(x, width, height);
   const normalizedY = y / height;
 
   if (
@@ -180,7 +181,7 @@ export function portraitLightAt(
     return inverted;
   }
 
-  const normalizedX = x / width;
+  const normalizedX = originalFrameNormalizedX(x, width, height);
   const normalizedY = y / height;
   const normalizedSource = clamp01(
     Number.isFinite(sourceLight) ? sourceLight : 0,
