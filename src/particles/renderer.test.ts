@@ -209,13 +209,13 @@ describe("ParticleRenderer", () => {
       name: "short mobile landscape",
       width: 667,
       height: 375,
-      expectedScale: (667 / PORTRAIT_GEOMETRY.width) * 0.8,
+      expectedScale: (667 / originalFrame.width) * 0.8,
       expectedOffsetY:
         375 *
           0.09 -
         PORTRAIT_GEOMETRY.height *
           0.13 *
-          ((667 / PORTRAIT_GEOMETRY.width) * 0.8),
+          ((667 / originalFrame.width) * 0.8),
       clothingCrossesBottom: true,
     },
   ])(
@@ -278,9 +278,9 @@ describe("ParticleRenderer", () => {
     expect(context.beginPath).toHaveBeenCalledTimes(1);
     const ellipseCall = context.ellipse.mock.calls[0];
     expect(ellipseCall?.[0]).toBeCloseTo(200);
-    expect(ellipseCall?.[1]).toBeCloseTo(169.08);
-    expect(ellipseCall?.[2]).toBeCloseTo(3.84);
-    expect(ellipseCall?.[3]).toBeCloseTo(3.2);
+    expect(ellipseCall?.[1]).toBeCloseTo(179.826_087);
+    expect(ellipseCall?.[2]).toBeCloseTo(4.130_435);
+    expect(ellipseCall?.[3]).toBeCloseTo(3.442_029);
     expect(ellipseCall?.slice(4)).toEqual([0, 0, Math.PI * 2]);
     expect(context.fill).toHaveBeenCalledTimes(1);
     expect(fillStates).toEqual([

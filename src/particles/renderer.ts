@@ -1,4 +1,7 @@
-import { DESKTOP_PORTRAIT_SCALE_MULTIPLIER } from "./portrait-geometry";
+import {
+  DESKTOP_PORTRAIT_SCALE_MULTIPLIER,
+  originalFrameFor,
+} from "./portrait-geometry";
 import { particleProgress } from "./timeline";
 import type { Particle } from "./types";
 
@@ -29,7 +32,10 @@ export function portraitCompositionFor(
       ? 0.8
       : 1.16 * DESKTOP_PORTRAIT_SCALE_MULTIPLIER;
   const viewportYAnchor = shortLandscape ? 0.09 : mobile ? 0.095 : 0.09;
-  const widthScale = (width / source.width) * widthFactor;
+  const widthBasis = shortLandscape
+    ? originalFrameFor(source.width, source.height).width
+    : source.width;
+  const widthScale = (width / widthBasis) * widthFactor;
   const heightScale = (height / source.height) * heightFactor;
   const scale = mobile ? Math.max(widthScale, heightScale) : heightScale;
 
