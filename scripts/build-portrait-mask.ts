@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 
-export const MASK_WIDTH = 1104;
-export const MASK_HEIGHT = 1425;
+import { PORTRAIT_GEOMETRY } from "../src/particles/portrait-geometry";
+
+export const MASK_WIDTH = PORTRAIT_GEOMETRY.width;
+export const MASK_HEIGHT = PORTRAIT_GEOMETRY.height;
 
 export const CANONICAL_MASK_PATH = resolve(
   process.env.PORTRAIT_MASK_SOURCE ??
@@ -25,24 +27,29 @@ export function portraitMaskPng(): Buffer {
 }
 
 const REQUIRED_POINTS = [
-  [0.52, 0.17],
-  [0.37, 0.36],
-  [0.55, 0.37],
-  [0.48, 0.49],
-  [0.43, 0.58],
-  [0.49, 0.66],
-  [0.5, 0.75],
-  [0.88, 0.83],
-  [0.5, 0.92],
+  [689, 206],
+  [533, 510],
+  [733, 510],
+  [593, 815],
+  [658, 930],
+  [673, 1030],
+  [120, 1220],
+  [1180, 1220],
+  [675, 1400],
 ] as const;
 
 const FORBIDDEN_POINTS = [
-  [0.05, 0.05],
-  [0.12, 0.45],
-  [0.9, 0.56],
-  [0.92, 0.75],
-  [0.97, 0.68],
-  [0.97, 0.9],
+  [0, 1220],
+  [1349, 1220],
+  [70, 900],
+  [1260, 900],
+  [1315, 1050],
+  [67, 71],
+  [162, 641],
+  [1214, 797],
+  [1241, 1068],
+  [1309, 968],
+  [1309, 1282],
 ] as const;
 
 export async function validatePortraitMask(png: Buffer): Promise<void> {
@@ -57,12 +64,7 @@ export async function validatePortraitMask(png: Buffer): Promise<void> {
   const canvas = createCanvas(MASK_WIDTH, MASK_HEIGHT);
   const context = canvas.getContext("2d");
   context.drawImage(image, 0, 0);
-  const alphaAt = ([normalizedX, normalizedY]: readonly [
-    number,
-    number,
-  ]): number => {
-    const x = Math.round(normalizedX * (MASK_WIDTH - 1));
-    const y = Math.round(normalizedY * (MASK_HEIGHT - 1));
+  const alphaAt = ([x, y]: readonly [number, number]): number => {
     return context.getImageData(x, y, 1, 1).data[3] ?? 0;
   };
 

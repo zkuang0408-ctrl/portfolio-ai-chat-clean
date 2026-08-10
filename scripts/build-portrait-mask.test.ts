@@ -26,24 +26,29 @@ let temporaryDirectory: string;
 let temporaryMaskPath: string;
 
 const requiredSubjectPoints = [
-  [0.52, 0.17, "hair crown"],
-  [0.37, 0.36, "left glasses and eye"],
-  [0.55, 0.37, "right glasses and eye"],
-  [0.48, 0.49, "nose and mouth core"],
-  [0.43, 0.58, "chin"],
-  [0.49, 0.66, "Adam's apple"],
-  [0.5, 0.75, "collar"],
-  [0.88, 0.83, "repaired right sleeve bridge"],
-  [0.5, 0.92, "lower garment"],
+  [689, 206, "hair crown"],
+  [533, 510, "left glasses and eye"],
+  [733, 510, "right glasses and eye"],
+  [593, 815, "chin"],
+  [658, 930, "Adam's apple"],
+  [673, 1030, "collar"],
+  [120, 1220, "completed left upper arm"],
+  [1180, 1220, "completed right upper arm"],
+  [675, 1400, "lower garment"],
 ] as const;
 
 const forbiddenEnvironmentPoints = [
-  [0.05, 0.05, "upper-left wall"],
-  [0.12, 0.45, "left furniture"],
-  [0.9, 0.56, "right background gap"],
-  [0.92, 0.75, "foreign arm seam above repair"],
-  [0.97, 0.68, "raised foreign forearm"],
-  [0.97, 0.9, "foreign black sleeve"],
+  [0, 1220, "left edge"],
+  [1349, 1220, "right edge"],
+  [70, 900, "above left shoulder"],
+  [1260, 900, "above right shoulder"],
+  [1315, 1050, "far-right background"],
+  [67, 71, "upper-left wall"],
+  [162, 641, "left furniture"],
+  [1214, 797, "right background gap"],
+  [1241, 1068, "foreign arm seam above repair"],
+  [1309, 968, "raised foreign forearm"],
+  [1309, 1282, "foreign black sleeve"],
 ] as const;
 
 beforeEach(() => {
@@ -91,15 +96,13 @@ describe.sequential("portrait particle mask", () => {
 
   it("retains required identity and clothing points while excluding the environment", async () => {
     const image = await loadImage(readFileSync(maskPath));
-    expect([image.width, image.height]).toEqual([MASK_WIDTH, MASK_HEIGHT]);
+    expect([image.width, image.height]).toEqual([1350, 1425]);
 
     const canvas = createCanvas(MASK_WIDTH, MASK_HEIGHT);
     const context = canvas.getContext("2d");
     context.drawImage(image, 0, 0);
 
-    const alphaAt = (normalizedX: number, normalizedY: number): number => {
-      const x = Math.round(normalizedX * (MASK_WIDTH - 1));
-      const y = Math.round(normalizedY * (MASK_HEIGHT - 1));
+    const alphaAt = (x: number, y: number): number => {
       return context.getImageData(x, y, 1, 1).data[3]!;
     };
 
