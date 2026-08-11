@@ -313,6 +313,22 @@ test("scales mobile reader glyphs to the page while preserving touch targets", (
   expect(mediaRule(mobile, ".project-reader-chevron--next")).toMatch(
     /right:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-right\)\)/,
   );
+  expect(
+    mediaRule(
+      mobile,
+      ".project-reader.is-fullscreen .project-reader-chevron--previous",
+    ),
+  ).toMatch(
+    /left:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-left\)\)/,
+  );
+  expect(
+    mediaRule(
+      mobile,
+      ".project-reader.is-fullscreen .project-reader-chevron--next",
+    ),
+  ).toMatch(
+    /right:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-right\)\)/,
+  );
   expect(rule(".project-reader-chevron svg")).toMatch(
     /width:\s*40px[\s\S]*height:\s*66px/,
   );
