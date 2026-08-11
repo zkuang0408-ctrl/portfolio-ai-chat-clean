@@ -1337,17 +1337,29 @@ a:focus-visible {
     order: initial;
   }
 
+  .project-reader-stage {
+    container-type: inline-size;
+  }
+
+  .project-reader-chevron {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
   .project-reader-chevron svg {
-    width: 36px;
-    height: 60px;
+    width: clamp(14px, 3.1cqw, 22px);
+    height: auto;
+    aspect-ratio: 40 / 66;
   }
 
   .project-reader-chevron--previous {
-    left: -6px;
+    left: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-left));
   }
 
   .project-reader-chevron--next {
-    right: -6px;
+    right: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-right));
   }
 
   .project-reader-meta {
@@ -2053,6 +2065,14 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .project-reader.is-fullscreen .project-reader-chevron--previous {
+    left: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-left));
+  }
+
+  .project-reader.is-fullscreen .project-reader-chevron--next {
+    right: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-right));
+  }
+
   .project-selector-rail {
     width: calc(100% + 22px);
     margin-right: -22px;

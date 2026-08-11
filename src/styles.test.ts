@@ -7,7 +7,9 @@ const styles = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
 function rule(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return styles.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
+  return styles.match(
+    new RegExp(`^\\s*${escaped}\\s*\\{([\\s\\S]*?)\\}`, "m"),
+  )?.[1] ?? "";
 }
 
 function blockBodyAt(source: string, openingBrace: number): string {
@@ -293,15 +295,26 @@ test("styles reader loading, rendering, ready, error, disabled, hover, and focus
   );
 });
 
-test("keeps mobile reader geometry compact without shrinking the hit target", () => {
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron svg\s*\{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*60px;/,
+test("scales mobile reader glyphs to the page while preserving touch targets", () => {
+  const mobile = "(max-width: 760px)";
+
+  expect(mediaRule(mobile, ".project-reader-stage")).toMatch(
+    /container-type:\s*inline-size/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron--previous\s*\{[\s\S]*?left:\s*-6px;/,
+  expect(mediaRule(mobile, ".project-reader-chevron")).toMatch(
+    /width:\s*44px[\s\S]*min-width:\s*44px[\s\S]*height:\s*44px[\s\S]*min-height:\s*44px/,
   );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.project-reader-chevron--next\s*\{[\s\S]*?right:\s*-6px;/,
+  expect(mediaRule(mobile, ".project-reader-chevron svg")).toMatch(
+    /width:\s*clamp\(14px,\s*3\.1cqw,\s*22px\)[\s\S]*height:\s*auto[\s\S]*aspect-ratio:\s*40\s*\/\s*66/,
+  );
+  expect(mediaRule(mobile, ".project-reader-chevron--previous")).toMatch(
+    /left:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-left\)\)/,
+  );
+  expect(mediaRule(mobile, ".project-reader-chevron--next")).toMatch(
+    /right:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-right\)\)/,
+  );
+  expect(rule(".project-reader-chevron svg")).toMatch(
+    /width:\s*40px[\s\S]*height:\s*66px/,
   );
 });
 
