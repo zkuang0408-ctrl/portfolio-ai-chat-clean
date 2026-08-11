@@ -26,7 +26,10 @@ export function renderHero(
             <span>Crafting <em>Future</em></span>
             <span>Through Objects &amp; Systems.</span>
           </h1>
-          <p class="hero-supporting" data-hero-supporting>从实体产品到智能系统，以研究、交互与原型塑造未来体验。</p>
+          <p class="hero-supporting" data-hero-supporting>
+            <span>从实体产品到智能系统，</span>
+            <span>以研究、交互与原型塑造未来体验。</span>
+          </p>
         </div>
 
         <div class="portrait-stage" role="img" aria-label="赵实旷的粒子肖像">

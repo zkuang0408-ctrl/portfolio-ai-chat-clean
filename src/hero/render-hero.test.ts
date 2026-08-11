@@ -21,13 +21,34 @@ test("renders the editorial hero beneath the persistent site navigation", () => 
   expect(root.querySelector("#hero-title")?.tagName).toBe("H1");
   expect(root.querySelector("nav")).toBeNull();
   expect(root.querySelector(".hero")?.id).toBe("top");
-  expect(root.querySelector("[data-hero-supporting]")?.textContent).toBe(
+  expect(root.querySelector("[data-hero-supporting]")?.textContent?.replace(/\s+/g, "")).toBe(
     "从实体产品到智能系统，以研究、交互与原型塑造未来体验。",
   );
   expect(root.querySelector("canvas")?.getAttribute("aria-hidden")).toBe("true");
   expect(root.querySelector<HTMLImageElement>(".portrait-base")?.src).toContain(
     "/portrait.png",
   );
+});
+
+test("exposes the approved English and Chinese copy as two semantic lines", () => {
+  const root = document.createElement("main");
+  renderHero(root, "/portrait.png", "/portrait-mask.png", "zh");
+
+  expect(
+    Array.from(root.querySelectorAll(".hero-copy .headline > span"), (line) =>
+      line.textContent?.replace(/\s+/g, " ").trim(),
+    ),
+  ).toEqual(["Crafting Future", "Through Objects & Systems."]);
+  expect(
+    Array.from(root.querySelectorAll("[data-hero-supporting] > span"), (line) =>
+      line.textContent?.trim(),
+    ),
+  ).toEqual([
+    "从实体产品到智能系统，",
+    "以研究、交互与原型塑造未来体验。",
+  ]);
+  expect(root.querySelector("[data-hero-supporting]")?.textContent?.replace(/\s+/g, ""))
+    .toBe("从实体产品到智能系统，以研究、交互与原型塑造未来体验。");
 });
 
 test("marks the sampling image as decorative and hidden from assistive technology", () => {

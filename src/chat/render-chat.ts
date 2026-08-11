@@ -15,6 +15,7 @@ export interface ChatElements {
   readonly status: HTMLElement;
   readonly guidance: HTMLElement;
   readonly guideToggle: HTMLButtonElement;
+  readonly mobileGuideAction: HTMLButtonElement;
   readonly recommendations: readonly HTMLButtonElement[];
 }
 
@@ -158,6 +159,22 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
   guideToggle.setAttribute("aria-controls", guidanceId);
   guideToggle.setAttribute("aria-expanded", "true");
 
+  const mobileGuideAction = createElement("button", "chat-mobile-guide-action");
+  mobileGuideAction.type = "button";
+  mobileGuideAction.dataset.chatMobileGuideAction = "";
+  mobileGuideAction.setAttribute("aria-label", content.mobileGuideAction);
+  const mobileGuidePrompt = createElement(
+    "span",
+    "chat-mobile-guide-prompt",
+    content.mobileGuidePrompt,
+  );
+  const mobileGuideCta = createElement(
+    "span",
+    "chat-mobile-guide-cta",
+    content.mobileGuideAction,
+  );
+  mobileGuideAction.append(mobileGuidePrompt, mobileGuideCta);
+
   const composerLabel = createElement("label", "chat-composer-label", content.composerLabel);
   composerLabel.dataset.chatComposerLabel = "";
 
@@ -195,6 +212,7 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
 
   panel.append(
     panelHeader,
+    mobileGuideAction,
     guideToggle,
     guidance,
     transcript,
@@ -218,6 +236,7 @@ export function renderChat(root: HTMLElement, locale: ChatLocale): ChatElements 
     status,
     guidance,
     guideToggle,
+    mobileGuideAction,
     recommendations: content.recommendations.map((question) => {
       const button = recommendationByQuestion.get(question);
       if (!button) throw new Error("Chat recommendation markup is incomplete.");

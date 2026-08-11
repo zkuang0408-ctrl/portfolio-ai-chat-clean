@@ -69,6 +69,21 @@ test("localizes the guidance disclosure in English", () => {
   expect(elements.guideToggle.textContent).toBe(CHAT_CONTENT.en.hideGuideLabel);
 });
 
+test.each([
+  ["zh", "想先了解哪件作品？", "开始提问"],
+  ["en", "Which project would you like to explore?", "Start asking"],
+] as const)("renders an accessible compact %s guide action", (locale, prompt, cta) => {
+  const root = document.createElement("aside");
+  const elements = renderChat(root, locale);
+
+  expect(elements.mobileGuideAction.type).toBe("button");
+  expect(elements.mobileGuideAction.dataset.chatMobileGuideAction).toBe("");
+  expect(elements.mobileGuideAction.querySelector(".chat-mobile-guide-prompt")?.textContent)
+    .toBe(prompt);
+  expect(elements.mobileGuideAction.querySelector(".chat-mobile-guide-cta")?.textContent)
+    .toBe(cta);
+});
+
 test("localizes the assistant content and recommendation prompts in English", () => {
   const root = document.createElement("aside");
 

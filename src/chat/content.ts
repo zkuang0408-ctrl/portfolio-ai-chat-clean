@@ -10,6 +10,8 @@ export interface ChatContent {
   readonly topicLabels: readonly [string, string];
   readonly showGuideLabel: string;
   readonly hideGuideLabel: string;
+  readonly mobileGuidePrompt: string;
+  readonly mobileGuideAction: string;
   readonly composerLabel: string;
   readonly recommendations: readonly [string, string, string, string];
   readonly transcriptLabel: string;
@@ -32,6 +34,8 @@ export const CHAT_CONTENT = {
     topicLabels: ["能力与方向", "作品与方法"],
     showGuideLabel: "查看推荐问题",
     hideGuideLabel: "收起推荐问题",
+    mobileGuidePrompt: "想先了解哪件作品？",
+    mobileGuideAction: "开始提问",
     composerLabel: "继续提问",
     recommendations: [
       "请用一分钟介绍赵实旷",
@@ -58,6 +62,8 @@ export const CHAT_CONTENT = {
     topicLabels: ["Capabilities & direction", "Work & method"],
     showGuideLabel: "View suggested questions",
     hideGuideLabel: "Hide suggested questions",
+    mobileGuidePrompt: "Which project would you like to explore?",
+    mobileGuideAction: "Start asking",
     composerLabel: "Continue the conversation",
     recommendations: [
       "Give me a one-minute introduction to Shikuang.",
