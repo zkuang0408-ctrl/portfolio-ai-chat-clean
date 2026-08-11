@@ -126,9 +126,9 @@ test("keeps both mobile hero statements visible in short landscape", () => {
   const supporting = mediaRule(shortLandscape, ".hero-supporting");
 
   expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
-    /left:\s*52%;[\s\S]*font-size:\s*clamp\(24px,\s*4\.3vw,\s*28px\)/,
+    /right:\s*16px;[\s\S]*left:\s*46%;[\s\S]*font-size:\s*clamp\(24px,\s*4\.3vw,\s*28px\)/,
   );
-  expect(supporting).toMatch(/display:\s*block/);
+  expect(supporting).toMatch(/left:\s*46%;[\s\S]*display:\s*block/);
   expect(supporting).not.toMatch(/display:\s*none/);
 });
 
@@ -438,7 +438,11 @@ test("uses a short bottom mobile guide and keeps the full panel readable", () =>
   );
 
   expect(rule(".chat-mobile-guide-action")).toMatch(/display:\s*none/);
-  expect(mediaRule(mobile, ".hero")).toMatch(
+  const mobileRoot = mediaRule(mobile, ":root");
+  expect(mobileRoot).toMatch(
+    /--mobile-guide-bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)/,
+  );
+  expect(mobileRoot).toMatch(
     /--mobile-guide-height:\s*clamp\(76px,\s*10\.5svh,\s*88px\)/,
   );
   expect(guide).toMatch(/bottom:\s*var\(--mobile-guide-bottom\)/);

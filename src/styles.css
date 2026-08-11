@@ -2505,11 +2505,11 @@ a:focus-visible {
 @media (max-width: 760px) {
   :root {
     --nav-height: 58px;
+    --mobile-guide-bottom: max(12px, env(safe-area-inset-bottom));
+    --mobile-guide-height: clamp(76px, 10.5svh, 88px);
   }
 
   .hero {
-    --mobile-guide-bottom: max(12px, env(safe-area-inset-bottom));
-    --mobile-guide-height: clamp(76px, 10.5svh, 88px);
     min-height: 100svh;
     padding-bottom: 0;
   }
@@ -2801,7 +2801,7 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
-  .hero {
+  :root {
     --mobile-guide-bottom: max(8px, env(safe-area-inset-bottom));
     --mobile-guide-height: 76px;
   }
@@ -2809,14 +2809,14 @@ a:focus-visible {
   .hero-copy .headline {
     right: 16px;
     bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 64px);
-    left: 52%;
+    left: 46%;
     font-size: clamp(24px, 4.3vw, 28px);
   }
 
   .hero-supporting {
     right: 16px;
     bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 14px);
-    left: 52%;
+    left: 46%;
     display: block;
     font-size: 10px;
   }
