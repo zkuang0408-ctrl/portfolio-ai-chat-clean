@@ -5,12 +5,28 @@ import {
   startParticleAssistant,
 } from "./particle-assistant";
 
+const originalInnerWidthDescriptor = Object.getOwnPropertyDescriptor(window, "innerWidth");
+
+function fakeContext() {
+  return {
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    setTransform: vi.fn(),
+    fillStyle: "",
+  } as unknown as CanvasRenderingContext2D;
+}
+
 afterEach(() => {
   document.body.innerHTML = "";
   Object.defineProperty(document, "visibilityState", {
     configurable: true,
     value: "visible",
   });
+  if (originalInnerWidthDescriptor) {
+    Object.defineProperty(window, "innerWidth", originalInnerWidthDescriptor);
+  }
   vi.restoreAllMocks();
 });
 
@@ -113,16 +129,8 @@ test("draws only the particle canvas visible in the current presentation", () =>
   const headerCanvas = document.createElement("canvas");
   root.append(canvas, headerCanvas);
   document.body.append(root);
-  const makeContext = () => ({
-    clearRect: vi.fn(),
-    beginPath: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
-    setTransform: vi.fn(),
-    fillStyle: "",
-  }) as unknown as CanvasRenderingContext2D;
-  const mainContext = makeContext();
-  const headerContext = makeContext();
+  const mainContext = fakeContext();
+  const headerContext = fakeContext();
   vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
   vi.spyOn(headerCanvas, "getContext").mockReturnValue(headerContext);
   const frames: FrameRequestCallback[] = [];
@@ -143,6 +151,58 @@ test("draws only the particle canvas visible in the current presentation", () =>
   expect((headerContext.arc as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(
     headerDrawCount,
   );
+  stop();
+});
+
+test("draws the header sphere as the compact guide cue only on mobile", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "guide";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  const mainContext = fakeContext();
+  const headerContext = fakeContext();
+  vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(headerContext);
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+  frames.shift()?.(0);
+
+  expect(headerContext.arc).toHaveBeenCalled();
+  expect(mainContext.arc).not.toHaveBeenCalled();
+  stop();
+});
+
+test("keeps drawing the main particle canvas in the desktop guide", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "guide";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  const mainContext = fakeContext();
+  const headerContext = fakeContext();
+  vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(headerContext);
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+  frames.shift()?.(0);
+
+  expect(mainContext.arc).toHaveBeenCalled();
+  expect(headerContext.arc).not.toHaveBeenCalled();
   stop();
 });
 

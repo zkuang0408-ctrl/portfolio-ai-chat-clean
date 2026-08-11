@@ -137,7 +137,11 @@ export function startParticleAssistant(
     const headerLayer = headerCanvas
       ? layers.find((layer) => layer.canvas === headerCanvas)
       : undefined;
-    const activeLayers = root.dataset.chatPresentation === "expanded" && headerLayer
+    const mobileGuideUsesHeader = window.innerWidth <= 760
+      && root.dataset.chatPresentation === "guide";
+    const activeLayers = (
+      root.dataset.chatPresentation === "expanded" || mobileGuideUsesHeader
+    ) && headerLayer
       ? [headerLayer]
       : [layers[0]!];
     for (const layer of activeLayers) {
