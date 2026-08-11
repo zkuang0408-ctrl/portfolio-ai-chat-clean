@@ -104,6 +104,7 @@ test("resizes the particle canvas when the guide collapses into the smaller ball
 test("keeps a matching particle layer alive in the expanded header anchor", async () => {
   const root = document.createElement("aside");
   root.dataset.chatPresentation = "expanded";
+  root.dataset.chatHeaderParticles = "fallback";
   const canvas = document.createElement("canvas");
   const headerCanvas = document.createElement("canvas");
   root.append(canvas, headerCanvas);
@@ -123,6 +124,7 @@ test("keeps a matching particle layer alive in the expanded header anchor", asyn
   const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
 
   expect(root.dataset.chatParticles).toBe("ready");
+  expect(root.dataset.chatHeaderParticles).toBeUndefined();
   expect((context.setTransform as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
   stop();
   await Promise.resolve();
@@ -268,6 +270,7 @@ test("falls back to the main canvas when the mobile guide header context is unav
   const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
   frames.shift()?.(0);
 
+  expect(root.dataset.chatHeaderParticles).toBe("fallback");
   expect(mainContext.arc).toHaveBeenCalled();
   stop();
 });

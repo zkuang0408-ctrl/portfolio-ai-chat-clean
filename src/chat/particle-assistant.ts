@@ -98,6 +98,14 @@ export function startParticleAssistant(
     (layer): layer is { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D; sphereScale: number } =>
       Boolean(layer.context),
   );
+  const headerLayer = headerCanvas
+    ? layers.find((layer) => layer.canvas === headerCanvas)
+    : undefined;
+  if (headerCanvas && !headerLayer) {
+    root.dataset.chatHeaderParticles = "fallback";
+  } else {
+    delete root.dataset.chatHeaderParticles;
+  }
 
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   let destroyed = false;
@@ -134,9 +142,6 @@ export function startParticleAssistant(
     progress += (target - progress) * (staticMode ? 1 : 0.11);
     const shellRotation = staticMode ? 0 : timestamp * 0.00022;
     const innerRotation = staticMode ? 0 : -timestamp * 0.00034;
-    const headerLayer = headerCanvas
-      ? layers.find((layer) => layer.canvas === headerCanvas)
-      : undefined;
     const mobileGuideUsesHeader = window.innerWidth <= 760
       && root.dataset.chatPresentation === "guide";
     const activeLayers = (

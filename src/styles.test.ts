@@ -600,6 +600,24 @@ test("replaces the header dot with the same non-interactive particle canvas", ()
   expect(styles).toContain(".chat-header-particle-canvas");
 });
 
+test("shows a transparent text fallback when assistant header particles are unavailable", () => {
+  const fallback = rule(
+    '.hero-chat[data-chat-particles="fallback"] .chat-ball-anchor::after,\n.hero-chat[data-chat-header-particles="fallback"] .chat-ball-anchor::after',
+  );
+
+  expect(fallback).toMatch(/position:\s*absolute/);
+  expect(fallback).toMatch(/inset:\s*0/);
+  expect(fallback).toMatch(/display:\s*grid/);
+  expect(fallback).toMatch(/place-items:\s*center/);
+  expect(fallback).toMatch(/content:\s*"AI"/);
+  expect(fallback).toMatch(/font-size:\s*10px/);
+  expect(fallback).toMatch(/letter-spacing:\s*0\.12em/);
+  expect(fallback).toMatch(/background:\s*transparent/);
+  expect(fallback).toMatch(/border:\s*0/);
+  expect(fallback).toMatch(/box-shadow:\s*none/);
+  expect(fallback).toMatch(/mix-blend-mode:\s*difference/);
+});
+
 test("lifts the desktop panel and collapses it cleanly toward the docked particle ball", () => {
   expect(styles).toMatch(
     /@media\s*\(min-width:\s*761px\)[\s\S]*?data-chat-presentation="expanded"[\s\S]*?translateY\(calc\(-50% - 72px\)\)/,

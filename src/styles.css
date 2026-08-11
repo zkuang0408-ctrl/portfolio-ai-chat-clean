@@ -2333,6 +2333,25 @@ a:focus-visible {
   display: none;
 }
 
+.hero-chat[data-chat-particles="fallback"] .chat-ball-anchor::after,
+.hero-chat[data-chat-header-particles="fallback"] .chat-ball-anchor::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  content: "AI";
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+
 .chat-header-particle-canvas {
   position: absolute;
   inset: -5px;
