@@ -2066,11 +2066,11 @@ a:focus-visible {
 
 @media (max-width: 760px) {
   .project-reader.is-fullscreen .project-reader-chevron--previous {
-    left: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-left));
+    left: clamp(4px, 1.5cqw, 10px);
   }
 
   .project-reader.is-fullscreen .project-reader-chevron--next {
-    right: max(clamp(4px, 1.5cqw, 10px), env(safe-area-inset-right));
+    right: clamp(4px, 1.5cqw, 10px);
   }
 
   .project-selector-rail {
