@@ -96,7 +96,9 @@ Georgia supplies the large editorial voice; the system sans stack carries naviga
 
 ## Layout
 
-Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet. Short landscape phones preserve the centered portrait while placing the headline in a narrow right-side corridor above the fixed assistant orb.
+Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet.
+
+- At `<= 760px`, the hero uses a portrait-led first viewport: a single-row navigation, two fixed English title lines, two fixed Chinese supporting lines, and a 76–88px bottom AI guide card that may overlap only lower garment particles.
 
 ## Elevation & Depth
 
@@ -122,9 +124,13 @@ The production source is a wider 1350×1425 garment-only outpaint. A shaped, imm
 
 Selectors contain real first-page imagery, metadata, and modest `1.03` hover scale. Opening a project enters a history-aware full-screen reader with translucent edge chevrons, page count, keyboard and touch navigation, and original-PDF access.
 
+- Mobile project-reader chevrons keep a 44px touch target while the visible `40:66` glyph scales from 14px to 22px using the reader stage as an inline-size container.
+
 ### AI Assistant
 
-A 56px fixed orb survives the full page. Expanded desktop presentation is a dark 400px panel; mobile becomes a safe-area-aware bottom sheet. Scrolling collapses it, content and draft state remain mounted, and motion uses the shared ease-out curve.
+Expanded desktop presentation is a dark 400px panel; mobile becomes a safe-area-aware bottom sheet. Content and draft state remain mounted, and motion uses the shared ease-out curve.
+
+- The mobile guide expands the existing full chat panel without submitting a prompt. After the scroll threshold, it becomes a transparent 56px particle orb; `mix-blend-mode: difference` provides white particles on dark surfaces and black particles on light surfaces, while desktop retains its 76px orb.
 
 ## Do's and Don'ts
 
