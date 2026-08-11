@@ -1193,17 +1193,6 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) {
-  .hero {
-    min-height: 100svh;
-    padding-bottom: 64px;
-  }
-
-  .hero-scene {
-    position: relative;
-    inset: auto;
-    height: 100svh;
-  }
-
   .identity {
     top: 22px;
     left: 22px;
@@ -1664,73 +1653,6 @@ a:focus-visible {
   bottom: clamp(28px, 4vh, 54px);
 }
 
-@media (max-width: 760px) {
-  .hero-copy .headline span:nth-child(2) {
-    transform: none;
-  }
-
-  .hero {
-    min-height: 100svh;
-    padding-bottom: 0;
-  }
-
-  .hero-scene {
-    position: absolute;
-    inset: calc(var(--nav-height) + env(safe-area-inset-top)) 0 0;
-    height: auto;
-  }
-
-  .hero-copy .role {
-    top: 26px;
-    left: 20px;
-  }
-
-  .hero-copy .headline {
-    right: 20px;
-    bottom: max(108px, calc(82px + env(safe-area-inset-bottom)));
-    max-width: calc(100vw - 40px);
-    font-size: clamp(42px, 12.5vw, 62px);
-    text-align: right;
-  }
-
-  .hero-supporting {
-    right: 20px;
-    bottom: max(60px, calc(36px + env(safe-area-inset-bottom)));
-    max-width: 30ch;
-    padding-right: 68px;
-    font-size: 11px;
-    white-space: normal;
-  }
-
-  .hero-copy .headline span {
-    white-space: normal;
-    text-wrap: balance;
-  }
-}
-
-@media (max-width: 390px) {
-  .hero-copy .headline {
-    font-size: 40px;
-  }
-}
-
-@media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
-  .hero-copy .headline {
-    right: 20px;
-    bottom: 88px;
-    max-width: 26vw;
-    font-size: clamp(26px, 4.5vw, 32px);
-  }
-
-  .hero-copy .headline::before {
-    inset: -16% -5% -16% 0;
-  }
-
-  .hero-supporting {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hero-copy .headline {
     animation: none;
@@ -2165,6 +2087,10 @@ a:focus-visible {
 }
 
 /* Homepage assistant: an editorial guide first, then a persistent particle tool. */
+.chat-mobile-guide-action {
+  display: none;
+}
+
 .chat-particle-canvas {
   position: absolute;
   z-index: -1;
@@ -2577,15 +2503,275 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --nav-height: 58px;
+  }
+
+  .hero {
+    --mobile-guide-bottom: max(12px, env(safe-area-inset-bottom));
+    --mobile-guide-height: clamp(76px, 10.5svh, 88px);
+    min-height: 100svh;
+    padding-bottom: 0;
+  }
+
+  .site-nav {
+    min-height: calc(58px + env(safe-area-inset-top));
+    padding-inline: 14px;
+    flex-wrap: nowrap;
+  }
+
+  .site-nav__brand {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .site-nav nav {
+    gap: clamp(8px, 3vw, 14px);
+    white-space: nowrap;
+  }
+
+  .site-nav nav :is(a, button) {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .site-nav [data-open-chat] {
+    display: none;
+  }
+
+  .hero-copy .role {
+    top: 18px;
+    left: 16px;
+    font-size: 7px;
+    letter-spacing: 0.1em;
+  }
+
+  .hero-copy .headline {
+    right: 16px;
+    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 72px);
+    left: 16px;
+    max-width: none;
+    font-size: clamp(24px, 7.2vw, 30px);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    text-align: left;
+  }
+
+  .hero-copy .headline span {
+    white-space: nowrap;
+    text-wrap: nowrap;
+  }
+
+  .hero-copy .headline span:nth-child(2) {
+    transform: none;
+  }
+
+  .hero-supporting {
+    right: 16px;
+    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 16px);
+    left: 16px;
+    max-width: none;
+    padding-right: 0;
+    font-size: clamp(11px, 3.2vw, 13px);
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .hero-supporting span {
+    display: block;
+    white-space: nowrap;
+  }
+
   .hero-chat[data-chat-presentation="guide"] {
-    top: max(92px, calc(var(--nav-height) + 18px));
-    left: 20px;
-    width: min(290px, calc(100vw - 40px));
+    top: auto;
+    right: 12px;
+    bottom: var(--mobile-guide-bottom);
+    left: 12px;
+    width: auto;
+    height: var(--mobile-guide-height);
   }
 
   .hero-chat[data-chat-presentation="guide"] .chat-panel {
-    max-height: min(392px, calc(100svh - 188px));
-    padding: 14px 16px 16px;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    border-radius: 18px;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-panel__header {
+    position: absolute;
+    z-index: 2;
+    inset: 12px 14px auto;
+    min-height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-panel__title {
+    margin: 0;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-ball-anchor {
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    transform: translateY(-10%);
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-header-particle-canvas {
+    opacity: 1;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-collapse {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-guide-toggle {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-guidance {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-transcript {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-composer {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-status {
+    display: none;
+  }
+
+  .chat-mobile-guide-action {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    display: flex;
+    min-width: 0;
+    min-height: 44px;
+    padding: 34px 64px 10px 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .chat-mobile-guide-prompt {
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-mobile-guide-cta {
+    flex: 0 0 auto;
+    color: #c8685f;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .hero-chat:not([data-chat-presentation="guide"]) .chat-mobile-guide-action {
+    display: none;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] .chat-particle-canvas {
+    opacity: 0;
+  }
+
+.hero-chat[data-chat-presentation="collapsed"],
+.hero-chat[data-chat-presentation="expanding"],
+.hero-chat[data-chat-presentation="expanded"] {
+    width: 56px;
+    transform: translate3d(
+      calc(var(--chat-dock-x, 44px) - 28px),
+      calc(var(--chat-dock-y, 172px) - 28px),
+      0
+    );
+  }
+
+  .hero-chat[data-chat-presentation="collapsing"] {
+    width: 56px;
+    transform: translate3d(
+      calc(var(--chat-dock-x, 44px) - 28px),
+      calc(var(--chat-dock-y, 172px) - 28px),
+      0
+    );
+  }
+
+  .hero-chat[data-chat-presentation="collapsed"] .chat-orb {
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .hero-chat[data-chat-presentation="expanding"] .chat-orb,
+  .hero-chat[data-chat-presentation="collapsing"] .chat-orb {
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .hero-chat[data-chat-presentation="collapsed"]::before {
+    content: none;
+  }
+
+  .hero-chat[data-chat-presentation="expanding"]::before,
+  .hero-chat[data-chat-presentation="collapsing"]::before {
+    content: none;
+  }
+
+  .hero-chat[data-chat-particles="fallback"] .chat-particle-canvas {
+    display: none;
+  }
+
+  .hero-chat[data-chat-particles="fallback"] .chat-orb::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    content: "AI";
+    mix-blend-mode: difference;
   }
 
   .hero-chat[data-chat-presentation="expanded"] {
@@ -2607,11 +2793,36 @@ a:focus-visible {
     );
     left: 12px;
     width: auto;
-    max-height: min(
-      70dvh,
+    max-height: min(70dvh,
       calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
     );
     transform: none;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
+  .hero {
+    --mobile-guide-bottom: max(8px, env(safe-area-inset-bottom));
+    --mobile-guide-height: 76px;
+  }
+
+  .hero-copy .headline {
+    right: 16px;
+    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 64px);
+    left: 52%;
+    font-size: clamp(24px, 4.3vw, 28px);
+  }
+
+  .hero-supporting {
+    right: 16px;
+    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 14px);
+    left: 52%;
+    display: block;
+    font-size: 10px;
+  }
+
+  .hero-chat[data-chat-presentation="guide"] {
+    left: 52%;
   }
 }
 

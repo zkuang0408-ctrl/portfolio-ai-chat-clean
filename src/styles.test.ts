@@ -22,7 +22,12 @@ function blockBodyAt(source: string, openingBrace: number): string {
 
 function ruleWithin(source: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return source.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
+  const matches = Array.from(
+    source.matchAll(
+      new RegExp(`^\\s*${escaped}\\s*\\{([\\s\\S]*?)\\}`, "gm"),
+    ),
+  );
+  return matches.at(-1)?.[1] ?? "";
 }
 
 function mediaRule(query: string, selector: string): string {
@@ -85,33 +90,46 @@ test("places role, headline, and supporting copy in approved desktop regions", (
   expect(rule(".hero-copy .headline")).toMatch(/letter-spacing:\s*-0\.04em/);
 });
 
-test("protects mobile and short-landscape hero geometry", () => {
+test("uses one compact mobile navigation row without the redundant Ask AI label", () => {
   const mobile = "(max-width: 760px)";
-  const compactMobile = "(max-width: 390px)";
-  const shortLandscape =
-    "(max-width: 760px) and (max-height: 680px) and (orientation: landscape)";
-  expect(mediaRule(mobile, ".hero-copy .role")).toMatch(
-    /top:\s*26px;[\s\S]*left:\s*20px/,
+
+  expect(mediaRule(mobile, ".site-nav")).toMatch(/flex-wrap:\s*nowrap/);
+  expect(mediaRule(mobile, ".site-nav nav")).toMatch(/white-space:\s*nowrap/);
+  expect(mediaRule(mobile, ".site-nav nav :is(a, button)")).toMatch(
+    /min-width:\s*44px;[\s\S]*min-height:\s*44px/,
   );
-  expect(mediaRule(mobile, ".hero-copy .headline")).toMatch(
-    /right:\s*20px;[\s\S]*bottom:\s*max\(108px,\s*calc\(82px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[\s\S]*max-width:\s*calc\(100vw\s*-\s*40px\);[\s\S]*font-size:\s*clamp\(42px,\s*12\.5vw,\s*62px\);[\s\S]*text-align:\s*right/,
-  );
-  expect(mediaRule(mobile, ".hero-supporting")).toMatch(
-    /right:\s*20px;[\s\S]*bottom:\s*max\(60px,\s*calc\(36px\s*\+\s*env\(safe-area-inset-bottom\)\)\);[\s\S]*max-width:\s*30ch;[\s\S]*font-size:\s*11px/,
-  );
-  expect(mediaRule(compactMobile, ".hero-copy .headline")).toMatch(
-    /font-size:\s*40px/,
-  );
-  expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
-    /right:\s*20px;[\s\S]*bottom:\s*88px;[\s\S]*max-width:\s*26vw;[\s\S]*font-size:\s*clamp\(26px,\s*4\.5vw,\s*32px\)/,
-  );
-  expect(mediaRule(shortLandscape, ".hero-copy .headline::before")).toMatch(
-    /inset:\s*-16%\s+-5%\s+-16%\s+0/,
-  );
-  expect(mediaRule(shortLandscape, ".hero-supporting")).toMatch(
+  expect(mediaRule(mobile, ".site-nav [data-open-chat]")).toMatch(
     /display:\s*none/,
   );
-  expect(rule(".site-nav nav :is(a, button)")).toMatch(/min-height:\s*44px/);
+});
+
+test("locks both mobile hero statements to the approved two lines", () => {
+  const mobile = "(max-width: 760px)";
+
+  expect(mediaRule(mobile, ".hero-copy .headline")).toMatch(
+    /font-size:\s*clamp\(24px,\s*7\.2vw,\s*30px\)/,
+  );
+  expect(mediaRule(mobile, ".hero-copy .headline span")).toMatch(
+    /white-space:\s*nowrap/,
+  );
+  expect(mediaRule(mobile, ".hero-supporting span")).toMatch(
+    /display:\s*block[\s\S]*white-space:\s*nowrap/,
+  );
+  expect(mediaRule(mobile, ".hero-supporting")).toMatch(
+    /font-size:\s*clamp\(11px,\s*3\.2vw,\s*13px\)/,
+  );
+});
+
+test("keeps both mobile hero statements visible in short landscape", () => {
+  const shortLandscape =
+    "(max-width: 760px) and (max-height: 680px) and (orientation: landscape)";
+  const supporting = mediaRule(shortLandscape, ".hero-supporting");
+
+  expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
+    /left:\s*52%;[\s\S]*font-size:\s*clamp\(24px,\s*4\.3vw,\s*28px\)/,
+  );
+  expect(supporting).toMatch(/display:\s*block/);
+  expect(supporting).not.toMatch(/display:\s*none/);
 });
 
 test("hides the canvas in controller fallback and error states", () => {
@@ -412,6 +430,88 @@ test("uses a compact rounded guide that yields to the transcript", () => {
   );
 });
 
+test("uses a short bottom mobile guide and keeps the full panel readable", () => {
+  const mobile = "(max-width: 760px)";
+  const guide = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="guide"]',
+  );
+
+  expect(rule(".chat-mobile-guide-action")).toMatch(/display:\s*none/);
+  expect(mediaRule(mobile, ".hero")).toMatch(
+    /--mobile-guide-height:\s*clamp\(76px,\s*10\.5svh,\s*88px\)/,
+  );
+  expect(guide).toMatch(/bottom:\s*var\(--mobile-guide-bottom\)/);
+  expect(guide).toMatch(/height:\s*var\(--mobile-guide-height\)/);
+  expect(mediaRule(mobile, ".chat-mobile-guide-action")).toMatch(
+    /position:\s*absolute[\s\S]*inset:\s*0[\s\S]*min-height:\s*44px/,
+  );
+  for (const selector of [
+    ".chat-collapse",
+    ".chat-guide-toggle",
+    ".chat-guidance",
+    ".chat-transcript",
+    ".chat-composer",
+    ".chat-status",
+  ]) {
+    expect(
+      mediaRule(
+        mobile,
+        `.hero-chat[data-chat-presentation="guide"] ${selector}`,
+      ),
+      selector,
+    ).toMatch(/display:\s*none/);
+  }
+  expect(
+    mediaRule(
+      mobile,
+      '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
+    ),
+  ).toMatch(/max-height:\s*min\(70dvh/);
+});
+
+test("uses a transparent 56px mobile particle orb while preserving desktop geometry", () => {
+  const mobile = "(max-width: 760px)";
+  const mobileRoot = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="collapsed"],\n.hero-chat[data-chat-presentation="expanding"],\n.hero-chat[data-chat-presentation="expanded"]',
+  );
+  const mobileOrb = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="collapsed"] .chat-orb',
+  );
+
+  expect(mobileRoot).toMatch(/width:\s*56px/);
+  expect(mobileRoot).toMatch(/var\(--chat-dock-x,\s*44px\)\s*-\s*28px/);
+  expect(mobileOrb).toMatch(
+    /width:\s*56px[\s\S]*height:\s*56px[\s\S]*background:\s*transparent/,
+  );
+  expect(mobileOrb).toMatch(/border:\s*0/);
+  expect(mobileOrb).toMatch(/box-shadow:\s*none/);
+  expect(mobileOrb).toMatch(/backdrop-filter:\s*none/);
+  expect(
+    mediaRule(
+      mobile,
+      '.hero-chat[data-chat-presentation="collapsed"]::before',
+    ),
+  ).toMatch(/content:\s*none/);
+  expect(
+    mediaRule(
+      mobile,
+      '.hero-chat[data-chat-particles="fallback"] .chat-orb::after',
+    ),
+  ).toMatch(/content:\s*"AI"[\s\S]*mix-blend-mode:\s*difference/);
+  expect(rule(".chat-particle-canvas")).toMatch(
+    /mix-blend-mode:\s*difference/,
+  );
+  expect(
+    rule('.hero-chat[data-chat-presentation="collapsed"] .chat-orb'),
+  ).toMatch(/width:\s*76px/);
+  expect(
+    rule('.hero-chat[data-chat-presentation="collapsed"]::before'),
+  ).toMatch(/background:\s*#050505/);
+});
+
 test("uses a safe-area-aware bottom sheet on mobile without changing the fixed navigation", () => {
   const expandedRoot = mediaRule(
     "(max-width: 760px)",
@@ -522,12 +622,6 @@ test("keeps hero copy to two English lines and one Chinese line on desktop", () 
   expect(rule(".hero-copy .headline")).toMatch(/max-width:\s*min\(980px,\s*70vw\)/);
   expect(rule(".hero-copy .headline span")).toMatch(/white-space:\s*nowrap/);
   expect(rule(".hero-supporting")).toMatch(/white-space:\s*nowrap/);
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-copy \.headline span\s*\{[\s\S]*?white-space:\s*normal/,
-  );
-  expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.hero-supporting\s*\{[\s\S]*?white-space:\s*normal/,
-  );
 });
 
 test("reserves a 108px desktop gutter for the floating assistant without changing mobile spacing", () => {
