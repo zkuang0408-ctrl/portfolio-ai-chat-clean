@@ -308,13 +308,13 @@ test("scales mobile reader glyphs to the page while preserving touch targets", (
     /width:\s*44px[\s\S]*min-width:\s*44px[\s\S]*height:\s*44px[\s\S]*min-height:\s*44px/,
   );
   expect(mediaRule(mobile, ".project-reader-chevron svg")).toMatch(
-    /width:\s*clamp\(14px,\s*3\.1cqw,\s*22px\)[\s\S]*height:\s*auto[\s\S]*aspect-ratio:\s*40\s*\/\s*66/,
+    /width:\s*clamp\(14px,\s*3\.1vw,\s*22px\)[\s\S]*width:\s*clamp\(14px,\s*3\.1cqw,\s*22px\)[\s\S]*height:\s*auto[\s\S]*aspect-ratio:\s*40\s*\/\s*66/,
   );
   expect(mediaRule(mobile, ".project-reader-chevron--previous")).toMatch(
-    /left:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-left\)\)/,
+    /left:\s*max\(clamp\(4px,\s*1\.5vw,\s*10px\),\s*env\(safe-area-inset-left\)\)[\s\S]*left:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-left\)\)/,
   );
   expect(mediaRule(mobile, ".project-reader-chevron--next")).toMatch(
-    /right:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-right\)\)/,
+    /right:\s*max\(clamp\(4px,\s*1\.5vw,\s*10px\),\s*env\(safe-area-inset-right\)\)[\s\S]*right:\s*max\(clamp\(4px,\s*1\.5cqw,\s*10px\),\s*env\(safe-area-inset-right\)\)/,
   );
   expect(
     mediaRule(
@@ -322,7 +322,7 @@ test("scales mobile reader glyphs to the page while preserving touch targets", (
       ".project-reader.is-fullscreen .project-reader-chevron--previous",
     ),
   ).toMatch(
-    /left:\s*clamp\(4px,\s*1\.5cqw,\s*10px\)/,
+    /left:\s*clamp\(4px,\s*1\.5vw,\s*10px\)[\s\S]*left:\s*clamp\(4px,\s*1\.5cqw,\s*10px\)/,
   );
   expect(
     mediaRule(
@@ -330,7 +330,7 @@ test("scales mobile reader glyphs to the page while preserving touch targets", (
       ".project-reader.is-fullscreen .project-reader-chevron--next",
     ),
   ).toMatch(
-    /right:\s*clamp\(4px,\s*1\.5cqw,\s*10px\)/,
+    /right:\s*clamp\(4px,\s*1\.5vw,\s*10px\)[\s\S]*right:\s*clamp\(4px,\s*1\.5cqw,\s*10px\)/,
   );
   expect(rule(".project-reader-chevron svg")).toMatch(
     /width:\s*40px[\s\S]*height:\s*66px/,
