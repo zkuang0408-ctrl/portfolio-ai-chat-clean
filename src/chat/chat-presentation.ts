@@ -23,7 +23,12 @@ export function startChatPresentation(
   const collapseScrollThreshold = 160;
   const defaultDockY = 172;
   const dragThreshold = 8;
-  const dockMetrics = { edge: 16, top: 72, bottom: 24, radius: 38 };
+  const dockMetrics = () => ({
+    edge: 16,
+    top: 72,
+    bottom: 24,
+    radius: dependencies.window.innerWidth <= 760 ? 28 : 38,
+  });
   const desktopPanelTop = 88;
   const desktopPanelLift = 72;
   let destroyed = false;
@@ -57,13 +62,14 @@ export function startChatPresentation(
 
   const setFreePosition = (x: number, y: number) => {
     const viewport = viewportSize();
-    const minX = dockMetrics.edge + dockMetrics.radius;
+    const metrics = dockMetrics();
+    const minX = metrics.edge + metrics.radius;
     const maxX = Math.max(
       minX,
-      viewport.width - dockMetrics.edge - dockMetrics.radius,
+      viewport.width - metrics.edge - metrics.radius,
     );
     const nextX = Math.min(Math.max(x, minX), maxX);
-    const nextY = clampDockY(y, viewport, dockMetrics);
+    const nextY = clampDockY(y, viewport, metrics);
     dock = {
       x: nextX,
       y: nextY,
@@ -75,13 +81,14 @@ export function startChatPresentation(
 
   const clampDock = () => {
     const viewport = viewportSize();
+    const metrics = dockMetrics();
     const previous = dock?.side
       ?? (root.dataset.chatDock as DockSide | undefined)
       ?? "left";
     setDock(resolveDockPosition(
       { x: dock?.x ?? viewport.width / 2, y: dock?.y ?? defaultDockY },
       viewport,
-      dockMetrics,
+      metrics,
       previous,
     ));
   };
@@ -89,8 +96,9 @@ export function startChatPresentation(
   const prepareExpandedDock = () => {
     if (!dock || panel.offsetHeight <= 0) return;
     const viewport = viewportSize();
+    const metrics = dockMetrics();
     const minimumY = desktopPanelTop + desktopPanelLift + panel.offsetHeight / 2;
-    const nextY = clampDockY(Math.max(dock.y, minimumY), viewport, dockMetrics);
+    const nextY = clampDockY(Math.max(dock.y, minimumY), viewport, metrics);
     if (Math.abs(nextY - dock.y) > 0.5) setDock({ ...dock, y: nextY });
   };
 
@@ -99,6 +107,7 @@ export function startChatPresentation(
       return;
     }
     const viewport = viewportSize();
+    const metrics = dockMetrics();
     const panelBounds = panel.getBoundingClientRect();
     if (panelBounds.width <= 0 || panelBounds.height <= 0) return;
     const protectedRects = [".hero-index", ".hero-copy .headline", ".hero-supporting"]
@@ -116,7 +125,7 @@ export function startChatPresentation(
         baseY - (panelBounds.bottom - rect.top + 24),
         baseY + (rect.bottom - panelBounds.top + 24),
       ]),
-    ].map((candidate) => clampDockY(candidate, viewport, dockMetrics));
+    ].map((candidate) => clampDockY(candidate, viewport, metrics));
     const score = (candidate: number) => {
       const delta = candidate - baseY;
       const top = panelBounds.top + delta;
@@ -312,10 +321,11 @@ export function startChatPresentation(
     if (wasDragging) {
       ignoreNextOrbClick = suppressClick;
       delete root.dataset.chatDragging;
+      const metrics = dockMetrics();
       setDock(resolveDockPosition(
         { x: dock?.x ?? event.clientX, y: dock?.y ?? event.clientY },
         viewportSize(),
-        dockMetrics,
+        metrics,
         dock?.side,
       ));
     }
@@ -346,6 +356,7 @@ export function startChatPresentation(
   orb.addEventListener("pointerup", onPointerUp);
   orb.addEventListener("pointercancel", onPointerCancel);
   collapse.addEventListener("click", close);
+  elements.mobileGuideAction.addEventListener("click", open);
   dependencies.trigger.addEventListener("click", open);
   dependencies.window.addEventListener("scroll", onScroll, { passive: true });
   dependencies.window.addEventListener("resize", onResize, { passive: true });
@@ -373,6 +384,7 @@ export function startChatPresentation(
     orb.removeEventListener("pointerup", onPointerUp);
     orb.removeEventListener("pointercancel", onPointerCancel);
     collapse.removeEventListener("click", close);
+    elements.mobileGuideAction.removeEventListener("click", open);
     dependencies.trigger.removeEventListener("click", open);
     dependencies.window.removeEventListener("scroll", onScroll);
     dependencies.window.removeEventListener("resize", onResize);

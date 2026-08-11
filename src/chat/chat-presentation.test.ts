@@ -36,6 +36,7 @@ function pointerEvent(
 beforeEach(() => {
   document.body.innerHTML = "";
   vi.useRealTimers();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_024 });
 });
 
 test("opens from the orb or site navigation and collapses without replacing chat DOM", () => {
@@ -58,6 +59,21 @@ test("opens from the orb or site navigation and collapses without replacing chat
   vi.advanceTimersByTime(20);
   expect(root.dataset.chatPresentation).toBe("expanded");
   expect(elements.form).toBe(form);
+  cleanup();
+});
+
+test("opens the full panel from the compact mobile guide without submitting", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  const submit = vi.fn();
+  elements.form.addEventListener("submit", submit);
+
+  elements.mobileGuideAction.click();
+
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  expect(elements.orb.getAttribute("aria-expanded")).toBe("true");
+  expect(elements.panel.getAttribute("aria-hidden")).toBe("false");
+  expect(submit).not.toHaveBeenCalled();
   cleanup();
 });
 
@@ -227,6 +243,34 @@ test("tracks the particle ball freely during drag and docks only after release",
   expect(root.dataset.chatDragging).toBeUndefined();
   expect(root.dataset.chatDock).toBe("left");
   expect(root.style.getPropertyValue("--chat-dock-x")).toBe("54px");
+  cleanup();
+});
+
+test("uses a 28px radius for mobile drag and release docking", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("44px");
+  elements.collapse.click();
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    clientX: 44,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    clientX: 340,
+    clientY: 300,
+  }));
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("340px");
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    clientX: 340,
+    clientY: 300,
+  }));
+  expect(root.dataset.chatDock).toBe("right");
+  expect(root.style.getPropertyValue("--chat-dock-x")).toBe("346px");
   cleanup();
 });
 
