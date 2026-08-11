@@ -447,6 +447,12 @@ test("uses a short bottom mobile guide and keeps the full panel readable", () =>
   );
   expect(guide).toMatch(/bottom:\s*var\(--mobile-guide-bottom\)/);
   expect(guide).toMatch(/height:\s*var\(--mobile-guide-height\)/);
+  expect(
+    mediaRule(
+      mobile,
+      '.hero-chat[data-chat-presentation="guide"] .chat-orb',
+    ),
+  ).toMatch(/display:\s*none/);
   expect(mediaRule(mobile, ".chat-mobile-guide-action")).toMatch(
     /position:\s*absolute[\s\S]*inset:\s*0[\s\S]*min-height:\s*44px/,
   );

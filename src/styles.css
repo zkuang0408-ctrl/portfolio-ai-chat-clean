@@ -2594,6 +2594,10 @@ a:focus-visible {
     height: var(--mobile-guide-height);
   }
 
+  .hero-chat[data-chat-presentation="guide"] .chat-orb {
+    display: none;
+  }
+
   .hero-chat[data-chat-presentation="guide"] .chat-panel {
     position: relative;
     inset: auto;
