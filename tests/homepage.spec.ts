@@ -1022,12 +1022,18 @@ test.describe("canonical grounded portfolio chat", () => {
 
 test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bounds", async ({ page }, testInfo) => {
   test.skip(
-    !["mobile-390", "mobile-430"].includes(testInfo.project.name),
-    "Only the approved 390px and 430px mobile layouts are in scope.",
+    !["mobile-320", "mobile-390", "mobile-430"].includes(testInfo.project.name),
+    "Only the approved 320px, 390px, and 430px mobile layouts are in scope.",
   );
   await page.goto("/");
   const chat = page.locator("[data-chat-root]");
   await expect(chat).toHaveAttribute("data-chat-presentation", "guide");
+  const guideAction = chat.locator("[data-chat-mobile-guide-action]");
+  await expect(guideAction).toBeVisible();
+  await guideAction.click();
+  await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
+  const panel = chat.locator("[data-chat-panel]");
+  await expect(panel).toBeVisible();
   await chat.locator("[data-chat-collapse]").click();
   await expect(chat).toHaveAttribute("data-chat-presentation", "collapsed");
   const collapsed = await page.evaluate(() => {
@@ -1049,7 +1055,6 @@ test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bo
   expect(collapsed.orb.right).toBeLessThanOrEqual(collapsed.viewportWidth + 1);
   expect(collapsed.orb.bottom).toBeLessThanOrEqual(collapsed.viewportHeight + 1);
   await page.locator("[data-chat-orb]").click();
-  const panel = page.locator("[data-chat-panel]");
   await expect(panel).toBeVisible();
   await expect(panel).toHaveCSS("transform", "none");
   const panelBox = await panel.boundingBox();

@@ -2685,6 +2685,11 @@ a:focus-visible {
     cursor: pointer;
   }
 
+  .chat-mobile-guide-action:focus-visible {
+    outline: 1px solid #c8685f;
+    outline-offset: -4px;
+  }
+
   .chat-mobile-guide-prompt {
     overflow: hidden;
     font-size: 12px;

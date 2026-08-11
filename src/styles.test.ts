@@ -480,6 +480,16 @@ test("uses a short bottom mobile guide and keeps the full panel readable", () =>
   ).toMatch(/max-height:\s*min\(70dvh/);
 });
 
+test("keeps the mobile guide keyboard focus visible inside its clipped frame", () => {
+  const focus = mediaRule(
+    "(max-width: 760px)",
+    ".chat-mobile-guide-action:focus-visible",
+  );
+
+  expect(focus).toMatch(/outline:\s*1px\s+solid\s+#c8685f/);
+  expect(focus).toMatch(/outline-offset:\s*-4px/);
+});
+
 test("uses a transparent 56px mobile particle orb while preserving desktop geometry", () => {
   const mobile = "(max-width: 760px)";
   const mobileRoot = mediaRule(
