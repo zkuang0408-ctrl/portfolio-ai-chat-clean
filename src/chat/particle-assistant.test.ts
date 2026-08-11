@@ -6,6 +6,7 @@ import {
 } from "./particle-assistant";
 
 const originalInnerWidthDescriptor = Object.getOwnPropertyDescriptor(window, "innerWidth");
+const originalMatchMediaDescriptor = Object.getOwnPropertyDescriptor(window, "matchMedia");
 
 function fakeContext() {
   return {
@@ -26,6 +27,11 @@ afterEach(() => {
   });
   if (originalInnerWidthDescriptor) {
     Object.defineProperty(window, "innerWidth", originalInnerWidthDescriptor);
+  }
+  if (originalMatchMediaDescriptor) {
+    Object.defineProperty(window, "matchMedia", originalMatchMediaDescriptor);
+  } else {
+    Reflect.deleteProperty(window, "matchMedia");
   }
   vi.restoreAllMocks();
 });
@@ -203,6 +209,66 @@ test("keeps drawing the main particle canvas in the desktop guide", () => {
 
   expect(mainContext.arc).toHaveBeenCalled();
   expect(headerContext.arc).not.toHaveBeenCalled();
+  stop();
+});
+
+test("redraws the compact guide cue after a reduced-motion resize crosses the mobile breakpoint", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }) as unknown as MediaQueryList),
+  });
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "guide";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  const mainContext = fakeContext();
+  const headerContext = fakeContext();
+  vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(headerContext);
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+
+  expect(mainContext.arc).toHaveBeenCalled();
+  expect(headerContext.arc).not.toHaveBeenCalled();
+
+  vi.mocked(mainContext.arc).mockClear();
+  vi.mocked(headerContext.arc).mockClear();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  window.dispatchEvent(new Event("resize"));
+
+  expect(headerContext.arc).toHaveBeenCalled();
+  expect(mainContext.arc).not.toHaveBeenCalled();
+  stop();
+});
+
+test("falls back to the main canvas when the mobile guide header context is unavailable", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const root = document.createElement("aside");
+  root.dataset.chatPresentation = "guide";
+  const canvas = document.createElement("canvas");
+  const headerCanvas = document.createElement("canvas");
+  const mainContext = fakeContext();
+  vi.spyOn(canvas, "getContext").mockReturnValue(mainContext);
+  vi.spyOn(headerCanvas, "getContext").mockReturnValue(null);
+  root.append(canvas, headerCanvas);
+  document.body.append(root);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+
+  const stop = startParticleAssistant({ root, canvas, headerCanvas, window });
+  frames.shift()?.(0);
+
+  expect(mainContext.arc).toHaveBeenCalled();
   stop();
 });
 

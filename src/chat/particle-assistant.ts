@@ -193,6 +193,10 @@ export function startParticleAssistant(
     }
     if (frame === undefined) frame = window.requestAnimationFrame(draw);
   };
+  const onResize = () => {
+    resize();
+    update();
+  };
   const observer = new MutationObserver(() => {
     resize();
     update();
@@ -202,7 +206,7 @@ export function startParticleAssistant(
   root.dataset.chatParticles = "ready";
   resize();
   update();
-  window.addEventListener("resize", resize, { passive: true });
+  window.addEventListener("resize", onResize, { passive: true });
   reducedMotion?.addEventListener("change", update);
   window.document.addEventListener("visibilitychange", update);
 
@@ -211,7 +215,7 @@ export function startParticleAssistant(
     destroyed = true;
     if (frame !== undefined) window.cancelAnimationFrame(frame);
     observer.disconnect();
-    window.removeEventListener("resize", resize);
+    window.removeEventListener("resize", onResize);
     reducedMotion?.removeEventListener("change", update);
     window.document.removeEventListener("visibilitychange", update);
   };
