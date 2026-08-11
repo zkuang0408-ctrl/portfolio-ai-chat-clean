@@ -109,7 +109,7 @@ test("locks both mobile hero statements to the approved two lines", () => {
   const mobile = "(max-width: 760px)";
 
   expect(mediaRule(mobile, ".hero-copy .headline")).toMatch(
-    /font-size:\s*clamp\(24px,\s*7\.2vw,\s*30px\)/,
+    /bottom:\s*calc\(var\(--mobile-guide-bottom\)\s*\+\s*var\(--mobile-guide-height\)\s*\+\s*76px\)[\s\S]*font-size:\s*clamp\(24px,\s*7\.2vw,\s*30px\)/,
   );
   expect(mediaRule(mobile, ".hero-copy .headline span")).toMatch(
     /white-space:\s*nowrap/,
@@ -127,6 +127,9 @@ test("keeps both mobile hero statements visible in short landscape", () => {
     "(max-width: 760px) and (max-height: 680px) and (orientation: landscape)";
   const supporting = mediaRule(shortLandscape, ".hero-supporting");
 
+  expect(mediaRule(shortLandscape, ".portrait-stage")).toMatch(
+    /right:\s*48%;[\s\S]*width:\s*auto/,
+  );
   expect(mediaRule(shortLandscape, ".hero-copy .headline")).toMatch(
     /right:\s*16px;[\s\S]*left:\s*46%;[\s\S]*font-size:\s*clamp\(24px,\s*4\.3vw,\s*28px\)/,
   );
@@ -507,6 +510,12 @@ test("uses a short bottom mobile guide and keeps the full panel readable", () =>
       '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
     ),
   ).toMatch(/max-height:\s*min\(70dvh/);
+  expect(
+    mediaRule(
+      mobile,
+      '.hero-chat[data-chat-presentation="expanded"] .chat-transcript',
+    ),
+  ).toMatch(/display:\s*flex[\s\S]*min-height:\s*1px/);
 });
 
 test("keeps the mobile guide keyboard focus visible inside its clipped frame", () => {

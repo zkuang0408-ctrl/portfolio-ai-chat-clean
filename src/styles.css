@@ -2569,7 +2569,7 @@ a:focus-visible {
 
   .hero-copy .headline {
     right: 16px;
-    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 72px);
+    bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 76px);
     left: 16px;
     max-width: none;
     font-size: clamp(24px, 7.2vw, 30px);
@@ -2827,12 +2827,22 @@ a:focus-visible {
     );
     transform: none;
   }
+
+  .hero-chat[data-chat-presentation="expanded"] .chat-transcript {
+    display: flex;
+    min-height: 1px;
+  }
 }
 
 @media (max-width: 760px) and (max-height: 680px) and (orientation: landscape) {
   :root {
     --mobile-guide-bottom: max(8px, env(safe-area-inset-bottom));
     --mobile-guide-height: 76px;
+  }
+
+  .portrait-stage {
+    right: 48%;
+    width: auto;
   }
 
   .hero-copy .headline {

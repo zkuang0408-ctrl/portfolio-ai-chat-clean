@@ -572,6 +572,18 @@ test("centered particle portrait protects the face and fixed assistant", async (
         top: bounds.top,
       };
     };
+    const optionalRect = (selector: string): Rect | null => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      if (bounds.width === 0 || bounds.height === 0) return null;
+      return {
+        bottom: bounds.bottom,
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+      };
+    };
     const headline = document.querySelector<HTMLElement>(".hero-copy .headline");
     const portraitBase = document.querySelector<HTMLImageElement>(".portrait-base");
     if (!headline || !portraitBase || portraitBase.naturalWidth === 0) {
@@ -630,6 +642,7 @@ test("centered particle portrait protects the face and fixed assistant", async (
         left: canvasBounds.left + alphaMinX * canvasScaleX,
         right: canvasBounds.left + (alphaMaxX + 1) * canvasScaleX,
       },
+      card: optionalRect("[data-chat-panel]"),
       canvas,
       headline: rect(".hero-copy .headline"),
       headlineText,
@@ -672,8 +685,18 @@ test("centered particle portrait protects the face and fixed assistant", async (
     a.left < b.right - tolerance && a.right > b.left + tolerance &&
     a.top < b.bottom - tolerance && a.bottom > b.top + tolerance;
 
-  expect(geometry.stage).toEqual(geometry.scene);
-  expect(geometry.canvas).toEqual(geometry.scene);
+  expect(geometry.canvas).toEqual(geometry.stage);
+  if (testInfo.project.name === "mobile-landscape-667") {
+    expect(geometry.stage.left).toBe(geometry.scene.left);
+    expect(geometry.stage.top).toBe(geometry.scene.top);
+    expect(geometry.stage.bottom).toBe(geometry.scene.bottom);
+    expect(geometry.stage.right).toBeCloseTo(
+      geometry.scene.left + (geometry.scene.right - geometry.scene.left) * 0.52,
+      0,
+    );
+  } else {
+    expect(geometry.stage).toEqual(geometry.scene);
+  }
   expect(geometry.source).toEqual({ height: 1_425, width: 1_350 });
   if (testInfo.project.name.startsWith("desktop-")) {
     expect(geometry.alphaBounds.left).toBeGreaterThanOrEqual(
@@ -688,6 +711,14 @@ test("centered particle portrait protects the face and fixed assistant", async (
     `headline text must not cover the protected face: ${JSON.stringify({ geometry, protectedFace })}`,
   ).toBe(false);
   expect(intersects(geometry.headline, geometry.orb)).toBe(false);
+  if (testInfo.project.name.startsWith("mobile-")) {
+    expect(geometry.card, "mobile guide card should have visible bounds").not.toBeNull();
+    if (geometry.card) {
+      expect(intersects(geometry.card, protectedFace, 5)).toBe(false);
+      expect(geometry.card.top).toBeGreaterThanOrEqual(protectedFace.bottom + 8);
+      expect(intersects(geometry.card, geometry.headline)).toBe(false);
+    }
+  }
   for (const line of geometry.headlineText) {
     expect(line.left).toBeGreaterThanOrEqual(-1);
     expect(line.right).toBeLessThanOrEqual(geometry.viewport.width + 1);
@@ -1020,52 +1051,186 @@ test.describe("canonical grounded portfolio chat", () => {
   });
 });
 
-test("keeps the mobile assistant fixed, collapsible, and inside safe viewport bounds", async ({ page }, testInfo) => {
-  test.skip(
-    !["mobile-320", "mobile-390", "mobile-430"].includes(testInfo.project.name),
-    "Only the approved 320px, 390px, and 430px mobile layouts are in scope.",
-  );
+test("keeps the mobile hero zones separate and opens the full assistant from the guide", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
   await page.goto("/");
-  const chat = page.locator("[data-chat-root]");
-  await expect(chat).toHaveAttribute("data-chat-presentation", "guide");
-  const guideAction = chat.locator("[data-chat-mobile-guide-action]");
-  await expect(guideAction).toBeVisible();
-  await guideAction.click();
-  await expect(chat).toHaveAttribute("data-chat-presentation", "expanded");
-  const panel = chat.locator("[data-chat-panel]");
-  await expect(panel).toBeVisible();
-  await chat.locator("[data-chat-collapse]").click();
-  await expect(chat).toHaveAttribute("data-chat-presentation", "collapsed");
-  const collapsed = await page.evaluate(() => {
+  const layout = await page.evaluate(() => {
     const rect = (selector: string) => {
-      const value = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
-      if (!value) throw new Error(`Missing ${selector}`);
-      return { bottom: value.bottom, left: value.left, right: value.right, top: value.top };
+      const bounds = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      if (!bounds) throw new Error(`Missing ${selector}`);
+      return {
+        top: bounds.top,
+        right: bounds.right,
+        bottom: bounds.bottom,
+        left: bounds.left,
+        width: bounds.width,
+        height: bounds.height,
+      };
     };
+    const lines = (selector: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>(selector), (line) => {
+        const bounds = line.getBoundingClientRect();
+        return {
+          height: bounds.height,
+          fontSize: Number.parseFloat(getComputedStyle(line).fontSize),
+          text: line.textContent?.trim(),
+        };
+      });
+    const root = document.querySelector<HTMLElement>("[data-chat-root]");
+    const ask = document.querySelector<HTMLElement>("[data-open-chat]");
+    if (!root || !ask) throw new Error("Missing mobile hero controls");
     return {
-      chat: rect("[data-chat-root]"),
-      orb: rect("[data-chat-orb]"),
-      position: getComputedStyle(document.querySelector<HTMLElement>("[data-chat-root]")!).position,
-      viewportHeight: window.innerHeight,
+      askDisplay: getComputedStyle(ask).display,
+      action: rect("[data-chat-mobile-guide-action]"),
+      card: rect("[data-chat-panel]"),
+      headline: rect(".hero-copy .headline"),
+      headlineLines: lines(".hero-copy .headline > span"),
+      nav: rect(".site-nav"),
+      supporting: rect(".hero-supporting"),
+      supportingLines: lines(".hero-supporting > span"),
+      presentation: root.dataset.chatPresentation,
+      scrollWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
     };
   });
-  expect(collapsed.position).toBe("fixed");
-  expect(collapsed.orb.left).toBeGreaterThanOrEqual(0);
-  expect(collapsed.orb.right).toBeLessThanOrEqual(collapsed.viewportWidth + 1);
-  expect(collapsed.orb.bottom).toBeLessThanOrEqual(collapsed.viewportHeight + 1);
-  await page.locator("[data-chat-orb]").click();
-  await expect(panel).toBeVisible();
-  await expect(panel).toHaveCSS("transform", "none");
-  const panelBox = await panel.boundingBox();
-  const expandedViewport = await page.evaluate(() => ({
-    height: window.innerHeight,
-    width: window.innerWidth,
+  expect(layout.askDisplay).toBe("none");
+  expect(layout.nav.height).toBeLessThanOrEqual(72);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.headlineLines.map((line) => line.text)).toEqual([
+    "Crafting Future",
+    "Through Objects & Systems.",
+  ]);
+  expect(layout.supportingLines.map((line) => line.text)).toEqual([
+    "从实体产品到智能系统，",
+    "以研究、交互与原型塑造未来体验。",
+  ]);
+  for (const line of [...layout.headlineLines, ...layout.supportingLines]) {
+    expect(line.height).toBeLessThanOrEqual(line.fontSize * 1.55);
+  }
+  expect(layout.headline.bottom).toBeLessThanOrEqual(layout.supporting.top - 8);
+  expect(layout.supporting.bottom).toBeLessThanOrEqual(layout.card.top - 14);
+  expect(layout.card.height).toBeGreaterThanOrEqual(76);
+  expect(layout.card.height).toBeLessThanOrEqual(92);
+  expect(layout.action.width).toBeGreaterThanOrEqual(44);
+  expect(layout.action.height).toBeGreaterThanOrEqual(44);
+  expect(layout.action.left).toBeGreaterThanOrEqual(layout.card.left - 1);
+  expect(layout.action.right).toBeLessThanOrEqual(layout.card.right + 1);
+  expect(layout.action.top).toBeGreaterThanOrEqual(layout.card.top - 1);
+  expect(layout.action.bottom).toBeLessThanOrEqual(layout.card.bottom + 1);
+  expect(layout.presentation).toBe("guide");
+
+  await page.locator("[data-chat-mobile-guide-action]").click();
+  const root = page.locator("[data-chat-root]");
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  await expect(page.locator("[data-chat-panel]")).toBeVisible();
+  await expect(page.locator("[data-chat-transcript]")).toBeVisible();
+  await expect(page.locator("[data-chat-input]")).toBeVisible();
+});
+
+test("uses a transparent 56px mobile orb and docks only after release", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
+  await page.goto("/");
+  const root = page.locator("[data-chat-root]");
+  await page.evaluate(() => window.scrollTo(0, 220));
+  await expect(root).toHaveAttribute("data-chat-presentation", "collapsed");
+
+  const shell = await root.evaluate((element) => {
+    const orb = element.querySelector<HTMLElement>("[data-chat-orb]");
+    if (!orb) throw new Error("Missing orb");
+    const bounds = orb.getBoundingClientRect();
+    const style = getComputedStyle(orb);
+    const pseudo = getComputedStyle(element, "::before");
+    const canvas = element.querySelector<HTMLElement>(".chat-particle-canvas");
+    return {
+      width: bounds.width,
+      height: bounds.height,
+      background: style.backgroundColor,
+      border: style.borderStyle,
+      pseudoContent: pseudo.content,
+      mixBlend: canvas ? getComputedStyle(canvas).mixBlendMode : "",
+    };
+  });
+  expect(shell.width).toBeCloseTo(56, 4);
+  expect(shell.height).toBeCloseTo(56, 4);
+  expect(shell.background).toBe("rgba(0, 0, 0, 0)");
+  expect(shell.border).toBe("none");
+  expect(shell.pseudoContent).toBe("none");
+  expect(shell.mixBlend).toBe("difference");
+
+  const orb = page.locator("[data-chat-orb]");
+  const start = await orb.boundingBox();
+  if (!start) throw new Error("Mobile orb has no bounds");
+  const target = await page.evaluate(() => ({
+    x: window.innerWidth * 0.65,
+    y: Math.min(window.innerHeight - 44, Math.max(96, window.innerHeight * 0.46)),
   }));
-  expect(panelBox).not.toBeNull();
-  expect(panelBox!.x).toBeGreaterThanOrEqual(0);
-  expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(expandedViewport.width + 2);
-  expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(expandedViewport.height + 2);
+  const startX = start.x + start.width / 2;
+  const startY = start.y + start.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y);
+  await expect(root).toHaveAttribute("data-chat-dragging", "true");
+  const duringMove = await orb.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const root = element.closest<HTMLElement>("[data-chat-root]");
+    return {
+      centerX: bounds.left + bounds.width / 2,
+      dock: root?.dataset.chatDock,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(duringMove.centerX).toBeGreaterThan(duringMove.viewportWidth * 0.55);
+  expect(duringMove.centerX).toBeLessThan(duringMove.viewportWidth - 44);
+  expect(duringMove.dock).toBe("left");
+
+  await page.mouse.up();
+  await expect(root).not.toHaveAttribute("data-chat-dragging", "true");
+  await expect(root).toHaveAttribute("data-chat-dock", "right");
+  const released = await orb.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      left: bounds.left,
+      right: bounds.right,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(released.left).toBeGreaterThanOrEqual(0);
+  expect(released.right).toBeLessThanOrEqual(released.viewportWidth);
+
+  await orb.click();
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  await expect(page.locator("[data-chat-panel]")).toBeVisible();
+});
+
+test("keeps mobile project chevrons proportional to the reader page", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
+  await page.goto("/#projects");
+  await page.locator("[data-project-selector]").first().click();
+  const reader = page.locator('[data-project-reader][data-project-id="inkseat"]');
+  await reader.scrollIntoViewIfNeeded();
+  await waitForReaderReady(reader);
+  const geometry = await reader.locator(".project-reader-stage").evaluate((stage) => {
+    const button = stage.querySelector<HTMLElement>(".project-reader-chevron--next");
+    const svg = button?.querySelector<SVGElement>("svg");
+    if (!button || !svg) throw new Error("Missing reader chevron");
+    const stageBounds = stage.getBoundingClientRect();
+    const buttonBounds = button.getBoundingClientRect();
+    const svgBounds = svg.getBoundingClientRect();
+    return {
+      stageWidth: stageBounds.width,
+      button: { width: buttonBounds.width, height: buttonBounds.height },
+      svg: { width: svgBounds.width, height: svgBounds.height },
+    };
+  });
+  expect(geometry.button.width).toBeGreaterThanOrEqual(44);
+  expect(geometry.button.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.svg.width).toBeGreaterThanOrEqual(14);
+  expect(geometry.svg.width).toBeLessThanOrEqual(22);
+  expect(geometry.svg.height / geometry.svg.width).toBeCloseTo(66 / 40, 1);
+  expect(geometry.svg.width).toBeCloseTo(
+    Math.min(22, Math.max(14, geometry.stageWidth * 0.031)),
+    0,
+  );
 });
 
 test("renders a responsive, complete portrait and becomes still", async ({
