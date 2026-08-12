@@ -518,6 +518,27 @@ async function expectCriticalLayoutInsideViewport(page: Page): Promise<void> {
   );
 }
 
+async function pressTrustedTouch(
+  page: Page,
+  point: { x: number; y: number },
+): Promise<() => Promise<void>> {
+  const session = await page.context().newCDPSession(page);
+  await session.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [point],
+  });
+  return async () => {
+    try {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+    } finally {
+      await session.detach();
+    }
+  };
+}
+
 test.beforeEach(async ({ page }) => {
   installBrowserErrorGuards(page);
 });
@@ -1200,6 +1221,114 @@ test("uses a transparent 56px mobile orb and docks only after release", async ({
   await orb.click();
   await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
   await expect(page.locator("[data-chat-panel]")).toBeVisible();
+});
+
+test("keeps the mobile chat inside the keyboard viewport and uses physical tap feedback", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
+  await page.addInitScript(() => {
+    const viewport = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+      width: number;
+    };
+    viewport.height = window.innerHeight;
+    viewport.offsetTop = 0;
+    viewport.width = window.innerWidth;
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: viewport,
+    });
+    Object.defineProperty(window, "__setChatVisualViewport", {
+      configurable: true,
+      value: (height: number, offsetTop: number) => {
+        viewport.height = height;
+        viewport.offsetTop = offsetTop;
+        viewport.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("scroll"));
+      },
+    });
+  });
+  await page.goto("/");
+  const guide = page.locator("[data-chat-mobile-guide-action]");
+  const tapHighlight = await guide.evaluate((element) =>
+    getComputedStyle(element).getPropertyValue("-webkit-tap-highlight-color"),
+  );
+  expect(tapHighlight).toBe("rgba(0, 0, 0, 0)");
+
+  const guideBounds = await guide.boundingBox();
+  if (!guideBounds) throw new Error("Mobile chat guide has no bounds");
+  const releaseTouch = await pressTrustedTouch(page, {
+    x: guideBounds.x + guideBounds.width / 2,
+    y: guideBounds.y + guideBounds.height / 2,
+  });
+  await page.waitForTimeout(60);
+  const pressedState = await guide.evaluate((element) => ({
+    active: element.matches(":active"),
+    coarse: matchMedia("(pointer: coarse)").matches,
+    scale: getComputedStyle(element).scale,
+    tapScale: getComputedStyle(element).getPropertyValue("--tap-scale"),
+  }));
+  expect(pressedState, "trusted touch press state").toMatchObject({
+    coarse: true,
+    tapScale: "1.02",
+  });
+  expect(pressedState.active).toBe(false);
+  expect(Number.parseFloat(pressedState.scale)).toBeGreaterThan(1);
+  await releaseTouch();
+
+  const root = page.locator("[data-chat-root]");
+  const panel = page.locator("[data-chat-panel]");
+  const input = page.locator("[data-chat-input]");
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  await expect(input).toBeFocused();
+  const layoutHeight = page.viewportSize()?.height ?? 844;
+  const keyboardHeight = Math.min(
+    layoutHeight - 160,
+    Math.max(180, Math.floor(layoutHeight * 0.62)),
+  );
+  const keyboardOffset = 44;
+  await page.evaluate(
+    ({ height, offsetTop }) => {
+      (window as unknown as {
+        __setChatVisualViewport: (height: number, offsetTop: number) => void;
+      }).__setChatVisualViewport(height, offsetTop);
+    },
+    { height: keyboardHeight, offsetTop: keyboardOffset },
+  );
+  await expect(root).toHaveAttribute("data-chat-keyboard", "active");
+
+  const geometry = await panel.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    if (!viewport) throw new Error("Missing visual viewport");
+    return {
+      top: bounds.top,
+      bottom: bounds.bottom,
+      visualTop: viewport.offsetTop,
+      visualBottom: viewport.offsetTop + viewport.height,
+    };
+  });
+  expect(geometry.top).toBeGreaterThanOrEqual(geometry.visualTop + 12);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.visualBottom - 11);
+
+  await page.evaluate(() => window.scrollTo(0, 200));
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  const releasedScale = await guide.evaluate((element) => getComputedStyle(element).scale);
+  expect(Number.parseFloat(releasedScale)).toBeCloseTo(1, 2);
+});
+
+test("keeps keyboard viewport state and tap enlargement mobile-only", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-1440");
+  await page.goto("/");
+  const trigger = page.locator("[data-open-chat]");
+  const desktopStyle = await trigger.evaluate((element) => ({
+    scale: getComputedStyle(element).scale,
+    tapHighlight: getComputedStyle(element).getPropertyValue("-webkit-tap-highlight-color"),
+  }));
+  expect(desktopStyle.scale).toBe("none");
+  expect(desktopStyle.tapHighlight).not.toBe("rgba(0, 0, 0, 0)");
+  await trigger.click();
+  await expect(page.locator("[data-chat-root]")).not.toHaveAttribute("data-chat-keyboard", "active");
 });
 
 test("keeps mobile project chevrons proportional to the reader page", async ({ page }, testInfo) => {
