@@ -25,6 +25,8 @@ export function startChatPresentation(
   const { root, orb, panel, collapse } = elements;
   const idleMs = dependencies.scrollIdleMs ?? 250;
   const collapseMs = dependencies.collapseDurationMs ?? 380;
+  const mobileExpandMs = 320;
+  const mobileCollapseMs = 260;
   const collapseScrollThreshold = 160;
   const defaultDockY = 172;
   const pointerDragThreshold = 8;
@@ -40,6 +42,7 @@ export function startChatPresentation(
   let destroyed = false;
   let scrollTimer: number | undefined;
   let collapseTimer: number | undefined;
+  let transitionTimer: number | undefined;
   let expandFrame: number | undefined;
   let avoidTimer: number | undefined;
   let viewportFrame: number | undefined;
@@ -169,6 +172,17 @@ export function startChatPresentation(
     collapseTimer = undefined;
   };
 
+  const clearTransitionTimer = () => {
+    if (transitionTimer === undefined) return;
+    dependencies.window.clearTimeout(transitionTimer);
+    transitionTimer = undefined;
+  };
+
+  const clearPresentationTransition = () => {
+    clearTransitionTimer();
+    delete root.dataset.chatTransition;
+  };
+
   const clearExpandFrame = () => {
     if (expandFrame === undefined) return;
     dependencies.window.cancelAnimationFrame(expandFrame);
@@ -207,7 +221,17 @@ export function startChatPresentation(
 
   const finishCollapse = () => {
     clearCollapseTimer();
+    clearPresentationTransition();
     root.dataset.chatPresentation = "collapsed";
+    panel.style.removeProperty("--chat-panel-shift-x");
+    panel.style.removeProperty("--chat-panel-shift-y");
+  };
+
+  const finishMobileOpening = (focus: boolean) => {
+    transitionTimer = undefined;
+    if (destroyed || root.dataset.chatTransition !== "opening") return;
+    delete root.dataset.chatTransition;
+    if (focus) elements.input.focus();
   };
 
   const finishExpand = (focus: boolean) => {
@@ -216,7 +240,28 @@ export function startChatPresentation(
     root.dataset.chatPresentation = "expanded";
     collapseScrollAnchorY = dependencies.window.scrollY;
     scheduleHeroAvoidance();
-    if (focus) dependencies.window.requestAnimationFrame(() => elements.input.focus());
+    if (root.dataset.chatTransition === "opening") {
+      transitionTimer = dependencies.window.setTimeout(
+        () => finishMobileOpening(focus),
+        mobileExpandMs,
+      );
+    } else if (focus) {
+      dependencies.window.requestAnimationFrame(() => elements.input.focus());
+    }
+  };
+
+  const setMobilePanelOrigin = (orbBounds: DOMRect) => {
+    root.dataset.chatPresentation = "expanded";
+    const panelBounds = panel.getBoundingClientRect();
+    panel.style.setProperty("--chat-panel-shift-x", `${Math.round(
+      orbBounds.left + orbBounds.width / 2
+        - panelBounds.left - panelBounds.width / 2,
+    )}px`);
+    panel.style.setProperty("--chat-panel-shift-y", `${Math.round(
+      orbBounds.top + orbBounds.height / 2
+        - panelBounds.top - panelBounds.height / 2,
+    )}px`);
+    root.dataset.chatPresentation = "expanding";
   };
 
   const setExpanded = (expanded: boolean, focus = false) => {
@@ -228,6 +273,7 @@ export function startChatPresentation(
     panel.setAttribute("aria-hidden", String(!expanded));
     if (!expanded) {
       clearExpandFrame();
+      clearTransitionTimer();
       if (
         root.dataset.chatPresentation === "collapsed"
         || root.dataset.chatPresentation === "collapsing"
@@ -235,27 +281,38 @@ export function startChatPresentation(
         return;
       }
       const canAnimate = !reducedMotion?.matches
-        && dependencies.window.innerWidth > 760
         && collapseMs > 0;
       if (!canAnimate) {
         finishCollapse();
         return;
       }
       clearCollapseTimer();
+      if (dependencies.window.innerWidth <= 760) {
+        root.dataset.chatTransition = "closing";
+      }
       root.dataset.chatPresentation = "collapsing";
-      collapseTimer = dependencies.window.setTimeout(finishCollapse, collapseMs);
+      collapseTimer = dependencies.window.setTimeout(
+        finishCollapse,
+        dependencies.window.innerWidth <= 760 ? mobileCollapseMs : collapseMs,
+      );
       return;
     }
     clearCollapseTimer();
     clearExpandFrame();
+    clearPresentationTransition();
     const fromDock = root.dataset.chatPresentation === "collapsed"
       || root.dataset.chatPresentation === "collapsing";
     const canAnimate = fromDock
-      && !reducedMotion?.matches
-      && dependencies.window.innerWidth > 760;
+      && !reducedMotion?.matches;
     if (canAnimate) {
-      root.dataset.chatPresentation = "expanding";
-      prepareExpandedDock();
+      if (dependencies.window.innerWidth <= 760) {
+        const orbBounds = orb.getBoundingClientRect();
+        root.dataset.chatTransition = "opening";
+        setMobilePanelOrigin(orbBounds);
+      } else {
+        root.dataset.chatPresentation = "expanding";
+        prepareExpandedDock();
+      }
       expandFrame = dependencies.window.requestAnimationFrame(() => finishExpand(focus));
       return;
     }
@@ -269,6 +326,7 @@ export function startChatPresentation(
     if (destroyed) return;
     clearCollapseTimer();
     clearExpandFrame();
+    clearPresentationTransition();
     root.dataset.chatPresentation = "guide";
     collapseScrollAnchorY = dependencies.window.scrollY;
     orb.setAttribute("aria-expanded", "false");
@@ -500,6 +558,7 @@ export function startChatPresentation(
     delete root.dataset.chatDragging;
     if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
     clearCollapseTimer();
+    clearPresentationTransition();
     clearExpandFrame();
     clearAvoidTimer();
     clearViewportFrame();

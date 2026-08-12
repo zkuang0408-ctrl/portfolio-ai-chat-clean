@@ -109,6 +109,91 @@ test("opens the full panel from the compact mobile guide without submitting", ()
   cleanup();
 });
 
+test("materializes the mobile panel from the docked orb before focusing the composer", () => {
+  vi.useFakeTimers();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { root, elements, cleanup } = setup();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  vi.advanceTimersByTime(260);
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+  vi.spyOn(elements.orb, "getBoundingClientRect").mockReturnValue({
+    x: 16,
+    y: 144,
+    top: 144,
+    right: 72,
+    bottom: 200,
+    left: 16,
+    width: 56,
+    height: 56,
+    toJSON: () => ({}),
+  } as DOMRect);
+  vi.spyOn(elements.panel, "getBoundingClientRect").mockReturnValue({
+    x: 12,
+    y: 100,
+    top: 100,
+    right: 378,
+    bottom: 700,
+    left: 12,
+    width: 366,
+    height: 600,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  elements.orb.click();
+
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  expect(root.dataset.chatTransition).toBe("opening");
+  expect(elements.panel.style.getPropertyValue("--chat-panel-shift-x")).toBe("-151px");
+  expect(elements.panel.style.getPropertyValue("--chat-panel-shift-y")).toBe("-228px");
+  expect(document.activeElement).not.toBe(elements.input);
+
+  frames.shift()?.(0);
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  expect(root.dataset.chatTransition).toBe("opening");
+  vi.advanceTimersByTime(319);
+  expect(document.activeElement).not.toBe(elements.input);
+  vi.advanceTimersByTime(1);
+  expect(root.dataset.chatTransition).toBeUndefined();
+  expect(document.activeElement).toBe(elements.input);
+  cleanup();
+});
+
+test("cancels delayed mobile focus when closing interrupts the opening transition", () => {
+  vi.useFakeTimers();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { root, elements, cleanup } = setup();
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  elements.orb.click();
+  frames.shift()?.(0);
+  expect(root.dataset.chatTransition).toBe("opening");
+
+  elements.collapse.click();
+
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  expect(root.dataset.chatTransition).toBe("closing");
+  vi.advanceTimersByTime(259);
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  vi.advanceTimersByTime(1);
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+  expect(root.dataset.chatTransition).toBeUndefined();
+  expect(document.activeElement).not.toBe(elements.input);
+  cleanup();
+});
+
 test("expands from the docked ball through a mirrored scale state", () => {
   vi.useFakeTimers();
   const frames: FrameRequestCallback[] = [];
@@ -270,7 +355,7 @@ test("keeps a 12px touch drift as an orb tap on mobile", () => {
   elements.orb.click();
 
   expect(root.dataset.chatDragging).toBeUndefined();
-  expect(root.dataset.chatPresentation).toBe("expanded");
+  expect(root.dataset.chatPresentation).toBe("expanding");
   cleanup();
 });
 
