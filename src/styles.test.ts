@@ -509,7 +509,7 @@ test("uses a short bottom mobile guide and keeps the full panel readable", () =>
       mobile,
       '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
     ),
-  ).toMatch(/max-height:\s*min\(70dvh/);
+  ).toMatch(/max-height:\s*var\(--chat-visual-height,[\s\S]*min\(70dvh/);
   expect(
     mediaRule(
       mobile,
@@ -526,6 +526,34 @@ test("keeps the mobile guide keyboard focus visible inside its clipped frame", (
 
   expect(focus).toMatch(/outline:\s*1px\s+solid\s+#c8685f/);
   expect(focus).toMatch(/outline-offset:\s*-4px/);
+});
+
+test("tracks the expanded mobile sheet inside the visual keyboard viewport", () => {
+  const panel = mediaRule(
+    "(max-width: 760px)",
+    '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
+  );
+
+  expect(panel).toMatch(/top:\s*var\(--chat-visual-top,\s*auto\)/);
+  expect(panel).toMatch(/bottom:\s*max\([\s\S]*var\(--chat-visual-bottom,\s*0px\)/);
+  expect(panel).toMatch(/max-height:\s*var\(--chat-visual-height,/);
+});
+
+test("replaces mobile blue tap highlighting with restrained press enlargement", () => {
+  expect(styles).toMatch(
+    /@media\s*\(max-width:\s*760px\)\s+and\s+\(pointer:\s*coarse\)[\s\S]*?-webkit-tap-highlight-color:\s*transparent/,
+  );
+  expect(styles).toMatch(/--tap-scale:\s*1/);
+  expect(styles).toMatch(/scale:\s*var\(--tap-scale\)/);
+  expect(styles).toMatch(/transition:\s*scale\s+190ms\s+var\(--ease-out\)/);
+  expect(styles).toMatch(/:active:not\(:disabled\)[\s\S]*?--tap-scale:\s*1\.02/);
+  expect(styles).toMatch(/:where\(a, button, \[role="button"\]\):not\(\.chat-orb\)/);
+});
+
+test("keeps press feedback still under reduced motion", () => {
+  expect(styles).toMatch(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?:where\(a, button, \[role="button"\]\):not\(\.chat-orb\)[\s\S]*?scale:\s*1[\s\S]*?transition:\s*none/,
+  );
 });
 
 test("uses a transparent 56px mobile particle orb while preserving desktop geometry", () => {

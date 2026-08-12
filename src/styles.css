@@ -2611,6 +2611,10 @@ a:focus-visible {
     transform: none;
   }
 
+  .hero-chat[data-chat-presentation="expanded"][data-chat-keyboard="active"] .chat-panel {
+    bottom: calc(var(--chat-visual-bottom, 0px) + 12px);
+  }
+
   .hero-supporting {
     right: 16px;
     bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 16px);
@@ -2837,17 +2841,20 @@ a:focus-visible {
 
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
     position: fixed;
-    top: auto;
+    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,
       calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(var(--chat-visual-bottom, 0px) + 12px),
       env(safe-area-inset-bottom)
     );
     left: 12px;
     width: auto;
-    max-height: min(70dvh,
-      calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
+    max-height: var(--chat-visual-height,
+      min(70dvh,
+        calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
+      )
     );
     transform: none;
   }
@@ -2855,6 +2862,38 @@ a:focus-visible {
   .hero-chat[data-chat-presentation="expanded"] .chat-transcript {
     display: flex;
     min-height: 1px;
+  }
+}
+
+@media (max-width: 760px) and (pointer: coarse) {
+  :where(a, button, [role="button"]):not(.chat-orb) {
+    --tap-scale: 1;
+    -webkit-tap-highlight-color: transparent;
+    scale: var(--tap-scale);
+    transition:
+      scale 190ms var(--ease-out),
+      color 160ms var(--ease-out),
+      background-color 160ms var(--ease-out),
+      border-color 160ms var(--ease-out),
+      opacity 160ms var(--ease-out),
+      transform 190ms var(--ease-out);
+  }
+
+  :where(a, button, [role="button"]):not(.chat-orb):active:not(:disabled) {
+    --tap-scale: 1.02;
+    transition-duration: 90ms;
+  }
+}
+
+@media (max-width: 760px) {
+  :where(a, button, [role="button"]):focus-visible {
+    outline: 1px solid #c8685f;
+    outline-offset: 3px;
+  }
+
+  .chat-mobile-guide-action:focus-visible {
+    outline: 1px solid #c8685f;
+    outline-offset: -4px;
   }
 }
 
@@ -2899,6 +2938,12 @@ a:focus-visible {
 
   .chat-loading-dot {
     animation: none;
+  }
+
+  :where(a, button, [role="button"]):not(.chat-orb) {
+    --tap-scale: 1;
+    scale: 1;
+    transition: none;
   }
 }
 
