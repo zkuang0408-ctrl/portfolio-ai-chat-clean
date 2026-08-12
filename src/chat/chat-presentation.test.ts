@@ -109,6 +109,33 @@ test("opens the full panel from the compact mobile guide without submitting", ()
   cleanup();
 });
 
+test("collapses a guide-opened mobile panel toward the current orb dock", () => {
+  vi.useFakeTimers();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const { root, elements, cleanup } = setup();
+  vi.spyOn(elements.panel, "getBoundingClientRect").mockReturnValue({
+    x: 12,
+    y: 100,
+    top: 100,
+    right: 378,
+    bottom: 700,
+    left: 12,
+    width: 366,
+    height: 600,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  elements.mobileGuideAction.click();
+  elements.collapse.click();
+
+  expect(root.dataset.chatPresentation).toBe("collapsing");
+  expect(root.dataset.chatTransition).toBe("closing");
+  expect(elements.panel.style.getPropertyValue("--chat-panel-shift-x")).toBe("-151px");
+  expect(elements.panel.style.getPropertyValue("--chat-panel-shift-y")).toBe("-228px");
+  cleanup();
+});
+
 test("materializes the mobile panel from the docked orb before focusing the composer", () => {
   vi.useFakeTimers();
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });

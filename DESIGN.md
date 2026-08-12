@@ -131,8 +131,9 @@ Selectors contain real first-page imagery, metadata, and modest `1.03` hover sca
 Expanded desktop presentation is a dark 400px panel; mobile becomes a safe-area-aware bottom sheet. Content and draft state remain mounted, and motion uses the shared ease-out curve.
 
 - The mobile guide expands the existing full chat panel without submitting a prompt. After the scroll threshold, it becomes a transparent 56px particle orb; `mix-blend-mode: difference` provides white particles on dark surfaces and black particles on light surfaces, while desktop retains its 76px orb.
+- On mobile, the expanded panel materializes from the live docked-orb position through a short compositor-only scale/opacity transition; input focus waits until arrival so the keyboard cannot interrupt the spatial cue. A 12px touch hysteresis separates incidental finger drift from intentional dragging, and touch release opens reliably even when the browser omits or strips metadata from its compatibility click.
 - While the mobile composer is focused, the expanded sheet follows the visual viewport rather than competing with keyboard-driven page movement. Visual-viewport signals are batched per frame, and page-scroll collapse pauses until the keyboard settles.
-- Mobile coarse-pointer controls remove the browser tap overlay and use a restrained `1.02` press enlargement. Keyboard focus remains a deliberate oxide-red outline, and reduced motion removes the scale transition.
+- Mobile coarse-pointer controls remove the browser tap overlay; the particle orb uses a restrained `1.04` press enlargement while ordinary controls retain `1.02`. Keyboard focus remains a deliberate oxide-red outline, and reduced motion removes the scale transition.
 
 ## Do's and Don'ts
 

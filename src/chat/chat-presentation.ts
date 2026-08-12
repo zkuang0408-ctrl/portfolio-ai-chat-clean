@@ -258,17 +258,24 @@ export function startChatPresentation(
     }
   };
 
-  const setMobilePanelOrigin = (orbBounds: DOMRect) => {
-    root.dataset.chatPresentation = "expanded";
-    const panelBounds = panel.getBoundingClientRect();
+  const setPanelOrigin = (
+    origin: { readonly x: number; readonly y: number },
+    panelBounds: DOMRect,
+  ) => {
     panel.style.setProperty("--chat-panel-shift-x", `${Math.round(
-      orbBounds.left + orbBounds.width / 2
-        - panelBounds.left - panelBounds.width / 2,
+      origin.x - panelBounds.left - panelBounds.width / 2,
     )}px`);
     panel.style.setProperty("--chat-panel-shift-y", `${Math.round(
-      orbBounds.top + orbBounds.height / 2
-        - panelBounds.top - panelBounds.height / 2,
+      origin.y - panelBounds.top - panelBounds.height / 2,
     )}px`);
+  };
+
+  const setMobilePanelOrigin = (orbBounds: DOMRect) => {
+    root.dataset.chatPresentation = "expanded";
+    setPanelOrigin({
+      x: orbBounds.left + orbBounds.width / 2,
+      y: orbBounds.top + orbBounds.height / 2,
+    }, panel.getBoundingClientRect());
     root.dataset.chatPresentation = "expanding";
   };
 
@@ -296,6 +303,9 @@ export function startChatPresentation(
       }
       clearCollapseTimer();
       if (dependencies.window.innerWidth <= 760) {
+        if (!panel.style.getPropertyValue("--chat-panel-shift-x") && dock) {
+          setPanelOrigin(dock, panel.getBoundingClientRect());
+        }
         root.dataset.chatTransition = "closing";
       }
       root.dataset.chatPresentation = "collapsing";
