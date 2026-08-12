@@ -113,7 +113,7 @@ a:focus-visible {
 
 @media (max-width: 560px) {
   :root {
-    --nav-height: 58px;
+    --nav-height: 48px;
   }
 
   .site-nav {
@@ -2548,7 +2548,7 @@ a:focus-visible {
 
 @media (max-width: 760px) {
   :root {
-    --nav-height: 58px;
+    --nav-height: 48px;
     --mobile-guide-bottom: max(12px, env(safe-area-inset-bottom));
     --mobile-guide-height: clamp(76px, 10.5svh, 88px);
   }
@@ -2559,7 +2559,7 @@ a:focus-visible {
   }
 
   .site-nav {
-    min-height: calc(58px + env(safe-area-inset-top));
+    min-height: calc(48px + env(safe-area-inset-top));
     padding-inline: 14px;
     flex-wrap: nowrap;
   }

@@ -95,6 +95,10 @@ test("places role, headline, and supporting copy in approved desktop regions", (
 test("uses one compact mobile navigation row without the redundant Ask AI label", () => {
   const mobile = "(max-width: 760px)";
 
+  expect(mediaRule(mobile, ":root")).toMatch(/--nav-height:\s*48px/);
+  expect(mediaRule(mobile, ".site-nav")).toMatch(
+    /min-height:\s*calc\(48px\s*\+\s*env\(safe-area-inset-top\)\)/,
+  );
   expect(mediaRule(mobile, ".site-nav")).toMatch(/flex-wrap:\s*nowrap/);
   expect(mediaRule(mobile, ".site-nav nav")).toMatch(/white-space:\s*nowrap/);
   expect(mediaRule(mobile, ".site-nav nav :is(a, button)")).toMatch(
