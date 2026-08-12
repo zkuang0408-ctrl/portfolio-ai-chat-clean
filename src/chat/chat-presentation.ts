@@ -27,7 +27,8 @@ export function startChatPresentation(
   const collapseMs = dependencies.collapseDurationMs ?? 380;
   const collapseScrollThreshold = 160;
   const defaultDockY = 172;
-  const dragThreshold = 8;
+  const pointerDragThreshold = 8;
+  const touchDragThreshold = 12;
   const dockMetrics = () => ({
     edge: 16,
     top: 72,
@@ -46,6 +47,7 @@ export function startChatPresentation(
   let dragStart: { x: number; y: number } | undefined;
   let dragOffset: { x: number; y: number } | undefined;
   let activePointerId: number | null = null;
+  let activePointerType = "mouse";
   let dragging = false;
   let ignoreNextOrbClick = false;
   let dock: DockPosition | undefined;
@@ -289,7 +291,12 @@ export function startChatPresentation(
     }
   };
   const onScroll = () => {
-    if (keyboardActive || keyboardSettling) return;
+    if (
+      root.dataset.chatTransition
+      || root.ownerDocument.activeElement === elements.input
+      || keyboardActive
+      || keyboardSettling
+    ) return;
     if (dependencies.window.scrollY <= 8) {
       if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
       scrollTimer = undefined;
@@ -310,6 +317,7 @@ export function startChatPresentation(
   const onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 || activePointerId !== null) return;
     activePointerId = event.pointerId ?? 0;
+    activePointerType = event.pointerType || "mouse";
     dragStart = { x: event.clientX, y: event.clientY };
     const viewport = viewportSize();
     const currentX = dock?.x ?? viewport.width / 2;
@@ -324,7 +332,10 @@ export function startChatPresentation(
   const onPointerMove = (event: PointerEvent) => {
     if (activePointerId !== (event.pointerId ?? 0) || !dragStart) return;
     const moved = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
-    if (moved >= dragThreshold && !dragging) {
+    const crossedDragThreshold = activePointerType === "touch"
+      ? moved > touchDragThreshold
+      : moved >= pointerDragThreshold;
+    if (crossedDragThreshold && !dragging) {
       dragging = true;
       root.dataset.chatDragging = "true";
     }
@@ -339,6 +350,7 @@ export function startChatPresentation(
     const pointerId = activePointerId;
     const wasDragging = dragging;
     activePointerId = null;
+    activePointerType = "mouse";
     dragStart = undefined;
     dragOffset = undefined;
     dragging = false;

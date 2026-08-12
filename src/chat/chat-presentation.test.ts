@@ -44,7 +44,13 @@ function setup(options: { collapseDurationMs?: number; initialDock?: "left" | "r
 
 function pointerEvent(
   type: string,
-  init: { pointerId: number; clientX: number; clientY: number; button?: number },
+  init: {
+    pointerId: number;
+    clientX: number;
+    clientY: number;
+    button?: number;
+    pointerType?: string;
+  },
 ): Event {
   const event = new Event(type, { bubbles: true });
   Object.defineProperties(event, {
@@ -52,6 +58,7 @@ function pointerEvent(
     clientX: { value: init.clientX },
     clientY: { value: init.clientY },
     pointerId: { value: init.pointerId },
+    pointerType: { value: init.pointerType ?? "mouse" },
   });
   return event;
 }
@@ -231,6 +238,96 @@ test("does not interpret the click emitted after a drag as an expand request", (
 
   expect(root.dataset.chatPresentation).toBe("collapsed");
   expect(root.dataset.chatDock).toBe("left");
+  cleanup();
+});
+
+test("keeps a 12px touch drift as an orb tap on mobile", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 56,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 56,
+    clientY: 172,
+  }));
+  elements.orb.click();
+
+  expect(root.dataset.chatDragging).toBeUndefined();
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  cleanup();
+});
+
+test("treats touch movement beyond 12px as a deliberate drag", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(390);
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 57,
+    clientY: 172,
+  }));
+  expect(root.dataset.chatDragging).toBe("true");
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 57,
+    clientY: 172,
+  }));
+  elements.orb.click();
+
+  expect(root.dataset.chatPresentation).toBe("collapsed");
+  cleanup();
+});
+
+test("keeps the mobile panel open while its input owns focus", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  elements.mobileGuideAction.click();
+  elements.input.focus();
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  cleanup();
+});
+
+test("does not collapse while an assistant presentation transition is active", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const { root, cleanup } = setup({ collapseDurationMs: 0 });
+  root.dataset.chatTransition = "opening";
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+
+  expect(root.dataset.chatPresentation).toBe("guide");
   cleanup();
 });
 
