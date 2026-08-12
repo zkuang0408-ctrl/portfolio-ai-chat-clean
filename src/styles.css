@@ -2889,7 +2889,7 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(12px + var(--chat-viewport-inset, 0px)),
       calc(var(--chat-visual-bottom, 0px) + 12px),
       env(safe-area-inset-bottom)
     );
@@ -2909,7 +2909,7 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(12px + var(--chat-viewport-inset, 0px)),
       calc(var(--chat-visual-bottom, 0px) + 12px),
       env(safe-area-inset-bottom)
     );
@@ -2941,7 +2941,7 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(12px + var(--chat-viewport-inset, 0px)),
       calc(var(--chat-visual-bottom, 0px) + 12px),
       env(safe-area-inset-bottom)
     );

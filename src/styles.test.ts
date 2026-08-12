@@ -554,14 +554,28 @@ test("keeps the mobile guide keyboard focus visible inside its clipped frame", (
 });
 
 test("tracks the expanded mobile sheet inside the visual keyboard viewport", () => {
+  const mobile = "(max-width: 760px)";
   const panel = mediaRule(
-    "(max-width: 760px)",
+    mobile,
     '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
+  );
+  const keyboardPanel = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="expanded"][data-chat-keyboard="active"] .chat-panel',
   );
 
   expect(panel).toMatch(/top:\s*var\(--chat-visual-top,\s*auto\)/);
+  expect(panel).toMatch(
+    /calc\(12px\s*\+\s*var\(--chat-viewport-inset,\s*0px\)\)/,
+  );
+  expect(panel).not.toMatch(
+    /calc\(60px\s*\+\s*var\(--chat-viewport-inset,\s*0px\)\)/,
+  );
   expect(panel).toMatch(/bottom:\s*max\([\s\S]*var\(--chat-visual-bottom,\s*0px\)/);
   expect(panel).toMatch(/max-height:\s*var\(--chat-visual-height,/);
+  expect(keyboardPanel).toMatch(
+    /bottom:\s*calc\(var\(--chat-visual-bottom,\s*0px\)\s*\+\s*12px\)/,
+  );
 });
 
 test("replaces mobile blue tap highlighting with restrained press enlargement", () => {

@@ -1440,6 +1440,66 @@ test("keeps the mobile chat inside the keyboard viewport and uses physical tap f
   expect(Number.parseFloat(releasedScale)).toBeCloseTo(1, 2);
 });
 
+test("keeps keyboard-driven panel motion monotonic across activation", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-390");
+  await page.addInitScript(() => {
+    const viewport = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+      width: number;
+    };
+    viewport.height = window.innerHeight;
+    viewport.offsetTop = 0;
+    viewport.width = window.innerWidth;
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: viewport,
+    });
+    Object.defineProperty(window, "__setChatVisualViewport", {
+      configurable: true,
+      value: (height: number, offsetTop: number) => {
+        viewport.height = height;
+        viewport.offsetTop = offsetTop;
+        viewport.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("scroll"));
+      },
+    });
+  });
+  await page.goto("/");
+  await page.locator("[data-chat-mobile-guide-action]").click();
+  await expect(page.locator("[data-chat-input]")).toBeFocused();
+  const layoutHeight = page.viewportSize()?.height ?? 844;
+  const panel = page.locator("[data-chat-panel]");
+  const bottomAt = async (height: number) => {
+    await page.evaluate((visualHeight) => {
+      (window as unknown as {
+        __setChatVisualViewport: (height: number, offsetTop: number) => void;
+      }).__setChatVisualViewport(visualHeight, 0);
+    }, height);
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+    return panel.evaluate((element) => element.getBoundingClientRect().bottom);
+  };
+
+  const visualHeights = [
+    layoutHeight,
+    layoutHeight - 44,
+    layoutHeight - 84,
+    layoutHeight - 119,
+    layoutHeight - 120,
+    layoutHeight - 164,
+    layoutHeight - 244,
+    layoutHeight - 324,
+  ];
+  const panelBottoms: number[] = [];
+  for (const height of visualHeights) panelBottoms.push(await bottomAt(height));
+
+  for (let index = 1; index < panelBottoms.length; index += 1) {
+    expect(panelBottoms[index]!).toBeLessThanOrEqual(panelBottoms[index - 1]! + 1);
+  }
+});
+
 test("keeps keyboard viewport state and tap enlargement mobile-only", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1440");
   await page.goto("/");
