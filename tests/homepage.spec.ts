@@ -1115,7 +1115,7 @@ test("keeps the mobile hero zones separate and opens the full assistant from the
     };
   });
   expect(layout.askDisplay).toBe("none");
-  expect(layout.nav.height).toBeLessThanOrEqual(72);
+  expect(layout.nav.height).toBeCloseTo(48, 0);
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.headlineLines.map((line) => line.text)).toEqual([
     "Crafting Future",
