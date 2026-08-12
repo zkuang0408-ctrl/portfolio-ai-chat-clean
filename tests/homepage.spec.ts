@@ -1100,13 +1100,35 @@ test("keeps the mobile hero zones separate and opens the full assistant from the
     const root = document.querySelector<HTMLElement>("[data-chat-root]");
     const ask = document.querySelector<HTMLElement>("[data-open-chat]");
     if (!root || !ask) throw new Error("Missing mobile hero controls");
+    const activeNav = document.querySelector<HTMLElement>(".site-nav nav a");
+    if (!activeNav) throw new Error("Missing mobile navigation link");
+    activeNav.setAttribute("aria-current", "location");
+    const activeAfter = getComputedStyle(activeNav, "::after");
     return {
+      activeNav: {
+        afterBackground: activeAfter.backgroundColor,
+        afterHeight: Number.parseFloat(activeAfter.height),
+        rowGap: Number.parseFloat(getComputedStyle(activeNav).rowGap),
+      },
       askDisplay: getComputedStyle(ask).display,
       action: rect("[data-chat-mobile-guide-action]"),
+      brand: rect(".site-nav__brand"),
       card: rect("[data-chat-panel]"),
       headline: rect(".hero-copy .headline"),
       headlineLines: lines(".hero-copy .headline > span"),
       nav: rect(".site-nav"),
+      navLinks: Array.from(
+        document.querySelectorAll<HTMLElement>(".site-nav nav a"),
+        (link) => {
+          const bounds = link.getBoundingClientRect();
+          return {
+            bottom: bounds.bottom,
+            height: bounds.height,
+            top: bounds.top,
+            width: bounds.width,
+          };
+        },
+      ),
       supporting: rect(".hero-supporting"),
       supportingLines: lines(".hero-supporting > span"),
       presentation: root.dataset.chatPresentation,
@@ -1115,7 +1137,17 @@ test("keeps the mobile hero zones separate and opens the full assistant from the
     };
   });
   expect(layout.askDisplay).toBe("none");
-  expect(layout.nav.height).toBeCloseTo(48, 0);
+  expect(layout.nav.height).toBeCloseTo(36, 0);
+  expect(layout.brand.height).toBeCloseTo(36, 0);
+  for (const link of layout.navLinks) {
+    expect(link.height).toBeCloseTo(36, 0);
+    expect(link.width).toBeGreaterThanOrEqual(36);
+    expect(link.top).toBeGreaterThanOrEqual(layout.nav.top);
+    expect(link.bottom).toBeLessThanOrEqual(layout.nav.bottom);
+  }
+  expect(layout.activeNav.rowGap).toBe(4);
+  expect(layout.activeNav.afterHeight).toBe(1);
+  expect(layout.activeNav.afterBackground).toBe("rgb(143, 50, 43)");
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.headlineLines.map((line) => line.text)).toEqual([
     "Crafting Future",

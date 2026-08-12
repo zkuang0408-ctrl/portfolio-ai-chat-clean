@@ -113,7 +113,7 @@ a:focus-visible {
 
 @media (max-width: 560px) {
   :root {
-    --nav-height: 48px;
+    --nav-height: 36px;
   }
 
   .site-nav {
@@ -2548,7 +2548,7 @@ a:focus-visible {
 
 @media (max-width: 760px) {
   :root {
-    --nav-height: 48px;
+    --nav-height: 36px;
     --mobile-guide-bottom: max(12px, env(safe-area-inset-bottom));
     --mobile-guide-height: clamp(76px, 10.5svh, 88px);
   }
@@ -2559,13 +2559,19 @@ a:focus-visible {
   }
 
   .site-nav {
-    min-height: calc(48px + env(safe-area-inset-top));
+    min-height: calc(36px + env(safe-area-inset-top));
+    height: calc(36px + env(safe-area-inset-top));
     padding-inline: 14px;
+    border-bottom: 0;
+    box-shadow: inset 0 -1px rgb(255 255 255 / 0.08);
     flex-wrap: nowrap;
   }
 
   .site-nav__brand {
     flex: 0 0 auto;
+    display: flex;
+    height: 36px;
+    align-items: center;
     white-space: nowrap;
   }
 
@@ -2575,9 +2581,35 @@ a:focus-visible {
   }
 
   .site-nav nav :is(a, button) {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 36px;
+    min-height: 36px;
+    height: 36px;
     font-size: 11px;
+  }
+
+  .site-nav nav a {
+    display: grid;
+    grid-template-rows: max-content 1px;
+    row-gap: 4px;
+    align-content: center;
+    justify-items: center;
+    padding-bottom: 2px;
+  }
+
+  .site-nav nav a::after {
+    width: 100%;
+    height: 1px;
+    background: transparent;
+    content: "";
+  }
+
+  .site-nav nav a[aria-current="location"] {
+    background: none;
+    color: var(--text);
+  }
+
+  .site-nav nav a[aria-current="location"]::after {
+    background: var(--accent);
   }
 
   .site-nav [data-open-chat] {

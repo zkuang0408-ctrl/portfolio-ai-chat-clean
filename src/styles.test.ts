@@ -95,14 +95,35 @@ test("places role, headline, and supporting copy in approved desktop regions", (
 test("uses one compact mobile navigation row without the redundant Ask AI label", () => {
   const mobile = "(max-width: 760px)";
 
-  expect(mediaRule(mobile, ":root")).toMatch(/--nav-height:\s*48px/);
+  expect(mediaRule(mobile, ":root")).toMatch(/--nav-height:\s*36px/);
   expect(mediaRule(mobile, ".site-nav")).toMatch(
-    /min-height:\s*calc\(48px\s*\+\s*env\(safe-area-inset-top\)\)/,
+    /min-height:\s*calc\(36px\s*\+\s*env\(safe-area-inset-top\)\)/,
+  );
+  expect(mediaRule(mobile, ".site-nav")).toMatch(
+    /(?:^|\n)\s*height:\s*calc\(36px\s*\+\s*env\(safe-area-inset-top\)\)/,
+  );
+  expect(mediaRule(mobile, ".site-nav")).toMatch(
+    /border-bottom:\s*0;[\s\S]*box-shadow:\s*inset\s+0\s+-1px\s+rgb\(255\s+255\s+255\s*\/\s*0\.08\)/,
   );
   expect(mediaRule(mobile, ".site-nav")).toMatch(/flex-wrap:\s*nowrap/);
+  expect(mediaRule(mobile, ".site-nav__brand")).toMatch(/height:\s*36px/);
   expect(mediaRule(mobile, ".site-nav nav")).toMatch(/white-space:\s*nowrap/);
   expect(mediaRule(mobile, ".site-nav nav :is(a, button)")).toMatch(
-    /min-width:\s*44px;[\s\S]*min-height:\s*44px/,
+    /min-width:\s*36px;[\s\S]*height:\s*36px/,
+  );
+  expect(mediaRule(mobile, ".site-nav nav a")).toMatch(
+    /grid-template-rows:\s*max-content\s+1px;[\s\S]*row-gap:\s*4px;[\s\S]*align-content:\s*center;[\s\S]*padding-bottom:\s*2px/,
+  );
+  expect(mediaRule(mobile, ".site-nav nav a::after")).toMatch(
+    /width:\s*100%;[\s\S]*height:\s*1px;[\s\S]*background:\s*transparent/,
+  );
+  expect(mediaRule(mobile, '.site-nav nav a[aria-current="location"]')).toMatch(
+    /background:\s*none;[\s\S]*color:\s*var\(--text\)/,
+  );
+  expect(
+    mediaRule(mobile, '.site-nav nav a[aria-current="location"]::after'),
+  ).toMatch(
+    /background:\s*var\(--accent\)/,
   );
   expect(mediaRule(mobile, ".site-nav [data-open-chat]")).toMatch(
     /display:\s*none/,
