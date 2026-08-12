@@ -5,6 +5,11 @@ import {
   type DockPosition,
   type DockSide,
 } from "./particle-dock";
+import {
+  isMobileKeyboardActive,
+  resolveMobileChatViewport,
+  shouldRestoreKeyboardScroll,
+} from "./mobile-keyboard-viewport";
 
 export interface ChatPresentationDependencies {
   readonly trigger: HTMLButtonElement;
@@ -36,6 +41,8 @@ export function startChatPresentation(
   let collapseTimer: number | undefined;
   let expandFrame: number | undefined;
   let avoidTimer: number | undefined;
+  let viewportFrame: number | undefined;
+  let keyboardSettleTimer: number | undefined;
   let dragStart: { x: number; y: number } | undefined;
   let dragOffset: { x: number; y: number } | undefined;
   let activePointerId: number | null = null;
@@ -43,6 +50,10 @@ export function startChatPresentation(
   let ignoreNextOrbClick = false;
   let dock: DockPosition | undefined;
   let collapseScrollAnchorY = dependencies.window.scrollY;
+  let keyboardActive = false;
+  let keyboardSettling = false;
+  let keyboardAnchorY: number | undefined;
+  let keyboardTravel = 0;
 
   const reducedMotion = dependencies.window.matchMedia?.(
     "(prefers-reduced-motion: reduce)",
@@ -168,6 +179,18 @@ export function startChatPresentation(
     avoidTimer = undefined;
   };
 
+  const clearViewportFrame = () => {
+    if (viewportFrame === undefined) return;
+    dependencies.window.cancelAnimationFrame(viewportFrame);
+    viewportFrame = undefined;
+  };
+
+  const clearKeyboardSettleTimer = () => {
+    if (keyboardSettleTimer === undefined) return;
+    dependencies.window.clearTimeout(keyboardSettleTimer);
+    keyboardSettleTimer = undefined;
+  };
+
   const scheduleHeroAvoidance = () => {
     clearAvoidTimer();
     dependencies.window.requestAnimationFrame(() => {
@@ -266,6 +289,7 @@ export function startChatPresentation(
     }
   };
   const onScroll = () => {
+    if (keyboardActive || keyboardSettling) return;
     if (dependencies.window.scrollY <= 8) {
       if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
       scrollTimer = undefined;
@@ -342,12 +366,90 @@ export function startChatPresentation(
   const updateMotionPreference = () => {
     root.dataset.chatMotion = reducedMotion?.matches ? "reduced" : "full";
   };
-  const updateViewportInset = () => {
+
+  const finishKeyboardSettle = () => {
+    keyboardSettleTimer = undefined;
+    if (destroyed) return;
+    if (
+      keyboardAnchorY !== undefined
+      && shouldRestoreKeyboardScroll({
+        anchorY: keyboardAnchorY,
+        currentY: dependencies.window.scrollY,
+        keyboardTravel,
+      })
+    ) {
+      dependencies.window.scrollTo({
+        top: keyboardAnchorY,
+        behavior: reducedMotion?.matches ? "auto" : "smooth",
+      });
+    }
+    keyboardAnchorY = undefined;
+    keyboardTravel = 0;
+    keyboardSettling = false;
+  };
+
+  const updateViewport = () => {
     const viewport = dependencies.window.visualViewport;
     const inset = viewport
       ? Math.max(0, dependencies.window.innerHeight - viewport.height - viewport.offsetTop)
       : 0;
     root.style.setProperty("--chat-viewport-inset", `${Math.round(inset)}px`);
+    const nextKeyboardActive = viewport !== null && viewport !== undefined
+      && isMobileKeyboardActive({
+        mobile: dependencies.window.innerWidth <= 760,
+        inputFocused: root.ownerDocument.activeElement === elements.input,
+        layoutHeight: dependencies.window.innerHeight,
+        visualHeight: viewport.height,
+      });
+    if (nextKeyboardActive && viewport) {
+      clearKeyboardSettleTimer();
+      keyboardSettling = false;
+      keyboardAnchorY ??= dependencies.window.scrollY;
+      keyboardTravel = Math.max(
+        keyboardTravel,
+        dependencies.window.innerHeight - viewport.height,
+      );
+      const geometry = resolveMobileChatViewport({
+        layoutHeight: dependencies.window.innerHeight,
+        visualHeight: viewport.height,
+        visualOffsetTop: viewport.offsetTop,
+        navigationBottom: 58,
+        safeGap: 12,
+      });
+      root.dataset.chatKeyboard = "active";
+      root.style.setProperty("--chat-visual-top", `${Math.round(geometry.top)}px`);
+      root.style.setProperty("--chat-visual-bottom", `${Math.round(geometry.bottomInset)}px`);
+      root.style.setProperty("--chat-visual-height", `${Math.round(geometry.availableHeight)}px`);
+    } else {
+      delete root.dataset.chatKeyboard;
+      root.style.removeProperty("--chat-visual-top");
+      root.style.removeProperty("--chat-visual-bottom");
+      root.style.removeProperty("--chat-visual-height");
+      if (keyboardActive) {
+        clearKeyboardSettleTimer();
+        keyboardSettling = true;
+        keyboardSettleTimer = dependencies.window.setTimeout(finishKeyboardSettle, 160);
+      }
+    }
+    keyboardActive = nextKeyboardActive;
+  };
+
+  const scheduleViewportUpdate = () => {
+    if (viewportFrame !== undefined) return;
+    let completedSynchronously = false;
+    const frame = dependencies.window.requestAnimationFrame(() => {
+      completedSynchronously = true;
+      viewportFrame = undefined;
+      updateViewport();
+    });
+    if (!completedSynchronously) viewportFrame = frame;
+  };
+
+  const onInputFocus = () => {
+    if (dependencies.window.innerWidth <= 760) {
+      keyboardAnchorY ??= dependencies.window.scrollY;
+    }
+    scheduleViewportUpdate();
   };
 
   orb.addEventListener("click", onOrbClick);
@@ -362,12 +464,14 @@ export function startChatPresentation(
   dependencies.window.addEventListener("resize", onResize, { passive: true });
   dependencies.window.addEventListener("orientationchange", onResize);
   document.addEventListener("keydown", onKeyDown);
-  dependencies.window.visualViewport?.addEventListener("resize", updateViewportInset);
-  dependencies.window.visualViewport?.addEventListener("scroll", updateViewportInset);
+  elements.input.addEventListener("focus", onInputFocus);
+  elements.input.addEventListener("blur", scheduleViewportUpdate);
+  dependencies.window.visualViewport?.addEventListener("resize", scheduleViewportUpdate);
+  dependencies.window.visualViewport?.addEventListener("scroll", scheduleViewportUpdate);
   reducedMotion?.addEventListener("change", updateMotionPreference);
   clampDock();
   updateMotionPreference();
-  updateViewportInset();
+  updateViewport();
 
   return () => {
     if (destroyed) return;
@@ -378,6 +482,8 @@ export function startChatPresentation(
     clearCollapseTimer();
     clearExpandFrame();
     clearAvoidTimer();
+    clearViewportFrame();
+    clearKeyboardSettleTimer();
     orb.removeEventListener("click", onOrbClick);
     orb.removeEventListener("pointerdown", onPointerDown);
     orb.removeEventListener("pointermove", onPointerMove);
@@ -390,8 +496,10 @@ export function startChatPresentation(
     dependencies.window.removeEventListener("resize", onResize);
     dependencies.window.removeEventListener("orientationchange", onResize);
     document.removeEventListener("keydown", onKeyDown);
-    dependencies.window.visualViewport?.removeEventListener("resize", updateViewportInset);
-    dependencies.window.visualViewport?.removeEventListener("scroll", updateViewportInset);
+    elements.input.removeEventListener("focus", onInputFocus);
+    elements.input.removeEventListener("blur", scheduleViewportUpdate);
+    dependencies.window.visualViewport?.removeEventListener("resize", scheduleViewportUpdate);
+    dependencies.window.visualViewport?.removeEventListener("scroll", scheduleViewportUpdate);
     reducedMotion?.removeEventListener("change", updateMotionPreference);
   };
 }

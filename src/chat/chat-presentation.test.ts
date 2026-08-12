@@ -3,6 +3,29 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { renderChat } from "./render-chat";
 import { startChatPresentation } from "./chat-presentation";
 
+class VisualViewportStub extends EventTarget {
+  height: number;
+  offsetTop: number;
+
+  constructor(height: number, offsetTop = 0) {
+    super();
+    this.height = height;
+    this.offsetTop = offsetTop;
+  }
+
+  setGeometry({ height, offsetTop }: { height: number; offsetTop: number }) {
+    this.height = height;
+    this.offsetTop = offsetTop;
+  }
+}
+
+function installVisualViewport(viewport: VisualViewportStub) {
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: viewport,
+  });
+}
+
 function setup(options: { collapseDurationMs?: number; initialDock?: "left" | "right" } = {}) {
   const root = document.createElement("aside");
   const trigger = document.createElement("button");
@@ -37,6 +60,8 @@ beforeEach(() => {
   document.body.innerHTML = "";
   vi.useRealTimers();
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_024 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 768 });
+  Object.defineProperty(window, "visualViewport", { configurable: true, value: undefined });
 });
 
 test("opens from the orb or site navigation and collapses without replacing chat DOM", () => {
@@ -449,5 +474,86 @@ test("returns focus to the particle ball when the collapse control closes the pa
 
   expect(root.dataset.chatPresentation).toBe("collapsed");
   expect(document.activeElement).toBe(elements.orb);
+  cleanup();
+});
+
+test("batches mobile keyboard viewport motion and keeps the expanded panel open", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  frames.splice(0);
+  elements.mobileGuideAction.click();
+  elements.input.focus();
+  while (frames.length > 0) frames.shift()?.(0);
+
+  visualViewport.setGeometry({ height: 520, offsetTop: 44 });
+  visualViewport.dispatchEvent(new Event("resize"));
+  visualViewport.dispatchEvent(new Event("scroll"));
+
+  expect(frames).toHaveLength(1);
+  frames.shift()?.(0);
+  expect(root.dataset.chatKeyboard).toBe("active");
+  expect(root.style.getPropertyValue("--chat-visual-top")).toBe("70px");
+  expect(root.style.getPropertyValue("--chat-visual-bottom")).toBe("280px");
+  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("482px");
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("expanded");
+  cleanup();
+});
+
+test("restores keyboard-induced page displacement after the viewport settles", () => {
+  vi.useFakeTimers();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+  const scrollTo = vi.fn();
+  Object.defineProperty(window, "scrollTo", { configurable: true, value: scrollTo });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  elements.mobileGuideAction.click();
+  elements.input.focus();
+  visualViewport.setGeometry({ height: 520, offsetTop: 44 });
+  visualViewport.dispatchEvent(new Event("resize"));
+  expect(root.dataset.chatKeyboard).toBe("active");
+
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 96 });
+  elements.input.blur();
+  visualViewport.setGeometry({ height: 844, offsetTop: 0 });
+  visualViewport.dispatchEvent(new Event("resize"));
+  expect(root.dataset.chatKeyboard).toBeUndefined();
+  window.dispatchEvent(new Event("scroll"));
+  expect(root.dataset.chatPresentation).toBe("expanded");
+
+  vi.advanceTimersByTime(180);
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  cleanup();
+});
+
+test("does not activate mobile keyboard geometry on desktop", () => {
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(520, 44);
+  installVisualViewport(visualViewport);
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  elements.input.focus();
+  visualViewport.dispatchEvent(new Event("resize"));
+
+  expect(root.dataset.chatKeyboard).toBeUndefined();
   cleanup();
 });
