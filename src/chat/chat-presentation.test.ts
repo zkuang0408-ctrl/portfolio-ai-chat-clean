@@ -557,3 +557,20 @@ test("does not activate mobile keyboard geometry on desktop", () => {
   expect(root.dataset.chatKeyboard).toBeUndefined();
   cleanup();
 });
+
+test("does not schedule a keyboard frame for ordinary unfocused viewport resize", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  const frame = vi.spyOn(window, "requestAnimationFrame");
+  const { root, cleanup } = setup({ collapseDurationMs: 0 });
+  frame.mockClear();
+
+  visualViewport.setGeometry({ height: 700, offsetTop: 0 });
+  visualViewport.dispatchEvent(new Event("resize"));
+
+  expect(frame).not.toHaveBeenCalled();
+  expect(root.dataset.chatKeyboard).toBeUndefined();
+  cleanup();
+});

@@ -435,6 +435,14 @@ export function startChatPresentation(
   };
 
   const scheduleViewportUpdate = () => {
+    if (
+      root.ownerDocument.activeElement !== elements.input
+      && !keyboardActive
+      && !keyboardSettling
+    ) {
+      updateViewport();
+      return;
+    }
     if (viewportFrame !== undefined) return;
     let completedSynchronously = false;
     const frame = dependencies.window.requestAnimationFrame(() => {
