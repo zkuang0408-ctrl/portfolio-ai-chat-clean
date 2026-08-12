@@ -2883,6 +2883,7 @@ a:focus-visible {
   .hero-chat[data-chat-presentation="expanded"] .chat-panel,
   .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
     position: fixed;
+    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,
@@ -2902,6 +2903,7 @@ a:focus-visible {
   .hero-chat[data-chat-presentation="expanding"] .chat-panel,
   .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
     position: fixed;
+    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,
@@ -2933,6 +2935,7 @@ a:focus-visible {
 
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
     position: fixed;
+    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,

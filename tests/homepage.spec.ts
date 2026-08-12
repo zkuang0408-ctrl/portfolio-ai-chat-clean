@@ -1507,6 +1507,15 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
   const afterActivation = geometries[4]!;
   expect(Math.abs(afterActivation.top - beforeActivation.top)).toBeLessThanOrEqual(2);
   expect(Math.abs(afterActivation.height - beforeActivation.height)).toBeLessThanOrEqual(2);
+
+  const finalGeometry = geometries.at(-1)!;
+  const finalVisualHeight = visualHeights.at(-1)!;
+  expect(finalGeometry.top).toBeGreaterThanOrEqual(69);
+  expect(finalGeometry.top).toBeLessThanOrEqual(71);
+  expect(finalGeometry.bottom).toBeLessThanOrEqual(finalVisualHeight - 11);
+  expect(finalGeometry.height).toBeGreaterThanOrEqual(
+    finalVisualHeight - finalGeometry.top - 13,
+  );
 });
 
 test("keeps keyboard viewport state and tap enlargement mobile-only", async ({ page }, testInfo) => {
