@@ -564,7 +564,7 @@ test("tracks the expanded mobile sheet inside the visual keyboard viewport", () 
     '.hero-chat[data-chat-presentation="expanded"][data-chat-keyboard="active"] .chat-panel',
   );
 
-  expect(panel).toMatch(/top:\s*var\(--chat-visual-top,\s*auto\)/);
+  expect(panel).not.toMatch(/(?:^|\n)\s*top:/);
   expect(panel).toMatch(
     /calc\(12px\s*\+\s*var\(--chat-viewport-inset,\s*0px\)\)/,
   );
@@ -573,9 +573,15 @@ test("tracks the expanded mobile sheet inside the visual keyboard viewport", () 
   );
   expect(panel).toMatch(/bottom:\s*max\([\s\S]*var\(--chat-visual-bottom,\s*0px\)/);
   expect(panel).toMatch(/max-height:\s*var\(--chat-visual-height,/);
-  expect(keyboardPanel).toMatch(
-    /bottom:\s*calc\(var\(--chat-visual-bottom,\s*0px\)\s*\+\s*12px\)/,
-  );
+  expect(keyboardPanel).toBe("");
+});
+
+test("uses an opaque mobile chat surface while the keyboard changes viewport geometry", () => {
+  const panel = mediaRule("(max-width: 760px)", ".chat-panel");
+
+  expect(panel).toMatch(/background:\s*#101011/);
+  expect(panel).toMatch(/backdrop-filter:\s*none/);
+  expect(rule(".chat-panel")).toMatch(/backdrop-filter:\s*blur\(28px\)/);
 });
 
 test("replaces mobile blue tap highlighting with restrained press enlargement", () => {

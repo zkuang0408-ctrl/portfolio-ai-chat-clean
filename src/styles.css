@@ -1270,6 +1270,8 @@ a:focus-visible {
     border-bottom: 0;
     border-left: 0;
     border-radius: 24px 24px 0 0;
+    background: #101011;
+    backdrop-filter: none;
     transform: translateY(18px) scale(0.985);
     transform-origin: center bottom;
   }
@@ -2643,10 +2645,6 @@ a:focus-visible {
     transform: none;
   }
 
-  .hero-chat[data-chat-presentation="expanded"][data-chat-keyboard="active"] .chat-panel {
-    bottom: calc(var(--chat-visual-bottom, 0px) + 12px);
-  }
-
   .hero-supporting {
     right: 16px;
     bottom: calc(var(--mobile-guide-bottom) + var(--mobile-guide-height) + 16px);
@@ -2885,7 +2883,6 @@ a:focus-visible {
   .hero-chat[data-chat-presentation="expanded"] .chat-panel,
   .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
     position: fixed;
-    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,
@@ -2905,7 +2902,6 @@ a:focus-visible {
   .hero-chat[data-chat-presentation="expanding"] .chat-panel,
   .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
     position: fixed;
-    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,
@@ -2937,7 +2933,6 @@ a:focus-visible {
 
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
     position: fixed;
-    top: var(--chat-visual-top, auto);
     right: 12px;
     bottom: max(
       76px,

@@ -493,21 +493,43 @@ export function startChatPresentation(
     keyboardAnchorY = undefined;
     keyboardTravel = 0;
     keyboardSettling = false;
+    updateViewport();
   };
 
   const updateViewport = () => {
     const viewport = dependencies.window.visualViewport;
+    const mobile = dependencies.window.innerWidth <= 760;
+    const inputFocused = root.ownerDocument.activeElement === elements.input;
     const inset = viewport
       ? Math.max(0, dependencies.window.innerHeight - viewport.height - viewport.offsetTop)
       : 0;
     root.style.setProperty("--chat-viewport-inset", `${Math.round(inset)}px`);
     const nextKeyboardActive = viewport !== null && viewport !== undefined
       && isMobileKeyboardActive({
-        mobile: dependencies.window.innerWidth <= 760,
-        inputFocused: root.ownerDocument.activeElement === elements.input,
+        mobile,
+        inputFocused,
         layoutHeight: dependencies.window.innerHeight,
         visualHeight: viewport.height,
       });
+    const trackVisualGeometry = viewport !== null && viewport !== undefined
+      && mobile
+      && (inputFocused || keyboardActive || keyboardSettling);
+    if (trackVisualGeometry) {
+      const geometry = resolveMobileChatViewport({
+        layoutHeight: dependencies.window.innerHeight,
+        visualHeight: viewport!.height,
+        visualOffsetTop: viewport!.offsetTop,
+        navigationBottom: 58,
+        safeGap: 12,
+      });
+      root.style.setProperty("--chat-visual-top", `${Math.round(geometry.top)}px`);
+      root.style.setProperty("--chat-visual-bottom", `${Math.round(geometry.bottomInset)}px`);
+      root.style.setProperty("--chat-visual-height", `${Math.round(geometry.availableHeight)}px`);
+    } else {
+      root.style.removeProperty("--chat-visual-top");
+      root.style.removeProperty("--chat-visual-bottom");
+      root.style.removeProperty("--chat-visual-height");
+    }
     if (nextKeyboardActive && viewport) {
       clearKeyboardSettleTimer();
       keyboardSettling = false;
@@ -516,23 +538,10 @@ export function startChatPresentation(
         keyboardTravel,
         dependencies.window.innerHeight - viewport.height,
       );
-      const geometry = resolveMobileChatViewport({
-        layoutHeight: dependencies.window.innerHeight,
-        visualHeight: viewport.height,
-        visualOffsetTop: viewport.offsetTop,
-        navigationBottom: 58,
-        safeGap: 12,
-      });
       root.dataset.chatKeyboard = "active";
-      root.style.setProperty("--chat-visual-top", `${Math.round(geometry.top)}px`);
-      root.style.setProperty("--chat-visual-bottom", `${Math.round(geometry.bottomInset)}px`);
-      root.style.setProperty("--chat-visual-height", `${Math.round(geometry.availableHeight)}px`);
     } else {
       delete root.dataset.chatKeyboard;
-      root.style.removeProperty("--chat-visual-top");
-      root.style.removeProperty("--chat-visual-bottom");
-      root.style.removeProperty("--chat-visual-height");
-      if (keyboardActive) {
+      if (keyboardActive || keyboardSettling) {
         clearKeyboardSettleTimer();
         keyboardSettling = true;
         keyboardSettleTimer = dependencies.window.setTimeout(finishKeyboardSettle, 160);

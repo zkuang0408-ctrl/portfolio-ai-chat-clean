@@ -794,6 +794,33 @@ test("batches mobile keyboard viewport motion and keeps the expanded panel open"
   cleanup();
 });
 
+test("tracks mobile viewport geometry from focus before keyboard activation", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  frames.splice(0);
+  elements.mobileGuideAction.click();
+  elements.input.focus();
+  while (frames.length > 0) frames.shift()?.(0);
+
+  visualViewport.setGeometry({ height: 800, offsetTop: 0 });
+  visualViewport.dispatchEvent(new Event("resize"));
+  frames.shift()?.(0);
+
+  expect(root.dataset.chatKeyboard).toBeUndefined();
+  expect(root.style.getPropertyValue("--chat-visual-top")).toBe("70px");
+  expect(root.style.getPropertyValue("--chat-visual-bottom")).toBe("44px");
+  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("718px");
+  cleanup();
+});
+
 test("restores keyboard-induced page displacement after the viewport settles", () => {
   vi.useFakeTimers();
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
@@ -823,6 +850,8 @@ test("restores keyboard-induced page displacement after the viewport settles", (
 
   vi.advanceTimersByTime(180);
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  expect(root.style.getPropertyValue("--chat-visual-bottom")).toBe("");
+  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("");
   cleanup();
 });
 

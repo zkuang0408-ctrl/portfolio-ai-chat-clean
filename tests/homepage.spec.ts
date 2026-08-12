@@ -1470,7 +1470,7 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
   await expect(page.locator("[data-chat-input]")).toBeFocused();
   const layoutHeight = page.viewportSize()?.height ?? 844;
   const panel = page.locator("[data-chat-panel]");
-  const bottomAt = async (height: number) => {
+  const geometryAt = async (height: number) => {
     await page.evaluate((visualHeight) => {
       (window as unknown as {
         __setChatVisualViewport: (height: number, offsetTop: number) => void;
@@ -1479,7 +1479,10 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
     await page.evaluate(() => new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     }));
-    return panel.evaluate((element) => element.getBoundingClientRect().bottom);
+    return panel.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { bottom: bounds.bottom, height: bounds.height, top: bounds.top };
+    });
   };
 
   const visualHeights = [
@@ -1492,12 +1495,18 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
     layoutHeight - 244,
     layoutHeight - 324,
   ];
-  const panelBottoms: number[] = [];
-  for (const height of visualHeights) panelBottoms.push(await bottomAt(height));
+  const geometries: Array<{ bottom: number; height: number; top: number }> = [];
+  for (const height of visualHeights) geometries.push(await geometryAt(height));
 
-  for (let index = 1; index < panelBottoms.length; index += 1) {
-    expect(panelBottoms[index]!).toBeLessThanOrEqual(panelBottoms[index - 1]! + 1);
+  for (let index = 1; index < geometries.length; index += 1) {
+    expect(geometries[index]!.bottom).toBeLessThanOrEqual(
+      geometries[index - 1]!.bottom + 1,
+    );
   }
+  const beforeActivation = geometries[3]!;
+  const afterActivation = geometries[4]!;
+  expect(Math.abs(afterActivation.top - beforeActivation.top)).toBeLessThanOrEqual(2);
+  expect(Math.abs(afterActivation.height - beforeActivation.height)).toBeLessThanOrEqual(2);
 });
 
 test("keeps keyboard viewport state and tap enlargement mobile-only", async ({ page }, testInfo) => {
