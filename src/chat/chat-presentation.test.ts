@@ -155,6 +155,8 @@ test("materializes the mobile panel from the docked orb before focusing the comp
   expect(document.activeElement).not.toBe(elements.input);
 
   frames.shift()?.(0);
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  frames.shift()?.(16);
   expect(root.dataset.chatPresentation).toBe("expanded");
   expect(root.dataset.chatTransition).toBe("opening");
   vi.advanceTimersByTime(319);
@@ -179,6 +181,7 @@ test("cancels delayed mobile focus when closing interrupts the opening transitio
   window.dispatchEvent(new Event("scroll"));
   elements.orb.click();
   frames.shift()?.(0);
+  frames.shift()?.(16);
   expect(root.dataset.chatTransition).toBe("opening");
 
   elements.collapse.click();
@@ -352,10 +355,82 @@ test("keeps a 12px touch drift as an orb tap on mobile", () => {
     clientX: 56,
     clientY: 172,
   }));
-  elements.orb.click();
+  elements.orb.dispatchEvent(pointerEvent("click", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 56,
+    clientY: 172,
+  }));
 
   expect(root.dataset.chatDragging).toBeUndefined();
   expect(root.dataset.chatPresentation).toBe("expanding");
+  cleanup();
+});
+
+test("opens on touch release even when the browser omits a compatibility click", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 430 });
+  const { root, elements, cleanup } = setup({ collapseDurationMs: 0 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
+  window.dispatchEvent(new Event("scroll"));
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 56,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 56,
+    clientY: 172,
+  }));
+
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  elements.orb.click();
+  expect(root.dataset.chatPresentation).toBe("expanding");
+  cleanup();
+});
+
+test("exposes mobile orb press feedback for the full trusted-pointer lifetime", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  const { elements, cleanup } = setup({ collapseDurationMs: 0 });
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  expect(elements.orb.dataset.chatPressed).toBe("true");
+
+  elements.orb.dispatchEvent(pointerEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  expect(elements.orb.dataset.chatPressed).toBeUndefined();
+
+  elements.orb.dispatchEvent(pointerEvent("pointerdown", {
+    pointerId: 2,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  elements.orb.dispatchEvent(pointerEvent("pointercancel", {
+    pointerId: 2,
+    pointerType: "touch",
+    clientX: 44,
+    clientY: 172,
+  }));
+  expect(elements.orb.dataset.chatPressed).toBeUndefined();
   cleanup();
 });
 

@@ -2980,7 +2980,8 @@ a:focus-visible {
     transition: scale 180ms var(--ease-out);
   }
 
-  .chat-orb:active {
+  .chat-orb:active,
+  .chat-orb[data-chat-pressed="true"] {
     --orb-tap-scale: 1.04;
     transition-duration: 90ms;
   }

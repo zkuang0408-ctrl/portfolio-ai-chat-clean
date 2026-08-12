@@ -1255,6 +1255,97 @@ test("uses a transparent 56px mobile orb and docks only after release", async ({
   await expect(page.locator("[data-chat-panel]")).toBeVisible();
 });
 
+test("keeps orb expansion reliable in the ordinary mobile project section", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
+  await page.goto("/#projects");
+  await page.locator("#projects").scrollIntoViewIfNeeded();
+  const root = page.locator("[data-chat-root]");
+  const orb = page.locator("[data-chat-orb]");
+  const panel = page.locator("[data-chat-panel]");
+  const input = page.locator("[data-chat-input]");
+  await expect(root).toHaveAttribute("data-chat-presentation", "collapsed");
+  await page.evaluate(() => {
+    const element = document.querySelector<HTMLElement>("[data-chat-root]");
+    if (!element) throw new Error("Missing chat root");
+    (window as Window & { __chatTransitions?: string[] }).__chatTransitions = [];
+    new MutationObserver(() => {
+      const state = `${element.dataset.chatPresentation}:${element.dataset.chatTransition ?? ""}`;
+      (window as Window & { __chatTransitions?: string[] }).__chatTransitions?.push(state);
+    }).observe(element, {
+      attributes: true,
+      attributeFilter: ["data-chat-presentation", "data-chat-transition"],
+    });
+  });
+
+  const tapHighlight = await orb.evaluate(
+    (element) => getComputedStyle(element).getPropertyValue("-webkit-tap-highlight-color"),
+  );
+  expect(tapHighlight).toBe("rgba(0, 0, 0, 0)");
+  const bounds = await orb.boundingBox();
+  if (!bounds) throw new Error("Mobile orb has no bounds");
+  const start = {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+  const releaseTouch = await pressTrustedTouch(page, start);
+  await page.waitForTimeout(60);
+  expect(Number.parseFloat(await orb.evaluate((element) => getComputedStyle(element).scale)))
+    .toBeGreaterThan(1);
+  await releaseTouch();
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  await expect(root).not.toHaveAttribute("data-chat-transition");
+  await page.locator("[data-chat-collapse]").click();
+  await expect(root).toHaveAttribute("data-chat-presentation", "collapsed");
+  await page.evaluate(() => {
+    const element = document.querySelector<HTMLElement>("[data-chat-root]");
+    if (!element) throw new Error("Missing chat root");
+    (window as Window & { __chatTransitions?: string[] }).__chatTransitions = [];
+    new MutationObserver(() => {
+      const state = `${element.dataset.chatPresentation}:${element.dataset.chatTransition ?? ""}`;
+      (window as Window & { __chatTransitions?: string[] }).__chatTransitions?.push(state);
+    }).observe(element, {
+      attributes: true,
+      attributeFilter: ["data-chat-presentation", "data-chat-transition"],
+    });
+  });
+  const jitterBounds = await orb.boundingBox();
+  if (!jitterBounds) throw new Error("Mobile orb has no bounds after reload");
+  const jitterStart = {
+    x: jitterBounds.x + jitterBounds.width / 2,
+    y: jitterBounds.y + jitterBounds.height / 2,
+  };
+  await dispatchTrustedTouchGesture(page, {
+    startX: jitterStart.x,
+    startY: jitterStart.y,
+    endX: jitterStart.x + 12,
+    endY: jitterStart.y,
+  });
+  await page.waitForTimeout(40);
+
+  const opening = await root.evaluate((element) => {
+    const panel = element.querySelector<HTMLElement>("[data-chat-panel]");
+    if (!panel) throw new Error("Missing chat panel");
+    const style = getComputedStyle(panel);
+    return {
+      state: element.dataset.chatPresentation,
+      transition: element.dataset.chatTransition,
+      transform: style.transform,
+      opacity: Number.parseFloat(style.opacity),
+      inputFocused: document.activeElement?.matches("[data-chat-input]") ?? false,
+      history: (window as Window & { __chatTransitions?: string[] }).__chatTransitions ?? [],
+    };
+  });
+  expect(opening.history.some((state) => state.endsWith(":opening"))).toBe(true);
+  expect(opening.state === "expanding" || opening.state === "expanded").toBe(true);
+  expect(opening.transform !== "none" || opening.opacity < 1).toBe(true);
+  expect(opening.inputFocused).toBe(false);
+
+  await expect(root).toHaveAttribute("data-chat-presentation", "expanded");
+  await expect(root).not.toHaveAttribute("data-chat-transition");
+  await expect(panel).toBeVisible();
+  await expect(input).toBeFocused();
+});
+
 test("keeps the mobile chat inside the keyboard viewport and uses physical tap feedback", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"));
   await page.addInitScript(() => {

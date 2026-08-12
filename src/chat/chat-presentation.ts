@@ -47,12 +47,14 @@ export function startChatPresentation(
   let avoidTimer: number | undefined;
   let viewportFrame: number | undefined;
   let keyboardSettleTimer: number | undefined;
+  let touchClickTimer: number | undefined;
   let dragStart: { x: number; y: number } | undefined;
   let dragOffset: { x: number; y: number } | undefined;
   let activePointerId: number | null = null;
   let activePointerType = "mouse";
   let dragging = false;
   let ignoreNextOrbClick = false;
+  let ignoreNextTouchClick = false;
   let dock: DockPosition | undefined;
   let collapseScrollAnchorY = dependencies.window.scrollY;
   let keyboardActive = false;
@@ -207,6 +209,12 @@ export function startChatPresentation(
     keyboardSettleTimer = undefined;
   };
 
+  const clearTouchClickTimer = () => {
+    if (touchClickTimer === undefined) return;
+    dependencies.window.clearTimeout(touchClickTimer);
+    touchClickTimer = undefined;
+  };
+
   const scheduleHeroAvoidance = () => {
     clearAvoidTimer();
     dependencies.window.requestAnimationFrame(() => {
@@ -309,6 +317,12 @@ export function startChatPresentation(
         const orbBounds = orb.getBoundingClientRect();
         root.dataset.chatTransition = "opening";
         setMobilePanelOrigin(orbBounds);
+        expandFrame = dependencies.window.requestAnimationFrame(() => {
+          expandFrame = dependencies.window.requestAnimationFrame(
+            () => finishExpand(focus),
+          );
+        });
+        return;
       } else {
         root.dataset.chatPresentation = "expanding";
         prepareExpandedDock();
@@ -336,8 +350,10 @@ export function startChatPresentation(
   const open = () => setExpanded(true, true);
   const close = () => setExpanded(false);
   const onOrbClick = () => {
-    if (ignoreNextOrbClick) {
+    if (ignoreNextOrbClick || ignoreNextTouchClick) {
       ignoreNextOrbClick = false;
+      ignoreNextTouchClick = false;
+      clearTouchClickTimer();
       return;
     }
     setExpanded(root.dataset.chatPresentation !== "expanded", true);
@@ -376,6 +392,7 @@ export function startChatPresentation(
     if (event.button !== 0 || activePointerId !== null) return;
     activePointerId = event.pointerId ?? 0;
     activePointerType = event.pointerType || "mouse";
+    if (activePointerType === "touch") orb.dataset.chatPressed = "true";
     dragStart = { x: event.clientX, y: event.clientY };
     const viewport = viewportSize();
     const currentX = dock?.x ?? viewport.width / 2;
@@ -407,8 +424,10 @@ export function startChatPresentation(
     if (activePointerId !== (event.pointerId ?? 0) || !dragStart) return;
     const pointerId = activePointerId;
     const wasDragging = dragging;
+    const wasTouch = activePointerType === "touch";
     activePointerId = null;
     activePointerType = "mouse";
+    delete orb.dataset.chatPressed;
     dragStart = undefined;
     dragOffset = undefined;
     dragging = false;
@@ -422,6 +441,14 @@ export function startChatPresentation(
         metrics,
         dock?.side,
       ));
+    } else if (suppressClick && wasTouch) {
+      setExpanded(root.dataset.chatPresentation !== "expanded", true);
+      ignoreNextTouchClick = true;
+      clearTouchClickTimer();
+      touchClickTimer = dependencies.window.setTimeout(() => {
+        ignoreNextTouchClick = false;
+        touchClickTimer = undefined;
+      }, 420);
     }
     orb.releasePointerCapture?.(pointerId);
   };
@@ -556,6 +583,7 @@ export function startChatPresentation(
     destroyed = true;
     activePointerId = null;
     delete root.dataset.chatDragging;
+    delete orb.dataset.chatPressed;
     if (scrollTimer !== undefined) dependencies.window.clearTimeout(scrollTimer);
     clearCollapseTimer();
     clearPresentationTransition();
@@ -563,6 +591,7 @@ export function startChatPresentation(
     clearAvoidTimer();
     clearViewportFrame();
     clearKeyboardSettleTimer();
+    clearTouchClickTimer();
     orb.removeEventListener("click", onOrbClick);
     orb.removeEventListener("pointerdown", onPointerDown);
     orb.removeEventListener("pointermove", onPointerMove);

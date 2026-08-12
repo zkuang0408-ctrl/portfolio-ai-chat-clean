@@ -581,7 +581,7 @@ test("replaces mobile blue tap highlighting with restrained press enlargement", 
   );
   const pressedOrb = mediaRule(
     "(max-width: 760px) and (pointer: coarse)",
-    ".chat-orb:active",
+    '.chat-orb:active,\n  .chat-orb[data-chat-pressed="true"]',
   );
   expect(orb).toMatch(/-webkit-tap-highlight-color:\s*transparent/);
   expect(orb).toMatch(/--orb-tap-scale:\s*1/);
