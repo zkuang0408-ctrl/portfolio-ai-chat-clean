@@ -96,7 +96,7 @@ Georgia supplies the large editorial voice; the system sans stack carries naviga
 
 ## Layout
 
-Navigation is fixed at 64px desktop and 58px compact mobile, including safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet.
+Navigation is fixed at 64px desktop and 48px compact mobile, plus safe-area insets. The first viewport uses an Ashley-style editorial path: role at upper left, a centered head-and-shoulders particle monument filling the usable screen, then the headline and supporting copy at lower right. The interface recedes around that path. Sections use generous vertical rhythm and alternate between black fields and one warm résumé object. Project cards form a six-column rail on wide screens and a horizontal snap rail below 1180px. At 760px, the résumé stacks, project chapters become single-column, and the AI panel becomes a bottom sheet.
 
 - At `<= 760px`, the hero uses a portrait-led first viewport: a single-row navigation, two fixed English title lines, two fixed Chinese supporting lines, and a 76–88px bottom AI guide card that may overlap only lower garment particles.
 
