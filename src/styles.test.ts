@@ -547,6 +547,7 @@ test("replaces mobile blue tap highlighting with restrained press enlargement", 
   expect(styles).toMatch(/scale:\s*var\(--tap-scale\)/);
   expect(styles).toMatch(/transition:\s*scale\s+190ms\s+var\(--ease-out\)/);
   expect(styles).toMatch(/:active:not\(:disabled\)[\s\S]*?--tap-scale:\s*1\.02/);
+  expect(styles).toMatch(/\[data-tap-pressed="true"\][\s\S]*?--tap-scale:\s*1\.02/);
   expect(styles).toMatch(/:where\(a, button, \[role="button"\]\):not\(\.chat-orb\)/);
 });
 

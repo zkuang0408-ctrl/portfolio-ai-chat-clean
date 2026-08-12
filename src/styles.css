@@ -2883,6 +2883,11 @@ a:focus-visible {
     --tap-scale: 1.02;
     transition-duration: 90ms;
   }
+
+  :where(a, button, [role="button"]):not(.chat-orb)[data-tap-pressed="true"] {
+    --tap-scale: 1.02;
+    transition-duration: 90ms;
+  }
 }
 
 @media (max-width: 760px) {

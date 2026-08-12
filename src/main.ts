@@ -8,6 +8,7 @@ import { navigateToSource } from "./chat/source-navigation";
 import type { ProjectPageAsset } from "./content/portfolio";
 import { renderHero } from "./hero/render-hero";
 import { renderNavigation } from "./navigation/render-navigation";
+import { startTapFeedback } from "./interaction/tap-feedback";
 import { startSectionState } from "./navigation/section-state";
 import {
   PARTICLE_PORTRAIT_URL,
@@ -86,6 +87,7 @@ renderPortfolio(portfolioRoot, { portraitUrl: RESUME_PORTRAIT_URL });
 app.append(portrait.chatRoot);
 const stopProjectSelector = startProjectSelector(portfolioRoot);
 const stopSectionState = startSectionState(navigation.root, app);
+const stopTapFeedback = startTapFeedback(document);
 
 const stopChat = startPortfolioChat(portrait.chat, {
   fetch: window.fetch.bind(window),
@@ -126,6 +128,7 @@ function handlePageHide(event: PageTransitionEvent): void {
   stopProjectSelector();
   stopReaderRouting();
   stopSectionState();
+  stopTapFeedback();
   window.removeEventListener("pagehide", handlePageHide);
 }
 window.addEventListener("pagehide", handlePageHide);
