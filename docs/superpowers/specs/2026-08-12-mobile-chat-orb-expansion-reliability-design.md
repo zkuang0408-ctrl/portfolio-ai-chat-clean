@@ -1,7 +1,7 @@
 # Mobile Chat Orb Expansion Reliability Design
 
-**Date:** 2026-08-12  
-**Scope:** Mobile viewport (`<= 760px`) only  
+**Date:** 2026-08-12
+**Scope:** Mobile viewport (`<= 760px`) only
 **Status:** Approved direction
 
 ## Goal
