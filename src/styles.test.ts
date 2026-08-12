@@ -574,11 +574,59 @@ test("replaces mobile blue tap highlighting with restrained press enlargement", 
   expect(styles).toMatch(/:active:not\(:disabled\)[\s\S]*?--tap-scale:\s*1\.02/);
   expect(styles).toMatch(/\[data-tap-pressed="true"\][\s\S]*?--tap-scale:\s*1\.02/);
   expect(styles).toMatch(/:where\(a, button, \[role="button"\]\):not\(\.chat-orb\)/);
+
+  const orb = mediaRule(
+    "(max-width: 760px) and (pointer: coarse)",
+    ".chat-orb",
+  );
+  const pressedOrb = mediaRule(
+    "(max-width: 760px) and (pointer: coarse)",
+    ".chat-orb:active",
+  );
+  expect(orb).toMatch(/-webkit-tap-highlight-color:\s*transparent/);
+  expect(orb).toMatch(/--orb-tap-scale:\s*1/);
+  expect(orb).toMatch(/scale:\s*var\(--orb-tap-scale\)/);
+  expect(orb).toMatch(/transition:\s*scale\s+180ms\s+var\(--ease-out\)/);
+  expect(pressedOrb).toMatch(/--orb-tap-scale:\s*1\.04/);
+  expect(pressedOrb).toMatch(/transition-duration:\s*90ms/);
 });
 
 test("keeps press feedback still under reduced motion", () => {
   expect(styles).toMatch(
     /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?:where\(a, button, \[role="button"\]\):not\(\.chat-orb\)[\s\S]*?scale:\s*1[\s\S]*?transition:\s*none/,
+  );
+  expect(mediaRule("(prefers-reduced-motion: reduce)", ".chat-orb")).toMatch(
+    /scale:\s*1[\s\S]*transition:\s*none/,
+  );
+});
+
+test("materializes the mobile chat panel from the live orb position", () => {
+  const mobile = "(max-width: 760px)";
+  const transitionalPanel = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="expanding"] .chat-panel,\n  .hero-chat[data-chat-presentation="collapsing"] .chat-panel',
+  );
+  const expandedPanel = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
+  );
+  const transitioningRoot = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="expanded"]',
+  );
+
+  expect(transitioningRoot).toMatch(/transform:\s*none/);
+  expect(transitionalPanel).toMatch(/position:\s*fixed/);
+  expect(transitionalPanel).toMatch(
+    /transform:\s*translate3d\(\s*var\(--chat-panel-shift-x,\s*0px\),\s*var\(--chat-panel-shift-y,\s*0px\),\s*0\s*\)\s*scale\(0\.12\)/,
+  );
+  expect(transitionalPanel).toMatch(/opacity:\s*0/);
+  expect(transitionalPanel).toMatch(
+    /transition:\s*opacity\s+260ms\s+var\(--ease-out\),\s*transform\s+260ms\s+var\(--ease-out\)/,
+  );
+  expect(expandedPanel).toMatch(/transform:\s*none/);
+  expect(expandedPanel).toMatch(
+    /transition:\s*opacity\s+240ms\s+var\(--ease-out\),\s*transform\s+280ms\s+var\(--ease-out\)/,
   );
 });
 

@@ -2863,12 +2863,76 @@ a:focus-visible {
     mix-blend-mode: difference;
   }
 
+  .hero-chat[data-chat-presentation="expanding"],
+  .hero-chat[data-chat-presentation="expanded"],
+  .hero-chat[data-chat-presentation="collapsing"] {
+    top: 0;
+    left: 0;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
   .hero-chat[data-chat-presentation="expanded"] {
     top: 0;
     left: 0;
     transform: none;
     transition: none;
     will-change: auto;
+  }
+
+  .hero-chat[data-chat-presentation="expanding"] .chat-panel,
+  .hero-chat[data-chat-presentation="expanded"] .chat-panel,
+  .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
+    position: fixed;
+    top: var(--chat-visual-top, auto);
+    right: 12px;
+    bottom: max(
+      76px,
+      calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(var(--chat-visual-bottom, 0px) + 12px),
+      env(safe-area-inset-bottom)
+    );
+    left: 12px;
+    width: auto;
+    max-height: var(--chat-visual-height,
+      min(70dvh,
+        calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
+      )
+    );
+  }
+
+  .hero-chat[data-chat-presentation="expanding"] .chat-panel,
+  .hero-chat[data-chat-presentation="collapsing"] .chat-panel {
+    position: fixed;
+    top: var(--chat-visual-top, auto);
+    right: 12px;
+    bottom: max(
+      76px,
+      calc(60px + var(--chat-viewport-inset, 0px)),
+      calc(var(--chat-visual-bottom, 0px) + 12px),
+      env(safe-area-inset-bottom)
+    );
+    left: 12px;
+    width: auto;
+    max-height: var(--chat-visual-height,
+      min(70dvh,
+        calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
+      )
+    );
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(
+      var(--chat-panel-shift-x, 0px),
+      var(--chat-panel-shift-y, 0px),
+      0
+    ) scale(0.12);
+    transform-origin: center;
+    transition:
+      opacity 260ms var(--ease-out),
+      transform 260ms var(--ease-out);
+    visibility: visible;
+    will-change: transform, opacity;
   }
 
   .hero-chat[data-chat-presentation="expanded"] .chat-panel {
@@ -2888,7 +2952,18 @@ a:focus-visible {
         calc(100dvh - var(--nav-height) - 96px - var(--chat-viewport-inset, 0px))
       )
     );
+    opacity: 1;
     transform: none;
+    transition:
+      opacity 240ms var(--ease-out),
+      transform 280ms var(--ease-out);
+    visibility: visible;
+  }
+
+  .hero-chat[data-chat-presentation="expanding"] .chat-orb,
+  .hero-chat[data-chat-presentation="collapsing"] .chat-orb {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .hero-chat[data-chat-presentation="expanded"] .chat-transcript {
@@ -2898,6 +2973,18 @@ a:focus-visible {
 }
 
 @media (max-width: 760px) and (pointer: coarse) {
+  .chat-orb {
+    --orb-tap-scale: 1;
+    -webkit-tap-highlight-color: transparent;
+    scale: var(--orb-tap-scale);
+    transition: scale 180ms var(--ease-out);
+  }
+
+  .chat-orb:active {
+    --orb-tap-scale: 1.04;
+    transition-duration: 90ms;
+  }
+
   :where(a, button, [role="button"]):not(.chat-orb) {
     --tap-scale: 1;
     -webkit-tap-highlight-color: transparent;
@@ -2979,6 +3066,11 @@ a:focus-visible {
 
   :where(a, button, [role="button"]):not(.chat-orb) {
     --tap-scale: 1;
+    scale: 1;
+    transition: none;
+  }
+
+  .chat-orb {
     scale: 1;
     transition: none;
   }
