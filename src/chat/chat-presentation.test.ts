@@ -821,6 +821,91 @@ test("tracks mobile viewport geometry from focus before keyboard activation", ()
   cleanup();
 });
 
+test("reveals the complete mobile composer after focused viewport geometry changes", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const { elements, cleanup } = setup({ collapseDurationMs: 0 });
+  frames.splice(0);
+  elements.mobileGuideAction.click();
+  elements.input.focus();
+  while (frames.length > 0) frames.shift()?.(0);
+  vi.spyOn(elements.panel, "getBoundingClientRect").mockReturnValue({
+    top: 70,
+    right: 378,
+    bottom: 520,
+    left: 12,
+    width: 366,
+    height: 450,
+    x: 12,
+    y: 70,
+    toJSON: () => ({}),
+  } as DOMRect);
+  vi.spyOn(elements.status, "getBoundingClientRect").mockReturnValue({
+    top: 570,
+    right: 358,
+    bottom: 600,
+    left: 32,
+    width: 326,
+    height: 30,
+    x: 32,
+    y: 570,
+    toJSON: () => ({}),
+  } as DOMRect);
+  elements.panel.style.paddingBottom = "20px";
+  elements.panel.scrollTop = 24;
+
+  visualViewport.setGeometry({ height: 520, offsetTop: 0 });
+  visualViewport.dispatchEvent(new Event("resize"));
+  while (frames.length > 0) frames.shift()?.(0);
+
+  expect(elements.panel.scrollTop).toBe(124);
+  cleanup();
+});
+
+test("does not move mobile chat reading position while the composer is unfocused", () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+  const visualViewport = new VisualViewportStub(844);
+  installVisualViewport(visualViewport);
+  const { elements, cleanup } = setup({ collapseDurationMs: 0 });
+  vi.spyOn(elements.panel, "getBoundingClientRect").mockReturnValue({
+    top: 70,
+    right: 378,
+    bottom: 520,
+    left: 12,
+    width: 366,
+    height: 450,
+    x: 12,
+    y: 70,
+    toJSON: () => ({}),
+  } as DOMRect);
+  vi.spyOn(elements.status, "getBoundingClientRect").mockReturnValue({
+    top: 570,
+    right: 358,
+    bottom: 600,
+    left: 32,
+    width: 326,
+    height: 30,
+    x: 32,
+    y: 570,
+    toJSON: () => ({}),
+  } as DOMRect);
+  elements.panel.scrollTop = 24;
+
+  visualViewport.setGeometry({ height: 520, offsetTop: 0 });
+  visualViewport.dispatchEvent(new Event("resize"));
+
+  expect(elements.panel.scrollTop).toBe(24);
+  cleanup();
+});
+
 test("restores keyboard-induced page displacement after the viewport settles", () => {
   vi.useFakeTimers();
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });

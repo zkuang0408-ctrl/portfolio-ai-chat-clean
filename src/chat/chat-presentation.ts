@@ -496,6 +496,25 @@ export function startChatPresentation(
     updateViewport();
   };
 
+  const revealFocusedComposer = () => {
+    if (
+      dependencies.window.innerWidth > 760
+      || root.ownerDocument.activeElement !== elements.input
+      || root.dataset.chatPresentation !== "expanded"
+    ) {
+      return;
+    }
+    const panelBounds = panel.getBoundingClientRect();
+    const composerBottom = elements.form.getBoundingClientRect().bottom;
+    const statusBottom = elements.status.getBoundingClientRect().bottom;
+    const paddingBottom = Number.parseFloat(
+      dependencies.window.getComputedStyle(panel).paddingBottom,
+    ) || 0;
+    const hiddenAmount = Math.max(composerBottom, statusBottom)
+      - (panelBounds.bottom - paddingBottom);
+    if (hiddenAmount > 0.5) panel.scrollTop += Math.ceil(hiddenAmount);
+  };
+
   const updateViewport = () => {
     const viewport = dependencies.window.visualViewport;
     const mobile = dependencies.window.innerWidth <= 760;
@@ -548,6 +567,7 @@ export function startChatPresentation(
       }
     }
     keyboardActive = nextKeyboardActive;
+    if (trackVisualGeometry && inputFocused) revealFocusedComposer();
   };
 
   const scheduleViewportUpdate = () => {

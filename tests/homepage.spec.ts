@@ -1482,13 +1482,18 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
     return panel.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       const style = getComputedStyle(element);
+      const composer = element.querySelector<HTMLElement>("[data-chat-form]");
+      const status = element.querySelector<HTMLElement>("[data-chat-status]");
+      if (!composer || !status) throw new Error("Missing mobile composer boundary");
       return {
         borderBottomLeftRadius: style.borderBottomLeftRadius,
         borderBottomRightRadius: style.borderBottomRightRadius,
         borderTopLeftRadius: style.borderTopLeftRadius,
         borderTopRightRadius: style.borderTopRightRadius,
         bottom: bounds.bottom,
+        composerBottom: composer.getBoundingClientRect().bottom,
         height: bounds.height,
+        statusBottom: status.getBoundingClientRect().bottom,
         top: bounds.top,
       };
     });
@@ -1503,7 +1508,9 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
     borderTopLeftRadius: string;
     borderTopRightRadius: string;
     bottom: number;
+    composerBottom: number;
     height: number;
+    statusBottom: number;
     top: number;
   }> = [];
   for (const height of visualHeights) geometries.push(await geometryAt(height));
@@ -1528,6 +1535,8 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
   expect(finalGeometry.height).toBeGreaterThanOrEqual(
     finalVisualHeight - finalGeometry.top - 1,
   );
+  expect(finalGeometry.composerBottom).toBeLessThanOrEqual(finalGeometry.bottom);
+  expect(finalGeometry.statusBottom).toBeLessThanOrEqual(finalGeometry.bottom);
   expect([
     finalGeometry.borderTopLeftRadius,
     finalGeometry.borderTopRightRadius,
