@@ -786,7 +786,7 @@ test("batches mobile keyboard viewport motion and keeps the expanded panel open"
   expect(root.dataset.chatKeyboard).toBe("active");
   expect(root.style.getPropertyValue("--chat-visual-top")).toBe("70px");
   expect(root.style.getPropertyValue("--chat-visual-bottom")).toBe("280px");
-  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("482px");
+  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("494px");
 
   Object.defineProperty(window, "scrollY", { configurable: true, value: 200 });
   window.dispatchEvent(new Event("scroll"));
@@ -817,7 +817,7 @@ test("tracks mobile viewport geometry from focus before keyboard activation", ()
   expect(root.dataset.chatKeyboard).toBeUndefined();
   expect(root.style.getPropertyValue("--chat-visual-top")).toBe("70px");
   expect(root.style.getPropertyValue("--chat-visual-bottom")).toBe("44px");
-  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("718px");
+  expect(root.style.getPropertyValue("--chat-visual-height")).toBe("730px");
   cleanup();
 });
 

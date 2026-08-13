@@ -46,7 +46,7 @@ test("resolves the mobile panel inside the visual viewport", () => {
   })).toEqual({
     top: 70,
     bottomInset: 280,
-    availableHeight: 482,
+    availableHeight: 494,
   });
 });
 

@@ -1269,7 +1269,7 @@ a:focus-visible {
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
-    border-radius: 24px 24px 0 0;
+    border-radius: 24px;
     background: #101011;
     backdrop-filter: none;
     transform: translateY(18px) scale(0.985);
@@ -2887,8 +2887,8 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(12px + var(--chat-viewport-inset, 0px)),
-      calc(var(--chat-visual-bottom, 0px) + 12px),
+      var(--chat-viewport-inset, 0px),
+      var(--chat-visual-bottom, 0px),
       env(safe-area-inset-bottom)
     );
     left: 12px;
@@ -2907,8 +2907,8 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(12px + var(--chat-viewport-inset, 0px)),
-      calc(var(--chat-visual-bottom, 0px) + 12px),
+      var(--chat-viewport-inset, 0px),
+      var(--chat-visual-bottom, 0px),
       env(safe-area-inset-bottom)
     );
     left: 12px;
@@ -2939,8 +2939,8 @@ a:focus-visible {
     right: 12px;
     bottom: max(
       76px,
-      calc(12px + var(--chat-viewport-inset, 0px)),
-      calc(var(--chat-visual-bottom, 0px) + 12px),
+      var(--chat-viewport-inset, 0px),
+      var(--chat-visual-bottom, 0px),
       env(safe-area-inset-bottom)
     );
     left: 12px;
@@ -2956,6 +2956,10 @@ a:focus-visible {
       opacity 240ms var(--ease-out),
       transform 280ms var(--ease-out);
     visibility: visible;
+  }
+
+  .hero-chat[data-chat-presentation="expanded"]:has(.chat-input:focus) .chat-panel {
+    bottom: var(--chat-visual-bottom, var(--chat-viewport-inset, 0px));
   }
 
   .hero-chat[data-chat-presentation="expanding"] .chat-orb,

@@ -555,6 +555,7 @@ test("keeps the mobile guide keyboard focus visible inside its clipped frame", (
 
 test("tracks the expanded mobile sheet inside the visual keyboard viewport", () => {
   const mobile = "(max-width: 760px)";
+  const mobilePanel = mediaRule(mobile, ".chat-panel");
   const panel = mediaRule(
     mobile,
     '.hero-chat[data-chat-presentation="expanded"] .chat-panel',
@@ -563,16 +564,24 @@ test("tracks the expanded mobile sheet inside the visual keyboard viewport", () 
     mobile,
     '.hero-chat[data-chat-presentation="expanded"][data-chat-keyboard="active"] .chat-panel',
   );
+  const focusedPanel = mediaRule(
+    mobile,
+    '.hero-chat[data-chat-presentation="expanded"]:has(.chat-input:focus) .chat-panel',
+  );
 
   expect(panel).toMatch(/top:\s*var\(--chat-visual-top,\s*auto\)/);
-  expect(panel).toMatch(
-    /calc\(12px\s*\+\s*var\(--chat-viewport-inset,\s*0px\)\)/,
-  );
+  expect(mobilePanel).toMatch(/border-radius:\s*24px/);
+  expect(panel).toMatch(/var\(--chat-viewport-inset,\s*0px\)/);
+  expect(panel).toMatch(/var\(--chat-visual-bottom,\s*0px\)/);
+  expect(panel).not.toMatch(/calc\(var\(--chat-visual-bottom,\s*0px\)\s*\+\s*12px\)/);
   expect(panel).not.toMatch(
     /calc\(60px\s*\+\s*var\(--chat-viewport-inset,\s*0px\)\)/,
   );
   expect(panel).toMatch(/bottom:\s*max\([\s\S]*var\(--chat-visual-bottom,\s*0px\)/);
   expect(panel).toMatch(/max-height:\s*var\(--chat-visual-height,/);
+  expect(focusedPanel).toMatch(
+    /bottom:\s*var\(--chat-visual-bottom,\s*var\(--chat-viewport-inset,\s*0px\)\)/,
+  );
   expect(keyboardPanel).toBe("");
 });
 
@@ -703,7 +712,7 @@ test("uses a safe-area-aware bottom sheet on mobile without changing the fixed n
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:/,
   );
   expect(styles).toMatch(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?border-radius:\s*24px\s+24px\s+0\s+0/,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?border-radius:\s*24px/,
   );
   expect(styles).toMatch(
     /@media\s*\(max-width:\s*760px\)[\s\S]*?\.chat-panel\s*\{[\s\S]*?max-height:\s*min\(78dvh/,

@@ -1441,7 +1441,7 @@ test("keeps the mobile chat inside the keyboard viewport and uses physical tap f
 });
 
 test("keeps keyboard-driven panel motion monotonic across activation", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-390");
+  test.skip(!testInfo.project.name.startsWith("mobile"));
   await page.addInitScript(() => {
     const viewport = new EventTarget() as EventTarget & {
       height: number;
@@ -1481,22 +1481,34 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
     }));
     return panel.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
-      return { bottom: bounds.bottom, height: bounds.height, top: bounds.top };
+      const style = getComputedStyle(element);
+      return {
+        borderBottomLeftRadius: style.borderBottomLeftRadius,
+        borderBottomRightRadius: style.borderBottomRightRadius,
+        borderTopLeftRadius: style.borderTopLeftRadius,
+        borderTopRightRadius: style.borderTopRightRadius,
+        bottom: bounds.bottom,
+        height: bounds.height,
+        top: bounds.top,
+      };
     });
   };
 
-  const visualHeights = [
-    layoutHeight,
-    layoutHeight - 44,
-    layoutHeight - 84,
-    layoutHeight - 119,
-    layoutHeight - 120,
-    layoutHeight - 164,
-    layoutHeight - 244,
-    layoutHeight - 324,
-  ];
-  const geometries: Array<{ bottom: number; height: number; top: number }> = [];
+  const maximumReduction = Math.min(324, layoutHeight - 240);
+  const visualHeights = [0, 44, 84, 119, 120, 164, 244, 324]
+    .map((reduction) => layoutHeight - Math.min(reduction, maximumReduction));
+  const geometries: Array<{
+    borderBottomLeftRadius: string;
+    borderBottomRightRadius: string;
+    borderTopLeftRadius: string;
+    borderTopRightRadius: string;
+    bottom: number;
+    height: number;
+    top: number;
+  }> = [];
   for (const height of visualHeights) geometries.push(await geometryAt(height));
+
+  expect(Math.abs(geometries[0]!.bottom - visualHeights[0]!)).toBeLessThanOrEqual(1);
 
   for (let index = 1; index < geometries.length; index += 1) {
     expect(geometries[index]!.bottom).toBeLessThanOrEqual(
@@ -1512,10 +1524,16 @@ test("keeps keyboard-driven panel motion monotonic across activation", async ({ 
   const finalVisualHeight = visualHeights.at(-1)!;
   expect(finalGeometry.top).toBeGreaterThanOrEqual(69);
   expect(finalGeometry.top).toBeLessThanOrEqual(71);
-  expect(finalGeometry.bottom).toBeLessThanOrEqual(finalVisualHeight - 11);
+  expect(Math.abs(finalGeometry.bottom - finalVisualHeight)).toBeLessThanOrEqual(1);
   expect(finalGeometry.height).toBeGreaterThanOrEqual(
-    finalVisualHeight - finalGeometry.top - 13,
+    finalVisualHeight - finalGeometry.top - 1,
   );
+  expect([
+    finalGeometry.borderTopLeftRadius,
+    finalGeometry.borderTopRightRadius,
+    finalGeometry.borderBottomRightRadius,
+    finalGeometry.borderBottomLeftRadius,
+  ]).toEqual(["24px", "24px", "24px", "24px"]);
 });
 
 test("keeps keyboard viewport state and tap enlargement mobile-only", async ({ page }, testInfo) => {

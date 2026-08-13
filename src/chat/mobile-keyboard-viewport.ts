@@ -42,7 +42,7 @@ export function resolveMobileChatViewport(input: MobileChatViewportInput): Mobil
   return {
     top,
     bottomInset: Math.max(0, input.layoutHeight - visualBottom),
-    availableHeight: Math.max(1, visualBottom - top - input.safeGap),
+    availableHeight: Math.max(1, visualBottom - top),
   };
 }
 
