@@ -96,12 +96,26 @@ function index(chunks: readonly KnowledgeChunk[]): GeneratedKnowledgeIndex {
 }
 
 describe("structured hybrid retriever", () => {
+  test("returns one classified route with its selected evidence", async () => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const outcome = await retriever.search("INKSeat 是什么作品？", {
+      locale: "zh",
+      limit: 3,
+    });
+
+    expect(outcome.route).toMatchObject({ scope: "project", projectIds: ["inkseat"] });
+    expect(outcome.results.length).toBeGreaterThan(0);
+  });
+
   test("ranks the reviewed INKSeat overview ahead of sparse PDF excerpts", async () => {
     const retriever = createStructuredHybridRetriever(
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const results = await retriever.search("inkseat是什么作品", { locale: "zh", limit: 3 });
+    const { results } = await retriever.search("inkseat是什么作品", { locale: "zh", limit: 3 });
 
     expect(results[0]?.chunk.id).toBe("inkseat:claim:inkseat.overview");
     expect(results.slice(0, 3).map(({ chunk }) => chunk.id)).not.toContain("inkseat:p14:c0");
@@ -113,7 +127,7 @@ describe("structured hybrid retriever", () => {
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const results = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
+    const { results } = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
 
     expect(results[0]?.chunk.id).toBe("inkseat:claim:inkseat.architecture");
     expect(results[0]?.chunk.evidencePages).toContain(8);
@@ -124,7 +138,7 @@ describe("structured hybrid retriever", () => {
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const results = await retriever.search("哪个项目最能体现系统思考？", {
+    const { results } = await retriever.search("哪个项目最能体现系统思考？", {
       locale: "zh",
       limit: 8,
     });
@@ -138,7 +152,7 @@ describe("structured hybrid retriever", () => {
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const results = await retriever.search("详细介绍INKSeat", {
+    const { results } = await retriever.search("详细介绍INKSeat", {
       locale: "zh",
       limit: 8,
     });
@@ -170,7 +184,7 @@ describe("structured hybrid retriever", () => {
       }),
     ]), { minimumScore: 0 });
 
-    const results = await retriever.search("INKSeat是什么作品的详细介绍", { locale: "zh" });
+    const { results } = await retriever.search("INKSeat是什么作品的详细介绍", { locale: "zh" });
 
     expect(results[0]?.chunk.id).toBe("inkseat:claim:overview");
   });
@@ -189,7 +203,7 @@ describe("structured hybrid retriever", () => {
       }),
     ]), { minimumScore: 0 });
 
-    const results = await retriever.search("INKSeat", { locale: "zh" });
+    const { results } = await retriever.search("INKSeat", { locale: "zh" });
 
     expect(results.map(({ chunk }) => chunk.id)).toEqual([
       "inkseat:claim:duplicate-a",
@@ -230,7 +244,7 @@ describe("structured hybrid retriever", () => {
       }),
     ]), { minimumScore: 0 });
 
-    const results = await retriever.search("哪个项目", { locale: "zh", limit: 2 });
+    const { results } = await retriever.search("哪个项目", { locale: "zh", limit: 2 });
 
     expect(results.map(({ chunk }) => chunk.id)).toEqual([
       "alpha:claim:page-1",
@@ -252,7 +266,7 @@ describe("structured hybrid retriever", () => {
       }),
     ]), { minimumScore: 0 });
 
-    const results = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
+    const { results } = await retriever.search("INKSeat的系统架构是什么", { locale: "zh" });
 
     expect(evaluateStructuredProjectRoute("emovue", ["inkseat"])).toEqual({
       score: -20,
@@ -268,7 +282,7 @@ describe("structured hybrid retriever", () => {
       sourceChunk({ id: "inkseat:p3:c0", page: 3, informationDensity: "low" }),
     ]), { minimumScore: 0 });
 
-    const results = await retriever.search("INKSeat", { locale: "en" });
+    const { results } = await retriever.search("INKSeat", { locale: "en" });
     const scoreById = new Map(results.map(({ chunk, score }) => [chunk.id, score]));
 
     expect(scoreById.get("inkseat:p2:c0")).toBeGreaterThan(scoreById.get("inkseat:p3:c0") ?? 0);
@@ -303,7 +317,7 @@ describe("structured hybrid retriever", () => {
       ownerStatement,
     ]));
 
-    const results = await retriever.search("赵实旷在INKSeat中做了什么", { locale: "zh" });
+    const { results } = await retriever.search("赵实旷在INKSeat中做了什么", { locale: "zh" });
 
     expect(results.map(({ chunk }) => chunk.id)).toContain("inkseat:claim:core-contributor");
     expect(results.map(({ chunk }) => chunk.id)).not.toContain("inkseat:p2:c0");
@@ -320,7 +334,7 @@ describe("structured hybrid retriever", () => {
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const results = await retriever.search(query, { locale: "zh" });
+    const { results } = await retriever.search(query, { locale: "zh" });
 
     expect(results.length).toBeGreaterThan(0);
     expect(results.every(({ chunk }) =>
@@ -351,7 +365,9 @@ describe("structured hybrid retriever", () => {
   test("rejects unrelated questions and preserves retriever boundaries", async () => {
     const retriever = createStructuredHybridRetriever(index([authoredClaim()]));
 
-    await expect(retriever.search("quantum tax law", { locale: "en" })).resolves.toEqual([]);
+    await expect(
+      retriever.search("quantum tax law", { locale: "en" }).then(({ results }) => results),
+    ).resolves.toEqual([]);
     await expect(retriever.search("INKSeat", { locale: "en", limit: -1 })).rejects.toThrow(
       "limit must be a finite non-negative integer",
     );
@@ -362,7 +378,7 @@ describe("structured hybrid retriever", () => {
       "limit must be a finite non-negative integer",
     );
 
-    const results = await retriever.search("INKSeat", { locale: "en" });
+    const { results } = await retriever.search("INKSeat", { locale: "en" });
     expect(results.every(({ score }) => Number.isFinite(score) && score >= 0)).toBe(true);
     expect(() => createStructuredHybridRetriever(index([]), { maxResults: 0 })).toThrow();
     expect(() => createStructuredHybridRetriever(index([]), { maxPerSource: -1 })).toThrow();

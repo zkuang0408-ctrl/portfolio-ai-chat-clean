@@ -3,7 +3,13 @@ import type {
   GeneratedKnowledgeIndex,
   KnowledgeChunk,
 } from "../knowledge/types.js";
-import type { Retriever, SearchOptions, SearchResult } from "./retriever.js";
+import { createQueryRouter } from "./query-routing.js";
+import type {
+  RetrievalOutcome,
+  Retriever,
+  SearchOptions,
+  SearchResult,
+} from "./retriever.js";
 
 const DEFAULT_MINIMUM_SCORE = 2.5;
 const DEFAULT_MAX_RESULTS = 8;
@@ -169,6 +175,7 @@ export function createLocalHybridRetriever(
   config: LocalHybridRetrieverConfig = {},
 ): Retriever {
   const resolved = resolveConfig(config);
+  const router = createQueryRouter(index);
   const indexedChunks: readonly IndexedChunk[] = index.chunks.map((chunk) => {
     const bodyTerms = termsAsSet(chunk.text);
     const titleTerms = termsAsSet(chunk.title);
@@ -217,13 +224,14 @@ export function createLocalHybridRetriever(
   };
 
   return {
-    async search(query: string, options: SearchOptions): Promise<readonly SearchResult[]> {
+    async search(query: string, options: SearchOptions): Promise<RetrievalOutcome> {
       // Keep the locale in the replaceable public boundary; aliases already bridge
       // languages, so the local scorer intentionally uses one deterministic path.
       void options.locale;
       const unfilteredQueryTerms = termsAsSet(query);
       const normalizedQuery = normalizePhrase(query);
-      if (!normalizedQuery) return [];
+      const route = router.route(query);
+      if (!normalizedQuery) return { route, results: [] };
       const queryTerms = searchTerms(unfilteredQueryTerms);
       const scored: SearchResult[] = [];
 
@@ -259,7 +267,7 @@ export function createLocalHybridRetriever(
           (left.chunk.id < right.chunk.id ? -1 : left.chunk.id > right.chunk.id ? 1 : 0),
       );
       const limit = requestedLimit(options, resolved.maxResults);
-      if (limit === 0) return [];
+      if (limit === 0) return { route, results: [] };
       const sourceCounts = new Map<string, number>();
       const results: SearchResult[] = [];
       for (const result of scored) {
@@ -269,7 +277,7 @@ export function createLocalHybridRetriever(
         sourceCounts.set(result.chunk.sourceId, count + 1);
         results.push({ chunk: result.chunk, score: result.score });
       }
-      return results;
+      return { route, results };
     },
   };
 }

@@ -44,7 +44,18 @@ function factories(captures: {
   providerOptions?: unknown;
   rateOptions?: unknown;
 }): RuntimeFactories {
-  const retriever: Retriever = { search: vi.fn(async () => []) };
+  const retriever: Retriever = {
+    search: vi.fn(async () => ({
+      route: {
+        scope: "profile" as const,
+        normalizedQuery: "",
+        queryTerms: [],
+        projectIds: [],
+        intents: [],
+      },
+      results: [],
+    })),
+  };
   const provider: ChatProvider = {
     async *stream() {
       throw new Error("provider must not run for no result");

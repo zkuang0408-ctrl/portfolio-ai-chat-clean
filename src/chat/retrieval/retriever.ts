@@ -1,4 +1,5 @@
 import type { KnowledgeChunk } from "../knowledge/types.js";
+import type { QueryRoute } from "./query-routing.js";
 
 export interface SearchOptions {
   readonly locale: "zh" | "en";
@@ -10,6 +11,11 @@ export interface SearchResult {
   readonly score: number;
 }
 
+export interface RetrievalOutcome {
+  readonly route: QueryRoute;
+  readonly results: readonly SearchResult[];
+}
+
 export interface Retriever {
-  search(query: string, options: SearchOptions): Promise<readonly SearchResult[]>;
+  search(query: string, options: SearchOptions): Promise<RetrievalOutcome>;
 }

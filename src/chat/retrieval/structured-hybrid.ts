@@ -6,7 +6,12 @@ import type {
   KnowledgeChunk,
 } from "../knowledge/types.js";
 import { createQueryRouter, type QueryRoute } from "./query-routing.js";
-import type { Retriever, SearchOptions, SearchResult } from "./retriever.js";
+import type {
+  RetrievalOutcome,
+  Retriever,
+  SearchOptions,
+  SearchResult,
+} from "./retriever.js";
 
 const DEFAULT_MINIMUM_SCORE = 2.5;
 const DEFAULT_MAX_RESULTS = 8;
@@ -478,14 +483,14 @@ export function createStructuredHybridRetriever(
   };
 
   return {
-    async search(query: string, options: SearchOptions): Promise<readonly SearchResult[]> {
+    async search(query: string, options: SearchOptions): Promise<RetrievalOutcome> {
       void options.locale;
+      const route = router.route(query);
       // A portfolio corpus cannot establish a person's live availability.
       // Keep private scheduling requests outside the retrieval boundary even
       // when they contain a public name that appears in the source material.
-      if (asksForPrivateScheduling(query)) return [];
-      const route = router.route(query);
-      if (!route.normalizedQuery) return [];
+      if (asksForPrivateScheduling(query)) return { route, results: [] };
+      if (!route.normalizedQuery) return { route, results: [] };
       const queryTerms = searchTerms(termsAsSet(query));
       const scored: SearchResult[] = [];
 
@@ -583,8 +588,11 @@ export function createStructuredHybridRetriever(
           (left.chunk.id < right.chunk.id ? -1 : left.chunk.id > right.chunk.id ? 1 : 0),
       );
       const limit = requestedLimit(options, resolved.maxResults);
-      if (limit === 0) return [];
-      return selectEvidencePacket(scored, route, resolved, limit);
+      if (limit === 0) return { route, results: [] };
+      return {
+        route,
+        results: selectEvidencePacket(scored, route, resolved, limit),
+      };
     },
   };
 }

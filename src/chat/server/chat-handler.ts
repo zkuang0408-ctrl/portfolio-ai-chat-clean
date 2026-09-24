@@ -538,7 +538,7 @@ export async function handleChat(
     }
 
     runtimeStage = "retrieval";
-    const results = await dependencies.retriever.search(parsed.message, {
+    const { results } = await dependencies.retriever.search(parsed.message, {
       locale: parsed.locale,
       limit: 8,
     });

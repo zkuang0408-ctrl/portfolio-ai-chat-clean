@@ -127,10 +127,19 @@ function dependencies(options: {
   const retriever: Retriever = {
     search: vi.fn(async () => {
       if (options.retrievalError) throw options.retrievalError;
-      return (options.results ?? [chunk("inkseat", 8)]).map((item, index) => ({
-        chunk: item,
-        score: 20 - index,
-      }));
+      return {
+        route: {
+          scope: "project" as const,
+          normalizedQuery: "tell me about inkseat",
+          queryTerms: ["inkseat"],
+          projectIds: ["inkseat"],
+          intents: [],
+        },
+        results: (options.results ?? [chunk("inkseat", 8)]).map((item, index) => ({
+          chunk: item,
+          score: 20 - index,
+        })),
+      };
     }),
   };
   const rateLimit: RateLimitStore = {

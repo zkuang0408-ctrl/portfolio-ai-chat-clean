@@ -36,7 +36,7 @@ describe("portfolio retrieval acceptance suite", () => {
       minimumDistinctSources,
       expectNoResults,
     }) => {
-      const results = await retriever.search(query, { locale, limit: 8 });
+      const { results } = await retriever.search(query, { locale, limit: 8 });
 
       if (expectNoResults) {
         expect(results).toEqual([]);
@@ -64,7 +64,7 @@ describe("portfolio retrieval acceptance suite", () => {
   );
 
   test("does not hard-reject a project question that mentions a weekend scenario", async () => {
-    const results = await retriever.search("INKSeat 在周末场景如何使用？", {
+    const { results } = await retriever.search("INKSeat 在周末场景如何使用？", {
       locale: "zh",
       limit: 8,
     });
@@ -77,6 +77,8 @@ describe("portfolio retrieval acceptance suite", () => {
     "赵实旷什么时候有空？",
     "赵实旷周末是否有时间？",
   ])("rejects a named person's private availability question: %s", async (query) => {
-    await expect(retriever.search(query, { locale: "zh", limit: 8 })).resolves.toEqual([]);
+    await expect(
+      retriever.search(query, { locale: "zh", limit: 8 }).then(({ results }) => results),
+    ).resolves.toEqual([]);
   });
 });

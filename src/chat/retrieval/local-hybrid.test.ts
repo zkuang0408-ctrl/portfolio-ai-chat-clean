@@ -8,17 +8,17 @@ import type {
 import { createLocalHybridRetriever } from "./local-hybrid";
 
 const INTENT_ALIASES = {
-  overview: [],
-  problem: [],
-  research: [],
-  solution: [],
-  architecture: [],
-  interaction: [],
-  technology: [],
-  form: [],
-  value: [],
-  comparison: [],
-  contribution: [],
+  overview: ["overview"],
+  problem: ["problem"],
+  research: ["research"],
+  solution: ["solution"],
+  architecture: ["architecture"],
+  interaction: ["interaction"],
+  technology: ["technology"],
+  form: ["form"],
+  value: ["value"],
+  comparison: ["comparison"],
+  contribution: ["contribution"],
 } as const;
 
 function chunk(
@@ -63,6 +63,23 @@ function index(
 }
 
 describe("local hybrid retriever", () => {
+  test("returns the classified route with ranked evidence", async () => {
+    const retriever = createLocalHybridRetriever(index([
+      chunk({
+        id: "inkseat:p1:c0",
+        sourceId: "inkseat",
+        projectId: "inkseat",
+        title: "INKSeat",
+        aliases: ["INKSeat"],
+      }),
+    ]));
+
+    const outcome = await retriever.search("INKSeat", { locale: "en" });
+
+    expect(outcome.route).toMatchObject({ scope: "profile", projectIds: [] });
+    expect(outcome.results[0]?.chunk.id).toBe("inkseat:p1:c0");
+  });
+
   test.each(["ink seat", "INKSeat"])(
     "ranks the INKSeat title and alias first for %s",
     async (query) => {
@@ -84,7 +101,7 @@ describe("local hybrid retriever", () => {
         ]),
       );
 
-      const results = await retriever.search(query, { locale: "en" });
+      const { results } = await retriever.search(query, { locale: "en" });
 
       expect(results[0]?.chunk.id).toBe("inkseat:p1:c0");
     },
@@ -109,7 +126,7 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const results = await retriever.search("系统思考", { locale: "zh" });
+    const { results } = await retriever.search("系统思考", { locale: "zh" });
 
     expect(results[0]?.chunk.id).toBe("systems:p1:c0");
   });
@@ -127,7 +144,7 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const results = await retriever.search("How do you use system thinking?", {
+    const { results } = await retriever.search("How do you use system thinking?", {
       locale: "en",
     });
 
@@ -152,7 +169,7 @@ describe("local hybrid retriever", () => {
       minimumScore: 0,
     });
 
-    const results = await retriever.search("alpha", { locale: "en", limit: 8 });
+    const { results } = await retriever.search("alpha", { locale: "en", limit: 8 });
     const counts = results.reduce<Record<string, number>>(
       (all, { chunk: resultChunk }) => {
         all[resultChunk.sourceId] = (all[resultChunk.sourceId] ?? 0) + 1;
@@ -180,8 +197,12 @@ describe("local hybrid retriever", () => {
       { minimumScore: 0, maxResults: 5 },
     );
 
-    await expect(retriever.search("alpha", { locale: "en", limit: 99 })).resolves.toHaveLength(5);
-    await expect(retriever.search("alpha", { locale: "en", limit: 2 })).resolves.toHaveLength(2);
+    await expect(
+      retriever.search("alpha", { locale: "en", limit: 99 }).then(({ results }) => results),
+    ).resolves.toHaveLength(5);
+    await expect(
+      retriever.search("alpha", { locale: "en", limit: 2 }).then(({ results }) => results),
+    ).resolves.toHaveLength(2);
   });
 
   test("rejects an invalid requested result limit instead of silently changing it", async () => {
@@ -211,7 +232,7 @@ describe("local hybrid retriever", () => {
     );
 
     await expect(
-      retriever.search("quantum tax law", { locale: "en" }),
+      retriever.search("quantum tax law", { locale: "en" }).then(({ results }) => results),
     ).resolves.toEqual([]);
   });
 
@@ -228,7 +249,7 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const results = await retriever.search(
+    const { results } = await retriever.search(
       "Can you tell me about career opportunities?",
       { locale: "en" },
     );
@@ -252,7 +273,7 @@ describe("local hybrid retriever", () => {
     );
 
     await expect(
-      retriever.search("Can you tell me about it?", { locale: "en" }),
+      retriever.search("Can you tell me about it?", { locale: "en" }).then(({ results }) => results),
     ).resolves.toEqual([]);
   });
 
@@ -270,7 +291,7 @@ describe("local hybrid retriever", () => {
     );
 
     await expect(
-      retriever.search("Are you free on weekends?", { locale: "en" }),
+      retriever.search("Are you free on weekends?", { locale: "en" }).then(({ results }) => results),
     ).resolves.toEqual([]);
   });
 
@@ -301,7 +322,7 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const results = await retriever.search("我想寻找机会", { locale: "zh" });
+    const { results } = await retriever.search("我想寻找机会", { locale: "zh" });
 
     expect(results.map(({ chunk: resultChunk }) => resultChunk.id)).toEqual([
       "career-zh:p1:c0",
@@ -323,7 +344,7 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const results = await retriever.search("What opportunities are you looking for?", {
+    const { results } = await retriever.search("What opportunities are you looking for?", {
       locale: "en",
     });
 
@@ -341,7 +362,7 @@ describe("local hybrid retriever", () => {
       { minimumScore: 0 },
     );
 
-    const results = await retriever.search("alpha", { locale: "en" });
+    const { results } = await retriever.search("alpha", { locale: "en" });
 
     expect(results.map(({ chunk: resultChunk }) => resultChunk.id)).toEqual([
       "a:p1:c0",
@@ -354,7 +375,9 @@ describe("local hybrid retriever", () => {
       minimumScore: 0,
     });
 
-    await expect(retriever.search("alpha", { locale: "en" })).resolves.toEqual([]);
+    await expect(
+      retriever.search("alpha", { locale: "en" }).then(({ results }) => results),
+    ).resolves.toEqual([]);
   });
 
   test("keeps a body-only BM25 score unchanged by metadata-only terms", async () => {
@@ -385,10 +408,10 @@ describe("local hybrid retriever", () => {
       { minimumScore: 0 },
     );
 
-    const scoreWithoutMetadata = (await withoutMetadata.search("alpha", { locale: "en" })).find(
+    const scoreWithoutMetadata = (await withoutMetadata.search("alpha", { locale: "en" })).results.find(
       ({ chunk: resultChunk }) => resultChunk.id === "target:p1:c0",
     )?.score;
-    const scoreWithMetadata = (await withMetadata.search("alpha", { locale: "en" })).find(
+    const scoreWithMetadata = (await withMetadata.search("alpha", { locale: "en" })).results.find(
       ({ chunk: resultChunk }) => resultChunk.id === "target:p1:c0",
     )?.score;
 
@@ -398,8 +421,12 @@ describe("local hybrid retriever", () => {
   test("returns no results for an empty or whitespace-only query", async () => {
     const retriever = createLocalHybridRetriever(index([chunk()]));
 
-    await expect(retriever.search("", { locale: "en" })).resolves.toEqual([]);
-    await expect(retriever.search(" \n\t ", { locale: "zh" })).resolves.toEqual([]);
+    await expect(
+      retriever.search("", { locale: "en" }).then(({ results }) => results),
+    ).resolves.toEqual([]);
+    await expect(
+      retriever.search(" \n\t ", { locale: "zh" }).then(({ results }) => results),
+    ).resolves.toEqual([]);
   });
 
   test("uses Task 5 normalization, punctuation, casing, and CJK bigrams", async () => {
@@ -420,8 +447,8 @@ describe("local hybrid retriever", () => {
       ]),
     );
 
-    const punctuated = await retriever.search("inkseat，系统思考!", { locale: "zh" });
-    const normalized = await retriever.search("INKSeat 系统思考", { locale: "zh" });
+    const { results: punctuated } = await retriever.search("inkseat，系统思考!", { locale: "zh" });
+    const { results: normalized } = await retriever.search("INKSeat 系统思考", { locale: "zh" });
 
     expect(punctuated).toEqual(normalized);
   });
@@ -432,7 +459,7 @@ describe("local hybrid retriever", () => {
       { minimumScore: 0 },
     );
 
-    const results = await retriever.search("alpha", { locale: "en" });
+    const { results } = await retriever.search("alpha", { locale: "en" });
 
     expect(results.every(({ score }) => Number.isFinite(score) && score >= 0)).toBe(true);
     expect(() => createLocalHybridRetriever(index([]), { maxResults: 0 })).toThrow();
