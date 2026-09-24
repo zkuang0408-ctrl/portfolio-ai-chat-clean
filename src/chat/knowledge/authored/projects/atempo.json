@@ -371,6 +371,12 @@
     { "question": "How is Atempo's technical architecture organized?", "locale": "en", "intents": ["technology", "architecture"], "preferredClaimIds": ["atempo.technology", "atempo.data-translation"] },
     { "question": "Atempo的外观和桌面形式如何设计", "locale": "zh", "intents": ["form"], "preferredClaimIds": ["atempo.form"] },
     { "question": "How is Atempo's desktop form designed?", "locale": "en", "intents": ["form"], "preferredClaimIds": ["atempo.form"] },
+    { "question": "Atempo的典型用户在什么情境下开始一次使用", "locale": "zh", "intents": ["research", "interaction"], "preferredClaimIds": ["atempo.scenario"] },
+    { "question": "Atempo适合什么用户场景", "locale": "zh", "intents": ["research", "interaction"], "preferredClaimIds": ["atempo.scenario"] },
+    { "question": "When would a typical user start an Atempo session?", "locale": "en", "intents": ["research", "interaction"], "preferredClaimIds": ["atempo.scenario"] },
+    { "question": "How does Atempo translate respiratory motion into the phase gap between two arcs?", "locale": "en", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
+    { "question": "How does Atempo map breathing motion to visual phase feedback?", "locale": "en", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
+    { "question": "Atempo如何把呼吸运动映射为两段圆弧的相位差", "locale": "zh", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
     { "question": "赵实旷在Atempo中做了什么", "locale": "zh", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] },
     { "question": "What was Zhao Shikuang's contribution to Atempo?", "locale": "en", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] }
   ]

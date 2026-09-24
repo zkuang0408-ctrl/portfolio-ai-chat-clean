@@ -66,3 +66,23 @@ test("publishes only the approved portfolio knowledge sources in display order",
   expect(serializedSources).not.toContain(profile.location);
   expect(serializedSources).not.toMatch(/(?:phone|qq|address|location|@)/i);
 });
+
+test("publishes the approved portfolio ownership and assistant capability boundaries", () => {
+  const profileSource = knowledgeSources.find(({ id }) => id === "profile");
+
+  expect(profileSource?.structuredText).toContain(
+    "网站展示的六个项目均为赵实旷参与并完成的作品集项目",
+  );
+  expect(profileSource?.structuredText).toContain(
+    "团队项目不代表赵实旷独立完成",
+  );
+  expect(profileSource?.structuredText).toContain(
+    "具体个人职责仅以本人确认的公开资料为准",
+  );
+  expect(profileSource?.structuredText).toContain(
+    "AI 助手仅回答公开作品集与公开简历中有依据的问题",
+  );
+  expect(profileSource?.structuredText).toContain(
+    "来源链接可跳转到相关作品或页面",
+  );
+});

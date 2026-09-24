@@ -10,6 +10,8 @@ const profileStructuredText = [
   `能力：${profile.capabilities
     .map(({ title, items }) => `${title}（${items.join("、")}）`)
     .join("；")}`,
+  "作品归属：网站展示的六个项目均为赵实旷参与并完成的作品集项目；团队项目不代表赵实旷独立完成；具体个人职责仅以本人确认的公开资料为准。",
+  "AI 助手能力：AI 助手仅回答公开作品集与公开简历中有依据的问题，来源链接可跳转到相关作品或页面；不访问私密、实时或外部个人信息。",
 ].join("\n");
 
 const projectAliases: Readonly<Record<string, readonly string[]>> = {
@@ -51,7 +53,17 @@ export const knowledgeSources: readonly KnowledgeSource[] = [
     id: "profile",
     kind: "profile",
     title: `${profile.name} · ${profile.discipline}`,
-    aliases: [profile.name, "Zhao Shikuang", "赵实旷", "Industrial Design", "AI+"],
+    aliases: [
+      profile.name,
+      "Zhao Shikuang",
+      "赵实旷",
+      "Industrial Design",
+      "AI+",
+      "作品集项目",
+      "portfolio projects",
+      "AI 作品集助手",
+      "portfolio assistant",
+    ],
     tags: ["工业设计", "AI 应用", "智能交互", "生成式设计"],
     structuredText: profileStructuredText,
     publicHref: "#about",

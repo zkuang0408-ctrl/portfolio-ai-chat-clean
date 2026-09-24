@@ -1334,6 +1334,16 @@ describe("Atempo authored dossier", () => {
       intents: ["interaction", "architecture"],
       preferredClaimIds: ["atempo.biofeedback", "atempo.data-translation"],
     });
+    expect(atempo.commonQuestions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        question: "Atempo的典型用户在什么情境下开始一次使用",
+        preferredClaimIds: ["atempo.scenario"],
+      }),
+      expect.objectContaining({
+        question: "How does Atempo translate respiratory motion into the phase gap between two arcs?",
+        preferredClaimIds: ["atempo.data-translation"],
+      }),
+    ]));
   });
 
   test("backlinks every evidence page to its claim", () => {

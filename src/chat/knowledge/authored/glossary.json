@@ -121,12 +121,12 @@
     },
     {
       "canonical": "造型",
-      "aliases": ["结构", "材料", "form", "structure", "material"],
+      "aliases": ["结构", "材料", "形态", "具体形态", "form", "physical form", "structure", "material"],
       "intents": ["form"]
     },
     {
       "canonical": "价值",
-      "aliases": ["意义", "商业模式", "value", "impact", "business model"],
+      "aliases": ["意义", "商业模式", "低打扰", "低干扰", "value", "impact", "business model", "low interruption", "low-interruption"],
       "intents": ["value"]
     },
     {
