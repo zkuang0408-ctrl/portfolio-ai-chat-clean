@@ -267,6 +267,7 @@ function sourcesForIds(
 
 function createAnswerStream(input: {
   readonly locale: ChatLocale;
+  readonly scope: Parameters<typeof buildGroundedPrompt>[0]["scope"];
   readonly results: readonly SearchResult[];
   readonly visitorKey: string;
   readonly message: string;
@@ -335,6 +336,7 @@ function createAnswerStream(input: {
       }
 
       const prompt = buildGroundedPrompt({
+        scope: input.scope,
         locale: input.locale,
         message: input.message,
         history: input.history,
@@ -538,7 +540,7 @@ export async function handleChat(
     }
 
     runtimeStage = "retrieval";
-    const { results } = await dependencies.retriever.search(parsed.message, {
+    const { route, results } = await dependencies.retriever.search(parsed.message, {
       locale: parsed.locale,
       limit: 8,
     });
@@ -546,6 +548,7 @@ export async function handleChat(
     return sseResponse(
       createAnswerStream({
         locale: parsed.locale,
+        scope: route.scope,
         results,
         visitorKey,
         message: parsed.message,

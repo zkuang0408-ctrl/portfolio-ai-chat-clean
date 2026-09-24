@@ -6,6 +6,7 @@ import { describe, expect, test, vi } from "vitest";
 import generatedIndex from "../knowledge/generated-index.json";
 import type { GeneratedKnowledgeIndex, KnowledgeChunk } from "../knowledge/types";
 import type { Retriever } from "../retrieval/retriever";
+import type { QueryScope } from "../retrieval/query-routing";
 import type { ChatProvider, ProviderEvent } from "./chat-types";
 import { DeepSeekProviderError } from "./deepseek-provider";
 import type { RateLimitStore } from "./rate-limit";
@@ -123,13 +124,14 @@ function dependencies(options: {
   retrievalError?: Error;
   runtimeFailureThrows?: boolean;
   allowedOrigins?: readonly string[];
+  scope?: QueryScope;
 } = {}): ChatHandlerDependencies {
   const retriever: Retriever = {
     search: vi.fn(async () => {
       if (options.retrievalError) throw options.retrievalError;
       return {
         route: {
-          scope: "project" as const,
+          scope: options.scope ?? "project",
           normalizedQuery: "tell me about inkseat",
           queryTerms: ["inkseat"],
           projectIds: ["inkseat"],
@@ -184,6 +186,45 @@ function dependencies(options: {
 }
 
 describe("handleChat", () => {
+  test("passes the retriever-owned portfolio scope into the grounded prompt", async () => {
+    let capturedSystem = "";
+    const provider: ChatProvider = {
+      async *stream({ system }) {
+        capturedSystem = system;
+        yield { type: "delta", text: "作品概览 [[S1]]" };
+        yield { type: "done" };
+      },
+    };
+    const deps = dependencies({ scope: "portfolio-overview", provider });
+
+    const response = await handleChat(
+      request({ message: "你做了什么？", history: [], sessionId: "session_123", locale: "zh" }),
+      deps,
+    );
+    await response.text();
+
+    expect(capturedSystem).toContain("SERVER_QUERY_SCOPE: portfolio-overview");
+  });
+
+  test("does not call the provider for an unsupported private scope", async () => {
+    const provider = providerFromAttempts([]);
+    const deps = dependencies({
+      scope: "unsupported-private",
+      results: [],
+      provider,
+    });
+
+    const response = await handleChat(
+      request({ message: "你的工资是多少？", history: [], sessionId: "session_123", locale: "zh" }),
+      deps,
+    );
+    const events = await readEvents(response);
+
+    expect(provider.calls).toBe(0);
+    expect(events.some(({ event }) => event === "source")).toBe(false);
+    expect(events.map(({ event }) => event)).toEqual(["start", "delta", "sources", "done"]);
+  });
+
   test("derives an anonymous visitor key from the validated session", async () => {
     const deps = dependencies();
     const response = await handleChat(request(), deps);
