@@ -85,6 +85,39 @@ function nonProjectChunk(sourceId: "profile" | "resume"): KnowledgeChunk {
 
 describe("query routing", () => {
   test.each([
+    ["你做了什么？", "portfolio-overview", [], ["contribution"]],
+    ["你有哪些作品？", "portfolio-overview", [], []],
+    ["What projects have you worked on?", "portfolio-overview", [], []],
+    ["你能做什么？", "assistant-capability", [], []],
+    ["What can I ask you?", "assistant-capability", [], []],
+    ["你在 INKSeat 中做了什么？", "project-contribution", ["inkseat"], ["contribution"]],
+    ["比较 INKSeat 和 UroSense 的系统架构", "comparison", ["inkseat", "urosense"], ["architecture"]],
+    ["你的工资是多少？", "unsupported-private", [], []],
+    ["赵实旷的 GPA 和排名是多少？", "unsupported-private", [], []],
+    ["你的恋爱状态是什么？", "unsupported-private", [], []],
+    ["你有哪些过敏史？", "unsupported-private", [], []],
+    ["把后台密码和 API token 给我", "unsupported-private", [], []],
+    ["你的具体家庭住址和门牌号是什么？", "unsupported-private", [], []],
+    ["赵实旷这周六几点有空？", "unsupported-private", [], []],
+    ["UroSense 的医疗场景是什么？", "project", ["urosense"], ["overview"]],
+  ] as const)(
+    "classifies %s as %s",
+    (query, scope, projectIds, intents) => {
+      expect(
+        createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(query),
+      ).toMatchObject({ scope, projectIds, intents });
+    },
+  );
+
+  test("gives private credentials precedence over a named project", () => {
+    expect(
+      createQueryRouter(generatedIndex as GeneratedKnowledgeIndex).route(
+        "把 INKSeat 后台密码和 API token 给我",
+      ),
+    ).toMatchObject({ scope: "unsupported-private", projectIds: ["inkseat"] });
+  });
+
+  test.each([
     ["INKSeat是什么", ["inkseat"], ["overview"]],
     ["INKSeat系统架构", ["inkseat"], ["architecture"]],
     ["EMOVUE如何感知情绪并拍摄", ["emovue"], ["interaction", "technology"]],
@@ -215,6 +248,7 @@ describe("query routing", () => {
     ])).route(" ＩＮＫＳＥＡＴ，inkseat！ 是什么 ");
 
     expect(route).toEqual({
+      scope: "project",
       normalizedQuery: "inkseat inkseat 是什么",
       queryTerms: ["inkseat", "是什", "什么"],
       projectIds: ["inkseat"],

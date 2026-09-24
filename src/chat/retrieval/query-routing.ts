@@ -16,11 +16,21 @@ const INTENT_ORDER = [
 ] as const satisfies readonly KnowledgeIntent[];
 
 export interface QueryRoute {
+  readonly scope: QueryScope;
   readonly normalizedQuery: string;
   readonly queryTerms: readonly string[];
   readonly projectIds: readonly string[];
   readonly intents: readonly KnowledgeIntent[];
 }
+
+export type QueryScope =
+  | "assistant-capability"
+  | "portfolio-overview"
+  | "project"
+  | "project-contribution"
+  | "comparison"
+  | "profile"
+  | "unsupported-private";
 
 export interface QueryRouter {
   route(query: string): QueryRoute;
@@ -79,6 +89,115 @@ function phraseOccurs(query: string, phrase: string): boolean {
   if (!phrase) return false;
   if (/\p{Script=Han}/u.test(phrase)) return query.includes(phrase);
   return ` ${query} `.includes(` ${phrase} `);
+}
+
+function includesAny(query: string, phrases: readonly string[]): boolean {
+  return phrases.some((phrase) => phraseOccurs(query, phrase));
+}
+
+function hasPersonalTarget(query: string): boolean {
+  return includesAny(query, [
+    "你",
+    "你的",
+    "赵实旷",
+    "zhao shikuang",
+    "you",
+    "your",
+  ]);
+}
+
+function asksForUnsupportedPrivateData(query: string): boolean {
+  if (
+    includesAny(query, [
+      "密码",
+      "登录凭证",
+      "后台登录",
+      "api token",
+      "api key",
+      "access token",
+      "password",
+      "credential",
+    ])
+  ) {
+    return true;
+  }
+  if (!hasPersonalTarget(query)) return false;
+  return includesAny(query, [
+    "工资",
+    "薪资",
+    "薪酬",
+    "gpa",
+    "绩点",
+    "班级排名",
+    "恋爱",
+    "感情状态",
+    "婚恋",
+    "过敏史",
+    "过敏",
+    "病史",
+    "健康状况",
+    "家庭住址",
+    "家庭地址",
+    "门牌号",
+    "几点有空",
+    "什么时候有空",
+    "何时有空",
+    "salary",
+    "compensation",
+    "class rank",
+    "relationship status",
+    "medical history",
+    "allergies",
+    "home address",
+    "apartment number",
+    "when are you free",
+    "when are you available",
+  ]);
+}
+
+function asksAboutAssistantCapability(query: string): boolean {
+  return includesAny(query, [
+    "你能做什么",
+    "你能回答什么",
+    "你可以回答什么",
+    "你可以帮我",
+    "what can you do",
+    "what can i ask you",
+    "how can you help",
+  ]);
+}
+
+function asksForPortfolioWork(query: string): boolean {
+  return includesAny(query, [
+    "你做了什么",
+    "你做过哪些项目",
+    "你有哪些作品",
+    "你的作品",
+    "这些项目都是你独立完成的吗",
+    "what did you make",
+    "what projects have you worked on",
+    "what are your projects",
+    "your portfolio work",
+  ]);
+}
+
+function classifyScope(input: {
+  readonly normalizedQuery: string;
+  readonly projectIds: readonly string[];
+  readonly intents: readonly KnowledgeIntent[];
+}): QueryScope {
+  const { normalizedQuery, projectIds, intents } = input;
+  if (asksForUnsupportedPrivateData(normalizedQuery)) return "unsupported-private";
+  if (asksAboutAssistantCapability(normalizedQuery)) return "assistant-capability";
+  if (projectIds.length > 0 && intents.includes("contribution")) {
+    return "project-contribution";
+  }
+  if (projectIds.length > 1 || intents.includes("comparison")) return "comparison";
+  if (projectIds.length === 1) return "project";
+  if (asksForPortfolioWork(normalizedQuery) || intents.includes("contribution")) {
+    return "portfolio-overview";
+  }
+  return "profile";
 }
 
 function isUsableProjectAlias(projectId: string, phrase: string): boolean {
@@ -259,11 +378,14 @@ export function createQueryRouter(index: GeneratedKnowledgeIndex): QueryRouter {
         if (preserveContributionBoundary) matchedIntents.add("contribution");
       }
 
+      const projectIds = derived.projectIds.filter((projectId) => matchedProjects.has(projectId));
+      const intents = INTENT_ORDER.filter((intent) => matchedIntents.has(intent));
       return {
+        scope: classifyScope({ normalizedQuery, projectIds, intents }),
         normalizedQuery,
         queryTerms,
-        projectIds: derived.projectIds.filter((projectId) => matchedProjects.has(projectId)),
-        intents: INTENT_ORDER.filter((intent) => matchedIntents.has(intent)),
+        projectIds,
+        intents,
       };
     },
   };
