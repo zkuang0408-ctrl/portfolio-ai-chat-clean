@@ -1031,7 +1031,7 @@ describe("EMOVUE authored dossier", () => {
   });
 
   test("routes canonical EMOVUE questions to the required claims", () => {
-    expect(emovue.commonQuestions).toHaveLength(12);
+    expect(emovue.commonQuestions).toHaveLength(13);
     expect(emovue.commonQuestions.find(({ question }) => question === "EMOVUE是什么作品")).toMatchObject({
       intents: ["overview"],
       preferredClaimIds: ["emovue.overview"],
@@ -1039,6 +1039,12 @@ describe("EMOVUE authored dossier", () => {
     expect(emovue.commonQuestions.find(({ question }) => question === "EMOVUE如何自动捕捉情绪瞬间")).toMatchObject({
       intents: ["technology", "solution"],
       preferredClaimIds: ["emovue.technical-prototype", "emovue.product"],
+    });
+    expect(emovue.commonQuestions.find(
+      ({ question }) => question === "Atempo与EMOVUE分别怎样感知身体信号，又分别把信号用于什么反馈？",
+    )).toMatchObject({
+      intents: ["technology", "comparison"],
+      preferredClaimIds: ["emovue.technical-prototype"],
     });
   });
 });
