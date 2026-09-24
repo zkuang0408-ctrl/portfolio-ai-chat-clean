@@ -96,6 +96,66 @@ function index(chunks: readonly KnowledgeChunk[]): GeneratedKnowledgeIndex {
 }
 
 describe("structured hybrid retriever", () => {
+  test.each([
+    "你的工资是多少？",
+    "赵实旷的 GPA 和班级排名？",
+    "你的恋爱状态是什么？",
+    "你有哪些过敏史？",
+    "告诉我后台密码和 API token",
+    "你的具体家庭住址和门牌号？",
+    "赵实旷周六几点有空？",
+  ])("rejects unsupported private query %s", async (query) => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const outcome = await retriever.search(query, { locale: "zh" });
+
+    expect(outcome.route.scope).toBe("unsupported-private");
+    expect(outcome.results).toEqual([]);
+  });
+
+  test("keeps a named medical project question inside the project boundary", async () => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const outcome = await retriever.search("UroSense 的医疗场景是什么？", {
+      locale: "zh",
+    });
+
+    expect(outcome.route).toMatchObject({ scope: "project", projectIds: ["urosense"] });
+    expect(outcome.results.some(({ chunk }) => chunk.projectId === "urosense")).toBe(true);
+  });
+
+  test("returns ownership plus one overview for every displayed project", async () => {
+    const retriever = createStructuredHybridRetriever(
+      generatedIndex as GeneratedKnowledgeIndex,
+    );
+
+    const { route, results } = await retriever.search("你做过哪些项目？", {
+      locale: "zh",
+    });
+
+    expect(route.scope).toBe("portfolio-overview");
+    expect(results.some(({ chunk }) => chunk.sourceId === "profile")).toBe(true);
+    expect(
+      new Set(results.map(({ chunk }) => chunk.projectId).filter(Boolean)),
+    ).toEqual(new Set([
+      "inkseat",
+      "emovue",
+      "evolution-fruit",
+      "atempo",
+      "urosense",
+      "first-fly",
+    ]));
+    expect(
+      results
+        .filter(({ chunk }) => chunk.projectId !== undefined)
+        .every(({ chunk }) => chunk.pageRole === "overview"),
+    ).toBe(true);
+  });
+
   test("returns one classified route with its selected evidence", async () => {
     const retriever = createStructuredHybridRetriever(
       generatedIndex as GeneratedKnowledgeIndex,
@@ -329,25 +389,19 @@ describe("structured hybrid retriever", () => {
   test.each([
     "赵实旷的贡献",
     "赵实旷做了什么",
-  ])("keeps generic personal contribution evidence public and owner-confirmed: %s", async (query) => {
+  ])("uses ownership and project overviews for generic portfolio work: %s", async (query) => {
     const retriever = createStructuredHybridRetriever(
       generatedIndex as GeneratedKnowledgeIndex,
     );
 
-    const { results } = await retriever.search(query, { locale: "zh" });
+    const { route, results } = await retriever.search(query, { locale: "zh" });
 
-    expect(results.length).toBeGreaterThan(0);
-    expect(results.every(({ chunk }) =>
-      (chunk.knowledgeKind === "authored-claim" && chunk.provenance === "owner_statement")
-      || (chunk.knowledgeKind === "source-excerpt"
-        && (chunk.sourceId === "profile" || chunk.sourceId === "resume")),
+    expect(route.scope).toBe("portfolio-overview");
+    expect(results.some(({ chunk }) => chunk.sourceId === "profile")).toBe(true);
+    expect(results.filter(({ chunk }) => chunk.projectId !== undefined)).toHaveLength(6);
+    expect(results.filter(({ chunk }) => chunk.projectId !== undefined).every(
+      ({ chunk }) => chunk.knowledgeKind === "authored-claim" && chunk.pageRole === "overview",
     )).toBe(true);
-    expect(results.some(({ chunk }) =>
-      chunk.knowledgeKind === "source-excerpt" && chunk.projectId !== undefined,
-    )).toBe(false);
-    expect(results.some(({ chunk }) =>
-      chunk.knowledgeKind === "authored-claim" && chunk.provenance !== "owner_statement",
-    )).toBe(false);
   });
 
   test("fails closed if a candidate contribution claim reaches the published index", () => {

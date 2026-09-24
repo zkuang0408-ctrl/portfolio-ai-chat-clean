@@ -32,6 +32,7 @@ const SCORE = {
   overviewRoleForOverview: 8,
   architectureRoleForArchitecture: 8,
   contributionForOtherIntent: -10,
+  scopeSeed: 12,
 } as const;
 
 export interface StructuredProjectRouteDecision {
@@ -109,17 +110,6 @@ const CHINESE_QUERY_STOP_TERMS = new Set([
   "给我",
   "我想",
 ]);
-const PERSON_NAME_TERMS = ["赵实旷", "zhao shikuang", "zhaoshikuang"] as const;
-const PERSONAL_AVAILABILITY_PATTERNS = [
-  /什么时候/u,
-  /何时/u,
-  /几点/u,
-  /有空/u,
-  /有时间/u,
-  /\bwhen\b.*\b(?:available|free)\b/u,
-  /\b(?:available|free)\b/u,
-] as const;
-
 export interface StructuredHybridRetrieverConfig {
   readonly minimumScore?: number;
   readonly maxResults?: number;
@@ -201,13 +191,6 @@ function searchTerms(queryTerms: ReadonlySet<string>): ReadonlySet<string> {
   );
 }
 
-function asksForPrivateScheduling(query: string): boolean {
-  const normalized = normalizeQuestion(query);
-  const mentionsPerson = PERSON_NAME_TERMS.some((term) => normalized.includes(term));
-  if (!mentionsPerson) return false;
-  return PERSONAL_AVAILABILITY_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
 function isAuthoredClaim(
   chunk: KnowledgeChunk,
 ): chunk is AuthoredClaimKnowledgeChunk {
@@ -238,26 +221,37 @@ function containsIntent(
 }
 
 function contributionQuery(route: QueryRoute): boolean {
-  return route.intents.includes("contribution");
+  return route.scope === "project-contribution";
+}
+
+function isOverviewClaimChunk(chunk: KnowledgeChunk): boolean {
+  return (
+    isAuthoredClaim(chunk)
+    && chunk.pageRole === "overview"
+    && chunk.intents.includes("overview")
+  );
 }
 
 function canRetrieve(
   chunk: KnowledgeChunk,
   route: QueryRoute,
 ): boolean {
-  const hasExplicitProjects = route.projectIds.length > 0;
-  const isContribution = contributionQuery(route);
-
-  if (isContribution) {
-    if (isProfileOrResume(chunk)) return true;
-    return (
-      isOwnerStatement(chunk) &&
-      (!hasExplicitProjects || route.projectIds.includes(chunk.projectId))
-    );
+  switch (route.scope) {
+    case "unsupported-private":
+      return false;
+    case "assistant-capability":
+      return chunk.sourceId === "profile";
+    case "portfolio-overview":
+      return chunk.sourceId === "profile" || isOverviewClaimChunk(chunk);
+    case "project-contribution":
+      return isProfileOrResume(chunk)
+        || (isOwnerStatement(chunk) && route.projectIds.includes(chunk.projectId));
+    case "comparison":
+    case "project":
+      return chunk.projectId !== undefined && route.projectIds.includes(chunk.projectId);
+    case "profile":
+      return isProfileOrResume(chunk);
   }
-
-  if (!hasExplicitProjects) return true;
-  return chunk.projectId !== undefined && route.projectIds.includes(chunk.projectId);
 }
 
 function densityScore(chunk: KnowledgeChunk): number {
@@ -292,10 +286,7 @@ function primaryEvidencePageIdentity(chunk: KnowledgeChunk): string | undefined 
 }
 
 function isOverviewClaim(result: SearchResult): boolean {
-  return (
-    isAuthoredClaim(result.chunk) &&
-    result.chunk.pageRole === "overview"
-  );
+  return isOverviewClaimChunk(result.chunk);
 }
 
 function deduplicateClaimText(
@@ -327,6 +318,7 @@ function selectEvidencePacket(
   route: QueryRoute,
   config: ResolvedConfig,
   limit: number,
+  publishedProjectOrder: readonly string[],
 ): readonly SearchResult[] {
   const candidates = deduplicateClaimText(scored);
   const selected: SearchResult[] = [];
@@ -349,6 +341,18 @@ function selectEvidencePacket(
     const pageIdentity = primaryEvidencePageIdentity(result.chunk);
     if (pageIdentity !== undefined) evidencePages.add(pageIdentity);
   };
+
+  if (route.scope === "portfolio-overview") {
+    const profile = candidates.find(({ chunk }) => chunk.sourceId === "profile");
+    if (profile !== undefined) add(profile);
+    for (const projectId of publishedProjectOrder) {
+      if (selected.length >= limit) break;
+      const overview = candidates.find(
+        ({ chunk }) => chunk.projectId === projectId && isOverviewClaimChunk(chunk),
+      );
+      if (overview !== undefined) add(overview);
+    }
+  }
 
   if (
     route.projectIds.length > 0 &&
@@ -441,6 +445,13 @@ export function createStructuredHybridRetriever(
   assertNoCandidateContribution(index);
   const resolved = resolveConfig(config);
   const router = createQueryRouter(index);
+  const publishedProjectOrder = Object.freeze([
+    ...new Set(
+      index.chunks
+        .filter(isAuthoredClaim)
+        .map(({ projectId }) => projectId),
+    ),
+  ]);
   const indexedChunks: readonly IndexedChunk[] = index.chunks.map((chunk) => {
     const bodyTerms = termsAsSet(chunk.text);
     return {
@@ -486,10 +497,7 @@ export function createStructuredHybridRetriever(
     async search(query: string, options: SearchOptions): Promise<RetrievalOutcome> {
       void options.locale;
       const route = router.route(query);
-      // A portfolio corpus cannot establish a person's live availability.
-      // Keep private scheduling requests outside the retrieval boundary even
-      // when they contain a public name that appears in the source material.
-      if (asksForPrivateScheduling(query)) return { route, results: [] };
+      if (route.scope === "unsupported-private") return { route, results: [] };
       if (!route.normalizedQuery) return { route, results: [] };
       const queryTerms = searchTerms(termsAsSet(query));
       const scored: SearchResult[] = [];
@@ -548,8 +556,14 @@ export function createStructuredHybridRetriever(
         // path, while this fail-closed boundary guarantees that even unusually
         // strong lexical overlap cannot revive another project's PDF evidence.
         if (!projectRoute.eligible) continue;
+        const requiredScopeSeed =
+          (route.scope === "portfolio-overview"
+            && (indexed.chunk.sourceId === "profile" || isOverviewClaimChunk(indexed.chunk)))
+          || (route.scope === "assistant-capability" && indexed.chunk.sourceId === "profile");
+        if (requiredScopeSeed) score += SCORE.scopeSeed;
         if (
           !isRoutedProject &&
+          !requiredScopeSeed &&
           !hasLexicalSignal &&
           matchingIntentCount === 0 &&
           !hasExactQuestionAlias
@@ -591,7 +605,13 @@ export function createStructuredHybridRetriever(
       if (limit === 0) return { route, results: [] };
       return {
         route,
-        results: selectEvidencePacket(scored, route, resolved, limit),
+        results: selectEvidencePacket(
+          scored,
+          route,
+          resolved,
+          limit,
+          publishedProjectOrder,
+        ),
       };
     },
   };
