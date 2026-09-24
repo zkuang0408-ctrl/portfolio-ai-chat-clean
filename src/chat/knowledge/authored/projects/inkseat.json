@@ -934,6 +934,17 @@
       ]
     },
     {
+      "question": "如果航司不想重新装完整椅背娱乐屏，INKSeat提供了哪一层能力？",
+      "locale": "zh",
+      "intents": [
+        "solution",
+        "value"
+      ],
+      "preferredClaimIds": [
+        "inkseat.solution"
+      ]
+    },
+    {
       "question": "赵实旷在INKSeat中做了什么",
       "locale": "zh",
       "intents": [

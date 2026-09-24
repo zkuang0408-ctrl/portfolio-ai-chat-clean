@@ -142,6 +142,7 @@ function asksForUnsupportedPrivateData(query: string): boolean {
     "几点有空",
     "什么时候有空",
     "何时有空",
+    "有时间",
     "salary",
     "compensation",
     "class rank",

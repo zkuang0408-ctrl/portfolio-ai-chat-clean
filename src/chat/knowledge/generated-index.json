@@ -1,5 +1,5 @@
 {
-  "authoredDigest": "5b54546a919056764a8ac0fefe75408b34c83f66d2806acd751054736f7a8103",
+  "authoredDigest": "ee78ee9ce29ef3cf3a569ec2a439b544a9734884306c80a0a798e579fbb69155",
   "chunks": [
     {
       "aliases": [
@@ -14211,7 +14211,8 @@
       "publicHref": "/projects/pdfs/inkseat.pdf",
       "questionAliases": [
         "INKSeat为什么使用电子纸",
-        "Why does INKSeat use e-paper?"
+        "Why does INKSeat use e-paper?",
+        "如果航司不想重新装完整椅背娱乐屏,INKSeat提供了哪一层能力?"
       ],
       "sourceId": "inkseat",
       "tags": [
@@ -14293,7 +14294,26 @@
         "why",
         "does",
         "use",
-        "e-paper"
+        "e-paper",
+        "如果",
+        "果航",
+        "航司",
+        "司不",
+        "不想",
+        "想重",
+        "重新",
+        "新装",
+        "装完",
+        "整椅",
+        "背娱",
+        "娱乐",
+        "乐屏",
+        "提供",
+        "供了",
+        "了哪",
+        "哪一",
+        "层能",
+        "能力"
       ],
       "text": "方案在完整座椅背 IFE 与纯 BYOD 客舱之间增加一层轻量、低功耗、低干扰的信息显示层,用于承载航程、服务与商业内容。",
       "title": "INKSeat"
@@ -16037,7 +16057,8 @@
       "publicHref": "/projects/pdfs/emovue.pdf",
       "questionAliases": [
         "EMOVUE如何自动捕捉情绪瞬间",
-        "How does EMOVUE trigger automatic recording"
+        "How does EMOVUE trigger automatic recording",
+        "Atempo与EMOVUE分别怎样感知身体信号,又分别把信号用于什么反馈?"
       ],
       "sourceId": "emovue",
       "tags": [
@@ -16146,7 +16167,26 @@
         "does",
         "trigger",
         "automatic",
-        "recording"
+        "recording",
+        "atempo",
+        "与",
+        "分别",
+        "别怎",
+        "怎样",
+        "样感",
+        "知身",
+        "身体",
+        "体信",
+        "信号",
+        "又分",
+        "别把",
+        "把信",
+        "号用",
+        "用于",
+        "于什",
+        "什么",
+        "么反",
+        "反馈"
       ],
       "text": "作品展示的功能模型以 Arduino 为核心,集成心率、皮肤电与摄像头模块,并按可调阈值判断生理波动后触发拍摄;这证明的是交互触发原型,不代表经过临床验证的情绪识别或准确率。",
       "title": "EMOVUE"
@@ -18266,7 +18306,8 @@
         "How is Atempo's technical architecture organized?",
         "How does Atempo translate respiratory motion into the phase gap between two arcs?",
         "How does Atempo map breathing motion to visual phase feedback?",
-        "Atempo如何把呼吸运动映射为两段圆弧的相位差"
+        "Atempo如何把呼吸运动映射为两段圆弧的相位差",
+        "Atempo与EMOVUE分别怎样感知身体信号,又分别把信号用于什么反馈?"
       ],
       "sourceId": "atempo",
       "tags": [
@@ -18436,7 +18477,24 @@
         "圆弧",
         "弧的",
         "的相",
-        "位差"
+        "位差",
+        "与",
+        "emovue",
+        "分别",
+        "别怎",
+        "怎样",
+        "样感",
+        "知身",
+        "身体",
+        "体信",
+        "信号",
+        "又分",
+        "别把",
+        "把信",
+        "号用",
+        "用于",
+        "于什",
+        "么反"
       ],
       "text": "数据转译逻辑包含四层:毫米波雷达感知胸腔微动并估计呼吸频率与稳定性;系统比较当前节律与 0.1 Hz 目标的距离和趋势;当前呼吸映射为动态弧线、目标节律映射为稳定弧线,并以错位、速度和距离表达靠近程度;当波动减小且持续接近目标时,弧线趋于同步并进入稳定光效。",
       "title": "Atempo"

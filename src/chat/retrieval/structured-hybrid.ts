@@ -250,7 +250,7 @@ function canRetrieve(
     case "project":
       return chunk.projectId !== undefined && route.projectIds.includes(chunk.projectId);
     case "profile":
-      return isProfileOrResume(chunk);
+      return true;
   }
 }
 
@@ -341,6 +341,27 @@ function selectEvidencePacket(
     const pageIdentity = primaryEvidencePageIdentity(result.chunk);
     if (pageIdentity !== undefined) evidencePages.add(pageIdentity);
   };
+
+  if (route.scope === "comparison") {
+    const semanticIntents = route.intents.filter((intent) => intent !== "comparison");
+    for (const projectId of route.projectIds) {
+      if (selected.length >= limit) break;
+      const projectCandidates = candidates.filter(
+        ({ chunk }) => chunk.projectId === projectId,
+      );
+      const exactQuestion = projectCandidates.find(({ chunk }) =>
+        chunk.questionAliases.some(
+          (question) => normalizeQuestion(question) === route.normalizedQuery,
+        ),
+      );
+      const intentRelevant = projectCandidates.find(({ chunk }) =>
+        isAuthoredClaim(chunk)
+        && semanticIntents.some((intent) => chunk.intents.includes(intent)),
+      );
+      const selectedForProject = exactQuestion ?? intentRelevant ?? projectCandidates[0];
+      if (selectedForProject !== undefined) add(selectedForProject);
+    }
+  }
 
   if (route.scope === "portfolio-overview") {
     const profile = candidates.find(({ chunk }) => chunk.sourceId === "profile");

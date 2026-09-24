@@ -377,6 +377,7 @@
     { "question": "How does Atempo translate respiratory motion into the phase gap between two arcs?", "locale": "en", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
     { "question": "How does Atempo map breathing motion to visual phase feedback?", "locale": "en", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
     { "question": "Atempo如何把呼吸运动映射为两段圆弧的相位差", "locale": "zh", "intents": ["architecture", "interaction", "technology"], "preferredClaimIds": ["atempo.data-translation"] },
+    { "question": "Atempo与EMOVUE分别怎样感知身体信号，又分别把信号用于什么反馈？", "locale": "zh", "intents": ["technology", "comparison"], "preferredClaimIds": ["atempo.data-translation"] },
     { "question": "赵实旷在Atempo中做了什么", "locale": "zh", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] },
     { "question": "What was Zhao Shikuang's contribution to Atempo?", "locale": "en", "intents": ["contribution"], "preferredClaimIds": ["atempo.core-contributor"] }
   ]
