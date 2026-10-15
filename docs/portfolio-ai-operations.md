@@ -36,6 +36,10 @@ Use separate Preview and Production Redis databases or namespaces so smoke traff
 
 The source résumé must remain outside the repository. Set `RESUME_SOURCE` only for the current shell, then reconstruct the public derivative. The sanitizer verifies the approved source digest and refuses unexpected input.
 
+The current approved source is the résumé supplied on 2026-10-15 (SHA-256 `390AA68C9D38A19BCCA836F00611D5FD6EEE99765250CA4DAEB48EC4675DA412`). Its contact block occupies PDF coordinates `(0, 380, 152, 590)`. Keep the original outside the repository; publish only the audited derivative. The block below it contains the portfolio heading and QR code and must remain visible.
+
+The website résumé is maintained in `profile.resumeSections` in `src/content/portfolio.ts`. Those same reviewed public lines feed the assistant's structured profile and résumé sources in `src/chat/knowledge/manifest.ts`; regenerate the knowledge index after a résumé update. The one-page résumé uses that reviewed transcript instead of OCR text, with the public PDF still used for its source digest and page citation. Canonical validation rejects an index whose résumé transcript no longer matches the reviewed text. The 600-question evaluation, 89.1% (482/541) evidence hit rate, awards, and commercial-model estimate are statements from the supplied résumé, not results newly measured by the website's test suite. The commercial estimate remains explicitly described as a model calculation. The public PDF retains only the approved Gmail contact; private source contact details are not added to the knowledge index.
+
 PowerShell / Windows:
 
 ```powershell

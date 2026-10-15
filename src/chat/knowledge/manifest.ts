@@ -12,6 +12,9 @@ const profileStructuredText = [
     .join("；")}`,
   "作品归属：网站展示的六个项目均为赵实旷参与并完成的作品集项目；团队项目不代表赵实旷独立完成；具体个人职责仅以本人确认的公开资料为准。",
   "AI 助手能力：AI 助手仅回答公开作品集与公开简历中有依据的问题，来源链接可跳转到相关作品或页面；不访问私密、实时或外部个人信息。",
+  ...profile.resumeSections.map(
+    ({ title, lines }) => `公开简历（2026-10-15 核对）：${title}\n${lines.join("\n")}`,
+  ),
 ].join("\n");
 
 const projectAliases: Readonly<Record<string, readonly string[]>> = {
@@ -74,6 +77,9 @@ export const knowledgeSources: readonly KnowledgeSource[] = [
     title: `${profile.name} · Resume`,
     aliases: [profile.name, "Zhao Shikuang", "简历", "Resume"],
     tags: ["工业设计", "AI+", "公开简历"],
+    structuredText: profile.resumeSections
+      .map(({ title, lines }) => `${title}\n${lines.join("\n")}`)
+      .join("\n"),
     filePath: "public/documents/zhao-shikuang-resume-public.pdf",
     publicHref: "/documents/zhao-shikuang-resume-public.pdf",
     pageCount: 1,

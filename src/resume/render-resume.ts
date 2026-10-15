@@ -19,7 +19,7 @@ export function renderResume(profile: Profile, portraitUrl: string): string {
           <p class="resume-entry__label">${escapeHtml(section.label)}</p>
           <h3>${escapeHtml(section.title)}</h3>
           <ul>
-            ${section.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+            ${(section.summaryLines ?? section.lines).map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
           </ul>
         </section>
       `,

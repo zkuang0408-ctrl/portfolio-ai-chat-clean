@@ -499,7 +499,12 @@ export function chunkExtractedPages(
   }
 
   const chunks: SourceExcerptKnowledgeChunk[] = [];
-  const sortedPages = [...pages].sort((left, right) => left.page - right.page);
+  // A reviewed one-page resume transcript avoids reintroducing OCR typos.
+  // Canonical index validation uses this same path to reject stale transcripts.
+  const sortedPages: readonly ExtractedPage[] =
+    source.kind === "resume" && source.pageCount === 1 && source.structuredText
+      ? [{ page: 1, text: source.structuredText, method: "structured" }]
+      : [...pages].sort((left, right) => left.page - right.page);
   for (const extractedPage of sortedPages) {
     chunks.push(...chunkSourcePage(source, extractedPage, pageKnowledge, {
       chunkCharacters,
@@ -1058,11 +1063,12 @@ function validatePageChunkShape(
     }
   });
 
-  if (chunks.length < 2) return;
+  const hasReviewedResume = source.kind === "resume" && source.structuredText;
+  if (chunks.length < 2 && !hasReviewedResume) return;
   for (let index = 0; index < chunks.length; index += 1) {
     const characters = Array.from(chunks[index]!.text);
     const isFinal = index === chunks.length - 1;
-    if (isFinal && characters.length <= DEFAULT_OVERLAP_CHARACTERS) {
+    if (chunks.length > 1 && isFinal && characters.length <= DEFAULT_OVERLAP_CHARACTERS) {
       throw new Error(`Invalid final chunk length: ${chunks[index]!.id}`);
     }
     if (index > 0) {

@@ -97,7 +97,38 @@ def add_hidden_payload(
 
 class SanitizeResumeTests(unittest.TestCase):
     def test_redaction_rect_ends_at_sidebar_boundary(self) -> None:
-        self.assertEqual(PRIVATE_CONTACT_RECT, fitz.Rect(0, 420, 154, 630))
+        self.assertEqual(PRIVATE_CONTACT_RECT, fitz.Rect(0, 380, 152, 590))
+
+    def test_preserves_the_latest_resume_portfolio_heading_below_contact_block(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "source.pdf"
+            output_path = Path(temp_dir) / "public.pdf"
+            with fitz.open() as document:
+                page = document.new_page(width=595, height=842)
+                page.draw_rect(fitz.Rect(20, 600, 130, 620), color=None, fill=(1, 0, 0))
+                document.save(source_path)
+            sanitize_resume(
+                source_path, output_path, PUBLIC_EMAIL,
+                expected_sha256=sha256(source_path),
+            )
+            with fitz.open(output_path) as sanitized:
+                rendered = sanitized[0].get_pixmap(colorspace=fitz.csRGB, alpha=False)
+                self.assertEqual(rendered.pixel(50, 610), (255, 0, 0))
+
+    def test_audit_does_not_read_bitmap_bytes_as_hidden_email_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "bitmap.pdf"
+            pixels = bytearray([255]) * (1785 * 2526 * 3)
+            marker = b" random@example.invalid "
+            pixels[1000:1000 + len(marker)] = marker
+            bitmap = fitz.Pixmap(fitz.csRGB, 1785, 2526, bytes(pixels), False)
+            with fitz.open() as document:
+                page = document.new_page(width=595, height=842)
+                page.insert_image(page.rect, pixmap=bitmap)
+                page.insert_text((16, 446), PUBLIC_EMAIL)
+                document.set_metadata({})
+                document.save(output_path, garbage=4, clean=True, deflate=True)
+            audit_public_resume(output_path)
 
     def test_rejects_unapproved_or_multiline_public_email(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

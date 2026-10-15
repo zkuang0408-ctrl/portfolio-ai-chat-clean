@@ -40,3 +40,25 @@ test("keeps restricted resume details out of public content", () => {
   expect(profile.resumeHref).toBe("/documents/zhao-shikuang-resume-public.pdf");
   expect(profile.resumeSections.length).toBeGreaterThan(3);
 });
+
+test("matches the October 2026 resume instead of stale education and practice copy", () => {
+  const text = profile.resumeSections.flatMap(({ title, lines }) => [title, ...lines]).join("\n");
+
+  expect(text).toContain("27届应届生");
+  expect(text).toContain("求职意向：产品经理、产品设计");
+  expect(text).not.toContain("大三");
+  expect(text).not.toContain("安徽超材料设计");
+  expect(text).toContain("安踏网球鞋超材料设计");
+  expect(text).toContain("企校合作设计师");
+  expect(text).toContain("2026.01—2026.08");
+  expect(text).toContain("腾讯互娱市场与用户研究部（i-MUR）");
+  expect(text).toContain("2025.10—2026.03");
+  expect(text).toContain("AI作品集助手");
+  expect(text).toContain("482/541");
+  expect(text).toContain("89.1%");
+  expect(text).toContain("180座单机商业模型");
+  expect(text).toContain("35.8万元");
+  expect(text).toContain("全国三等奖");
+  expect(text).toContain("全国决赛一等奖");
+  expect(text).toContain("Grasshopper");
+});

@@ -12,10 +12,10 @@ import tempfile
 import fitz
 
 
-PRIVATE_CONTACT_RECT = fitz.Rect(0, 420, 154, 630)
-SIDEBAR_GRAY = (0.23, 0.23, 0.23)
+PRIVATE_CONTACT_RECT = fitz.Rect(0, 380, 152, 590)
+SIDEBAR_GRAY = (59 / 255, 59 / 255, 59 / 255)
 APPROVED_PUBLIC_EMAIL = "zkuang0408@gmail.com"
-APPROVED_SOURCE_SHA256 = "A964335B8E8FC2AC475A850381B0A8346F4F63CF50F15652030C477D7A7368BA"
+APPROVED_SOURCE_SHA256 = "390AA68C9D38A19BCCA836F00611D5FD6EEE99765250CA4DAEB48EC4675DA412"
 A4_WIDTH = 595.0
 A4_HEIGHT = 842.0
 A4_TOLERANCE = 2.0
@@ -71,7 +71,8 @@ def _pdf_payload(document: fitz.Document, raw_bytes: bytes) -> bytes:
     return bytes(payload)
 
 
-def _phone_search_payload(document: fitz.Document) -> str:
+def _contact_search_payload(document: fitz.Document) -> str:
+    """Inspect textual PDF payloads without interpreting bitmap bytes as text."""
     page_content_xrefs = {
         xref
         for page_number in range(document.page_count)
@@ -138,12 +139,12 @@ def audit_public_resume(
         if FORBIDDEN_PDF_NAME_PATTERN.search(payload):
             raise ValueError("The public resume contains a forbidden hidden PDF token.")
 
-        payload_text = payload.decode("latin-1", errors="ignore")
+        payload_text = _contact_search_payload(document)
         emails = set(EMAIL_PATTERN.findall(payload_text))
         if emails != {APPROVED_PUBLIC_EMAIL}:
             raise ValueError("The public resume email set is not approved.")
 
-        phone_payload = _phone_search_payload(document).replace(APPROVED_PUBLIC_EMAIL, "")
+        phone_payload = payload_text.replace(APPROVED_PUBLIC_EMAIL, "")
         if PHONE_PATTERN.search(phone_payload):
             raise ValueError("The public resume contains a phone-like contact value.")
 
@@ -182,9 +183,9 @@ def _build_public_document(source_page: fitz.Page, public_email: str) -> fitz.Do
         public_document.close()
         raise ValueError("The approved public email does not fit the contact block.")
 
-    page.insert_text((16, 450), "CONTACT", fontsize=9, fontname="helv", color=(1, 1, 1))
-    page.insert_text((16, 478), "Email:", fontsize=8, fontname="helv", color=(1, 1, 1))
-    page.insert_text((16, 494), public_email, fontsize=8, fontname="helv", color=(1, 1, 1))
+    page.insert_text((16, 402), "CONTACT", fontsize=9, fontname="helv", color=(1, 1, 1))
+    page.insert_text((16, 430), "Email:", fontsize=8, fontname="helv", color=(1, 1, 1))
+    page.insert_text((16, 446), public_email, fontsize=8, fontname="helv", color=(1, 1, 1))
     public_document.set_metadata({})
     public_document.del_xml_metadata()
     return public_document

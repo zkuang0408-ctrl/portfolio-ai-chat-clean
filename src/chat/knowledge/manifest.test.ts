@@ -86,3 +86,18 @@ test("publishes the approved portfolio ownership and assistant capability bounda
     "来源链接可跳转到相关作品或页面",
   );
 });
+
+test("keeps the assistant's public resume facts aligned with the displayed resume", () => {
+  const text = knowledgeSources.find(({ id }) => id === "profile")?.structuredText;
+  const resumeText = knowledgeSources.find(({ id }) => id === "resume")?.structuredText;
+  for (const section of profile.resumeSections) {
+    for (const line of section.lines) {
+      expect(text).toContain(line);
+      expect(resumeText).toContain(line);
+    }
+  }
+  expect(text).toContain("安踏网球鞋超材料设计");
+  expect(text).not.toContain("安徽超材料设计");
+  expect(resumeText).toContain("89.1%");
+  expect(resumeText).not.toContain("89.19%");
+});

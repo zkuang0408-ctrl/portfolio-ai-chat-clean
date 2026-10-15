@@ -579,6 +579,31 @@ describe("page-bounded chunk generation", () => {
 });
 
 describe("digests and search terms", () => {
+  test("uses reviewed resume text instead of OCR errors and detects later text changes", () => {
+    const source: KnowledgeSource = {
+      id: "resume",
+      kind: "resume",
+      title: "Public Resume",
+      aliases: ["简历"],
+      tags: ["AI"],
+      filePath: "public/documents/zhao-shikuang-resume-public.pdf",
+      publicHref: "/documents/zhao-shikuang-resume-public.pdf",
+      pageCount: 1,
+      structuredText: "安踏网球鞋超材料设计；严格证据命中率89.1%（482/541）。",
+    };
+    const pages = new Map([["resume", [page(1, "安徽；错误数字89.19%。")]]]);
+    const result = canonicalIndex([source], pages);
+
+    expect(result.chunks[0]?.text).toBe(source.structuredText!.normalize("NFKC"));
+    expect(result.chunks[0]?.publicHref).toBe(source.publicHref);
+    expect(result.chunks[0]?.page).toBe(1);
+    expect(() => validateIndex(
+      result,
+      [{ ...source, structuredText: "更新后的已核对简历事实。" }],
+      result.sourceDigests,
+    )).toThrow("Invalid canonical chunk progression: resume:p1");
+  });
+
   test("computes SHA-256 for file bytes and deterministic profile text", () => {
     const fileBytes = Buffer.from([0, 1, 2, 255]);
     const structuredProfile = "姓名：公开资料\n方向：AI Product";
